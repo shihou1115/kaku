@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:hamamatsu-syuppan.com)",
+      "WebFetch(domain:hakogaki-editor.com)"
+    ]
+  }
+}
