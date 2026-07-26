@@ -73,9 +73,38 @@ body,
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 240px 1fr 360px;
-  gap: 8px;
+  /* 列構成は App.tsx から指定する(ドラッグでリサイズするため) */
+  gap: 0;
   padding: 8px;
+}
+
+/* ペイン境界。ドラッグで幅を変える */
+.splitter {
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  touch-action: none;
+}
+
+.splitter::after {
+  content: "";
+  position: absolute;
+  inset: 6px 2px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background 0.12s;
+}
+
+.splitter:hover::after,
+.splitter:active::after {
+  background: var(--accent);
+  opacity: 0.35;
+}
+
+/* ドラッグ中はテキスト選択とカーソルのちらつきを止める */
+body.resizing {
+  cursor: col-resize;
+  user-select: none;
 }
 
 .pane {
@@ -89,9 +118,132 @@ body,
   overflow: hidden;
 }
 
-.pane.left,
-.pane.right {
+.pane.left {
   overflow-y: auto;
+}
+
+.pane.right {
+  overflow: hidden;
+}
+
+/* ===== 右ペインのタブ ===== */
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+button.tab {
+  flex: 1;
+  border: none;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  padding: 7px 8px;
+  font-size: 12px;
+  color: var(--muted);
+  background: none;
+}
+
+button.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+.tab-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* ===== 参照タブ ===== */
+
+.reference-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.ref-picker {
+  display: flex;
+  gap: 4px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.ref-picker select {
+  flex: 1;
+  min-width: 0;
+}
+
+.ref-head {
+  padding: 8px 10px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ref-path {
+  font-size: 10px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ref-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 8px 10px 10px;
+  padding: 8px;
+  background: #f4f6f8;
+  border-radius: 4px;
+  font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", sans-serif;
+  font-size: 12.5px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ref-hint {
+  padding: 12px 10px;
+}
+
+.ref-hint kbd {
+  background: #eef1f4;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 4px;
+  font-size: 10px;
+}
+
+/* ===== 保存状態チップ ===== */
+
+.savechip {
+  font-size: 10px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  color: var(--muted);
+  background: #eef1f4;
+  border: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.savechip.dirty {
+  color: #a8500a;
+  background: #fff4e6;
+  border-color: #ffd8a8;
+  font-weight: 600;
+}
+
+button.toggled {
+  background: #e7f1f4;
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .pane.center {
@@ -254,6 +406,11 @@ body,
   margin-bottom: 4px;
   background: rgba(56, 139, 253, 0.14);
   border: 1px solid rgba(56, 139, 253, 0.4);
+  cursor: pointer;
+}
+
+.chip:hover {
+  background: rgba(56, 139, 253, 0.26);
 }
 
 .manual-list {

@@ -20,9 +20,17 @@ type Props = {
   mentionedPaths: string[];
   codex: CodexEntry[];
   disabled: boolean;
+  /** 設定の中身を参照タブで開く */
+  onShowReference: (path: string) => void;
 };
 
-export function AiPanel({ body, mentionedPaths, codex, disabled }: Props) {
+export function AiPanel({
+  body,
+  mentionedPaths,
+  codex,
+  disabled,
+  onShowReference,
+}: Props) {
   const [settings, setSettings] = useState<AiSettings | null>(null);
   const [models, setModels] = useState<string[]>([]);
   const [connState, setConnState] = useState("未接続");
@@ -173,9 +181,14 @@ export function AiPanel({ body, mentionedPaths, codex, disabled }: Props) {
           <p className="empty">本文中にcodexの名前が見つかりません。</p>
         )}
         {mentioned.map((c) => (
-          <div key={c.path} className="chip auto" title={c.path}>
+          <button
+            key={c.path}
+            className="chip auto"
+            title={`${c.path}(クリックで中身を見る)`}
+            onClick={() => onShowReference(c.path)}
+          >
             {c.title}
-          </div>
+          </button>
         ))}
         <details>
           <summary>手動で追加({manual.length})</summary>

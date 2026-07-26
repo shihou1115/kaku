@@ -36,6 +36,8 @@ type Props = {
   readOnly: boolean;
   onChange: (text: string) => void;
   onSaveRequest: () => void;
+  /** ハイライトされた語を Ctrl/Cmd+クリックしたとき(参照ペインで開く) */
+  onMentionActivate: (name: string) => void;
   handleRef: EditorHandle;
 };
 
@@ -59,6 +61,7 @@ export function Editor({
   readOnly,
   onChange,
   onSaveRequest,
+  onMentionActivate,
   handleRef,
 }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -66,8 +69,8 @@ export function Editor({
   const readOnlyComp = useRef(new Compartment());
   const extensionsRef = useRef<Extension[]>([]);
   // 最新のコールバックを参照する(エディタ自体は作り直さない)
-  const cbRef = useRef({ onChange, onSaveRequest });
-  cbRef.current = { onChange, onSaveRequest };
+  const cbRef = useRef({ onChange, onSaveRequest, onMentionActivate });
+  cbRef.current = { onChange, onSaveRequest, onMentionActivate };
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -95,6 +98,18 @@ export function Editor({
       highlightTheme,
       editorTheme,
       readOnlyComp.current.of(EditorState.readOnly.of(false)),
+      // 設定名の Ctrl/Cmd+クリックで参照を開く(「定義へ移動」と同じ操作感)。
+      // 素のクリックはカーソル移動のままにして、執筆の邪魔をしない
+      EditorView.domEventHandlers({
+        mousedown(e) {
+          if (!e.ctrlKey && !e.metaKey) return false;
+          const el = (e.target as HTMLElement | null)?.closest(".cm-mention");
+          if (!el?.textContent) return false;
+          e.preventDefault();
+          cbRef.current.onMentionActivate(el.textContent);
+          return true;
+        },
+      }),
       EditorView.updateListener.of((u) => {
         if (u.docChanged) cbRef.current.onChange(u.state.doc.toString());
       }),

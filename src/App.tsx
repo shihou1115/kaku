@@ -1,25 +1,88 @@
 /**
  * MVP(M1)の本体。3ペイン構成。
  *
- * 実装範囲は docs/05-roadmap.md §2 の6要素:
- *  1. CM6でファイルを開いて編集・保存  2. ファイルツリー  3. codex名ハイライト
- *  4. AI相談(送信内容を事前提示)      5. 保存時1世代バックアップ(Rust側)
- *  6. ファイル内検索(Ctrl+F)
+ * 2026-07-26 ドッグフーディングの指摘を反映:
+ *  - 保存忘れによる編集内容の消失 → **自動保存**(入力が止まった時/ファイル切替時/フォーカスを失った時)
+ *  - ペース配分をユーザーが決められるよう **境界のドラッグでリサイズ**
+ *  - 右ペインは常時表示ではなく **開閉可能**。AI専用にせず **参照タブ** を持つ
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { api, type CodexEntry, type OpenedProject } from "./api";
 import { Editor, type EditorHandle } from "./editor/Editor";
 import { findMentions } from "./editor/mentions";
 import { FileTree } from "./components/FileTree";
 import { AiPanel } from "./components/AiPanel";
 import { NewFileDialog } from "./components/NewFileDialog";
+import { ReferencePane } from "./components/ReferencePane";
 import "./App.css";
 
 /** テンプレートを使わない場合の中身 */
 const PLAIN_SCENE = "---\ntitle: \n---\n\n";
 const PLAIN_CODEX = "---\ntitle: \naliases: []\n---\n\n";
+
+/** 入力が止まってから自動保存するまで */
+const AUTOSAVE_DELAY_MS = 1200;
+
+const LS = {
+  leftW: "kaku.leftW",
+  rightW: "kaku.rightW",
+  rightOpen: "kaku.rightOpen",
+  rightTab: "kaku.rightTab",
+};
+
+function storedNum(key: string, fallback: number): number {
+  const v = Number(localStorage.getItem(key));
+  return Number.isFinite(v) && v > 0 ? v : fallback;
+}
+
+const clamp = (v: number, lo: number, hi: number) =>
+  Math.min(hi, Math.max(lo, v));
+
+/**
+ * 境界のドラッグ用。
+ *
+ * ドラッグ中は window でイベントを受ける。6pxの細い帯からポインタが外れても
+ * 追従を切らさないため(素早く動かすと必ず外れる)。
+ */
+function Splitter({ onDrag }: { onDrag: (dx: number) => void }) {
+  const last = useRef(0);
+  const cb = useRef(onDrag);
+  cb.current = onDrag;
+
+  const begin = useCallback((clientX: number) => {
+    last.current = clientX;
+    const move = (ev: PointerEvent) => {
+      const dx = ev.clientX - last.current;
+      last.current = ev.clientX;
+      if (dx !== 0) cb.current(dx);
+    };
+    const end = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      document.body.classList.remove("resizing");
+    };
+    document.body.classList.add("resizing");
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end);
+  }, []);
+
+  return (
+    <div
+      className="splitter"
+      role="separator"
+      aria-orientation="vertical"
+      onPointerDown={(e) => {
+        e.preventDefault();
+        begin(e.clientX);
+      }}
+    />
+  );
+}
+
+type RightTab = "ai" | "ref";
 
 export default function App() {
   const handleRef = useRef<EditorHandle>({
@@ -36,11 +99,37 @@ export default function App() {
   const [modifiedMs, setModifiedMs] = useState(0);
   const [status, setStatus] = useState("");
   const [highlightEnabled, setHighlightEnabled] = useState(true);
-  /** 新規作成ダイアログを出しているフォルダ */
   const [newFileDir, setNewFileDir] = useState<string | null>(null);
+
+  // ペインの幅と開閉
+  const [leftW, setLeftW] = useState(() => storedNum(LS.leftW, 240));
+  const [rightW, setRightW] = useState(() => storedNum(LS.rightW, 360));
+  const [rightOpen, setRightOpen] = useState(
+    () => localStorage.getItem(LS.rightOpen) !== "0",
+  );
+  const [rightTab, setRightTab] = useState<RightTab>(
+    () => (localStorage.getItem(LS.rightTab) as RightTab) || "ai",
+  );
+
+  // 参照ペインの表示対象
+  const [refPath, setRefPath] = useState<string | null>(null);
+  const [refText, setRefText] = useState("");
 
   const dirty = text !== savedText;
   const codex: CodexEntry[] = project?.codex ?? [];
+
+  useEffect(() => {
+    localStorage.setItem(LS.leftW, String(leftW));
+  }, [leftW]);
+  useEffect(() => {
+    localStorage.setItem(LS.rightW, String(rightW));
+  }, [rightW]);
+  useEffect(() => {
+    localStorage.setItem(LS.rightOpen, rightOpen ? "1" : "0");
+  }, [rightOpen]);
+  useEffect(() => {
+    localStorage.setItem(LS.rightTab, rightTab);
+  }, [rightTab]);
 
   /** codexの正式名+別名をまとめたハイライト対象 */
   const patterns = useMemo(
@@ -48,7 +137,7 @@ export default function App() {
     [codex],
   );
 
-  /** 本文に実際に登場したエントリ(AIへ渡す候補) */
+  /** 本文に実際に登場したエントリ */
   const mentionedPaths = useMemo(() => {
     if (patterns.length === 0 || !text) return [];
     const names = new Set(findMentions(text, patterns).map((m) => m.name));
@@ -57,7 +146,98 @@ export default function App() {
       .map((c) => c.path);
   }, [text, patterns, codex]);
 
+  // ===== 保存 =====
+
+  // 保存処理から最新値を読むための箱(依存で関数を作り直さない)
+  const live = useRef({ currentPath, text, savedText });
+  live.current = { currentPath, text, savedText };
+  /** 実行中の保存。切替時はこれを待ってから次に進む */
+  const inflight = useRef<Promise<void> | null>(null);
+
+  /** 未保存なら保存する。silent=true なら控えめに通知する */
+  const flushSave = useCallback(async (silent: boolean): Promise<void> => {
+    // 実行中の保存があれば必ず待つ(待たずに切り替えると保存が取りこぼされる)
+    if (inflight.current) await inflight.current;
+    const { currentPath: p, text: t, savedText: s } = live.current;
+    if (!p || t === s) return;
+
+    const task = (async () => {
+      try {
+        const ms = await api.saveFile(p, t);
+        // 保存中に別ファイルへ移っていたら、その画面の状態は触らない
+        if (live.current.currentPath === p) {
+          setSavedText(t);
+          setModifiedMs(ms);
+        }
+        setStatus(
+          `${silent ? "自動保存" : "保存"}しました(${new Date().toLocaleTimeString()})`,
+        );
+      } catch (e) {
+        setStatus(`保存に失敗しました: ${e}`);
+      }
+    })();
+    inflight.current = task;
+    try {
+      await task;
+    } finally {
+      if (inflight.current === task) inflight.current = null;
+    }
+  }, []);
+
+  /** 明示的な保存。ツリーの表示名やcodexの別名も更新する */
+  const saveNow = useCallback(async () => {
+    await flushSave(false);
+    try {
+      setProject(await api.refreshProject());
+    } catch {
+      /* 一覧の更新に失敗しても保存自体は済んでいる */
+    }
+  }, [flushSave]);
+
+  // 入力が止まったら自動保存する(保存前に1世代のバックアップが残る)
+  useEffect(() => {
+    if (!currentPath || !dirty) return;
+    const t = setTimeout(() => void flushSave(true), AUTOSAVE_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [text, dirty, currentPath, flushSave]);
+
+  // ウィンドウからフォーカスが外れたら保存(別アプリで作業して戻る流れを守る)
+  useEffect(() => {
+    const onBlur = () => void flushSave(true);
+    window.addEventListener("blur", onBlur);
+    return () => window.removeEventListener("blur", onBlur);
+  }, [flushSave]);
+
+  // 閉じる操作でも取りこぼさない。保存を待ってからウィンドウを破棄する
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    try {
+      const w = getCurrentWindow();
+      void w
+        .onCloseRequested(async (e) => {
+          if (live.current.text === live.current.savedText && !inflight.current) {
+            return;
+          }
+          e.preventDefault();
+          await flushSave(true);
+          await w.destroy();
+        })
+        .then((f) => {
+          unlisten = f;
+        })
+        .catch(() => {
+          /* 権限が無い等。閉じる動作自体は妨げない */
+        });
+    } catch {
+      // Tauri 外(ブラウザで開いた開発時)ではウィンドウAPIが無い
+    }
+    return () => unlisten?.();
+  }, [flushSave]);
+
+  // ===== ファイル操作 =====
+
   const openProject = useCallback(async () => {
+    await flushSave(true);
     const picked = await openDialog({
       directory: true,
       title: "小説プロジェクトのフォルダを選ぶ(空フォルダなら新規作成)",
@@ -69,17 +249,18 @@ export default function App() {
       setCurrentPath(null);
       setText("");
       setSavedText("");
+      setRefPath(null);
+      setRefText("");
       setStatus(`「${p.name}」を開きました`);
     } catch (e) {
       setStatus(String(e));
     }
-  }, []);
+  }, [flushSave]);
 
   const openFile = useCallback(
     async (path: string) => {
-      if (dirty && !confirm("未保存の変更があります。破棄して開きますか?")) {
-        return;
-      }
+      // 切り替え前に必ず保存する(ここが編集内容を失う最大の場面だった)
+      await flushSave(true);
       try {
         const f = await api.readFile(path);
         setCurrentPath(f.path);
@@ -88,27 +269,18 @@ export default function App() {
         setModifiedMs(f.modified_ms);
         handleRef.current.load(f.text);
         setStatus("");
+        // 別名やタイトルの変更をハイライトへ反映する
+        try {
+          setProject(await api.refreshProject());
+        } catch {
+          /* noop */
+        }
       } catch (e) {
         setStatus(String(e));
       }
     },
-    [dirty],
+    [flushSave],
   );
-
-  const save = useCallback(async () => {
-    if (!currentPath) return;
-    try {
-      const ms = await api.saveFile(currentPath, text);
-      setSavedText(text);
-      setModifiedMs(ms);
-      setStatus(`保存しました(${new Date().toLocaleTimeString()})`);
-      // タイトル変更やcodex追加を反映する
-      const p = await api.refreshProject();
-      setProject(p);
-    } catch (e) {
-      setStatus(String(e));
-    }
-  }, [currentPath, text]);
 
   const createFile = useCallback(
     async (
@@ -124,7 +296,6 @@ export default function App() {
         try {
           content = await api.renderTemplate(genre, kind, title);
         } catch (e) {
-          // テンプレートが壊れていても新規作成は止めない
           setStatus(`テンプレートを使えませんでした(${e})`);
           content = dirPath.startsWith("codex") ? PLAIN_CODEX : PLAIN_SCENE;
         }
@@ -146,45 +317,84 @@ export default function App() {
     [openFile],
   );
 
-  /** 外部編集の検知: 常駐監視はせず、ウィンドウにフォーカスが戻った時だけ確認する */
+  // ===== 参照ペイン =====
+
+  const showReference = useCallback(async (path: string) => {
+    try {
+      const f = await api.readFile(path);
+      setRefPath(path);
+      setRefText(f.text);
+      setRightOpen(true);
+      setRightTab("ref");
+    } catch (e) {
+      setStatus(String(e));
+    }
+  }, []);
+
+  /** 本文中の設定名を Ctrl+クリックしたとき */
+  const activateMention = useCallback(
+    (name: string) => {
+      const hit = codex.find((c) => c.title === name || c.aliases.includes(name));
+      if (hit) void showReference(hit.path);
+    },
+    [codex, showReference],
+  );
+
+  // 参照中のファイルを編集した場合に備え、保存後は読み直す
+  useEffect(() => {
+    if (refPath && refPath === currentPath) setRefText(savedText);
+  }, [savedText, refPath, currentPath]);
+
+  // ===== 外部編集の検知(常駐監視はせず、フォーカス復帰時のみ) =====
+
   useEffect(() => {
     const onFocus = async () => {
-      if (!currentPath) return;
+      const p = live.current.currentPath;
+      if (!p) return;
       try {
-        const ms = await api.fileModifiedMs(currentPath);
+        const ms = await api.fileModifiedMs(p);
         if (ms === modifiedMs) return;
-        if (dirty) {
+        if (live.current.text !== live.current.savedText) {
           setStatus(
-            "このファイルはアプリ外で変更されました。未保存の変更があるため自動では読み込みません(別名で保存するか、破棄して開き直してください)",
+            "このファイルはアプリ外で変更されました。未保存の変更があるため自動では読み込みません",
           );
           return;
         }
-        const f = await api.readFile(currentPath);
+        const f = await api.readFile(p);
         setText(f.text);
         setSavedText(f.text);
         setModifiedMs(f.modified_ms);
         handleRef.current.load(f.text);
         setStatus("アプリ外の変更を読み込みました");
       } catch {
-        /* ファイルが消えた等。次の操作でエラーを出す */
+        /* ファイルが消えた等。次の操作でエラーになる */
       }
     };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, [currentPath, modifiedMs, dirty]);
+  }, [modifiedMs]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
         e.preventDefault();
-        void save();
+        void saveNow();
+      }
+      // Ctrl+\ で右ペインの開閉
+      if ((e.ctrlKey || e.metaKey) && e.key === "\\") {
+        e.preventDefault();
+        setRightOpen((v) => !v);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [save]);
+  }, [saveNow]);
 
   const charCount = text.replace(/\s/g, "").length;
+
+  const gridTemplate = rightOpen
+    ? `${leftW}px 6px 1fr 6px ${rightW}px`
+    : `${leftW}px 6px 1fr`;
 
   return (
     <div className="app">
@@ -192,10 +402,16 @@ export default function App() {
         <div className="title">
           <strong>{project ? project.name : "AI小説執筆支援ツール"}</strong>
           {currentPath && (
-            <span className="path">
-              {currentPath}
-              {dirty && " *"}
-            </span>
+            <>
+              <span className="path">{currentPath}</span>
+              <button
+                className={`savechip${dirty ? " dirty" : ""}`}
+                onClick={saveNow}
+                title="クリックで保存(Ctrl+S)。入力が止まると自動でも保存します"
+              >
+                {dirty ? "未保存" : "保存済み"}
+              </button>
+            </>
           )}
         </div>
         <div className="tools">
@@ -209,8 +425,12 @@ export default function App() {
           </label>
           <span className="count">{charCount}字</span>
           <button onClick={() => handleRef.current.openSearch()}>検索</button>
-          <button onClick={save} disabled={!currentPath || !dirty}>
-            保存
+          <button
+            className={rightOpen ? "toggled" : ""}
+            onClick={() => setRightOpen((v) => !v)}
+            title="右ペインの表示切替(Ctrl+\)"
+          >
+            {rightOpen ? "▶ 閉じる" : "◀ 参照/AI"}
           </button>
           <button className="primary" onClick={openProject}>
             プロジェクトを開く
@@ -218,7 +438,7 @@ export default function App() {
         </div>
       </header>
 
-      <div className="main">
+      <div className="main" style={{ gridTemplateColumns: gridTemplate }}>
         <aside className="pane left">
           <FileTree
             tree={project?.tree ?? []}
@@ -228,6 +448,8 @@ export default function App() {
             onCreate={setNewFileDir}
           />
         </aside>
+
+        <Splitter onDrag={(dx) => setLeftW((w) => clamp(w + dx, 160, 480))} />
 
         <section className="pane center">
           {!project && (
@@ -249,20 +471,57 @@ export default function App() {
               highlightEnabled={highlightEnabled}
               readOnly={!currentPath}
               onChange={setText}
-              onSaveRequest={save}
+              onSaveRequest={saveNow}
+              onMentionActivate={activateMention}
               handleRef={handleRef.current}
             />
           </div>
         </section>
 
-        <aside className="pane right">
-          <AiPanel
-            body={text}
-            mentionedPaths={mentionedPaths}
-            codex={codex}
-            disabled={!project}
-          />
-        </aside>
+        {rightOpen && (
+          <>
+            <Splitter
+              onDrag={(dx) => setRightW((w) => clamp(w - dx, 260, 700))}
+            />
+            <aside className="pane right">
+              <div className="tabs">
+                <button
+                  className={rightTab === "ai" ? "tab active" : "tab"}
+                  onClick={() => setRightTab("ai")}
+                >
+                  AI相談
+                </button>
+                <button
+                  className={rightTab === "ref" ? "tab active" : "tab"}
+                  onClick={() => setRightTab("ref")}
+                >
+                  参照
+                </button>
+              </div>
+              <div className="tab-body">
+                {rightTab === "ai" ? (
+                  <AiPanel
+                    body={text}
+                    mentionedPaths={mentionedPaths}
+                    codex={codex}
+                    disabled={!project}
+                    onShowReference={showReference}
+                  />
+                ) : (
+                  <ReferencePane
+                    codex={codex}
+                    mentionedPaths={mentionedPaths}
+                    refPath={refPath}
+                    refText={refText}
+                    onSelect={showReference}
+                    onOpenInEditor={(p) => void openFile(p)}
+                    onClose={() => setRightOpen(false)}
+                  />
+                )}
+              </div>
+            </aside>
+          </>
+        )}
       </div>
 
       {newFileDir !== null && (
