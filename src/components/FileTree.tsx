@@ -8,6 +8,7 @@ type Props = {
   currentPath: string | null;
   dirty: boolean;
   onOpen: (path: string) => void;
+  /** 新規作成の要求。実際の作成はダイアログで条件を決めてから行う */
   onCreate: (dirPath: string) => void;
 };
 

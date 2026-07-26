@@ -9,6 +9,7 @@ pub mod context;
 pub mod frontmatter;
 pub mod mentions;
 pub mod project;
+pub mod templates;
 
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -155,6 +156,35 @@ fn file_modified_ms(path: String, state: State<AppState>) -> Result<u64, String>
     project::modified_ms(&root, &path).map_err(to_msg)
 }
 
+// ===== テンプレート =====
+
+/// 利用可能なテンプレート一覧(ユーザーが足したジャンルも含む)
+#[tauri::command]
+fn list_templates() -> Result<Vec<templates::TemplateInfo>, String> {
+    templates::ensure_defaults().map_err(|e| e.to_string())?;
+    templates::list().map_err(|e| e.to_string())
+}
+
+/// テンプレートを適用した新規ファイルの中身を返す
+#[tauri::command]
+fn render_template(genre: String, kind: String, title: String) -> Result<String, String> {
+    templates::render(&genre, &kind, &title).map_err(|e| {
+        format!("テンプレートを読めませんでした({genre}/{kind}): {e}")
+    })
+}
+
+/// テンプレート置き場をエクスプローラで開く(ユーザーが自由に編集・追加できる)
+#[tauri::command]
+fn open_templates_dir(app: tauri::AppHandle) -> Result<String, String> {
+    use tauri_plugin_opener::OpenerExt;
+    templates::ensure_defaults().map_err(|e| e.to_string())?;
+    let dir = templates::templates_dir();
+    app.opener()
+        .open_path(dir.to_string_lossy().to_string(), None::<&str>)
+        .map_err(|e| e.to_string())?;
+    Ok(dir.to_string_lossy().to_string())
+}
+
 // ===== 言及検出 =====
 
 /// 本文から codex の名前・別名の出現箇所を返す(M-02)。
@@ -291,6 +321,9 @@ pub fn run() {
             save_file,
             create_file,
             file_modified_ms,
+            list_templates,
+            render_template,
+            open_templates_dir,
             find_mentions,
             get_ai_settings,
             set_ai_settings,

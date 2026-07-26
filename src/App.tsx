@@ -14,10 +14,12 @@ import { Editor, type EditorHandle } from "./editor/Editor";
 import { findMentions } from "./editor/mentions";
 import { FileTree } from "./components/FileTree";
 import { AiPanel } from "./components/AiPanel";
+import { NewFileDialog } from "./components/NewFileDialog";
 import "./App.css";
 
-const NEW_SCENE = "---\ntitle: \n---\n\n";
-const NEW_CODEX = "---\ntitle: \naliases: []\n---\n\n";
+/** テンプレートを使わない場合の中身 */
+const PLAIN_SCENE = "---\ntitle: \n---\n\n";
+const PLAIN_CODEX = "---\ntitle: \naliases: []\n---\n\n";
 
 export default function App() {
   const handleRef = useRef<EditorHandle>({
@@ -34,6 +36,8 @@ export default function App() {
   const [modifiedMs, setModifiedMs] = useState(0);
   const [status, setStatus] = useState("");
   const [highlightEnabled, setHighlightEnabled] = useState(true);
+  /** 新規作成ダイアログを出しているフォルダ */
+  const [newFileDir, setNewFileDir] = useState<string | null>(null);
 
   const dirty = text !== savedText;
   const codex: CodexEntry[] = project?.codex ?? [];
@@ -107,19 +111,28 @@ export default function App() {
   }, [currentPath, text]);
 
   const createFile = useCallback(
-    async (dirPath: string) => {
-      const name = prompt(
-        `${dirPath} に作るファイル名(.md は省略可)`,
-        dirPath.startsWith("codex") ? "新しい設定" : "01-新しいシーン",
-      );
-      if (!name) return;
-      const file = name.endsWith(".md") ? name : `${name}.md`;
-      const path = `${dirPath}/${file}`;
+    async (
+      dirPath: string,
+      fileName: string,
+      genre: string | null,
+      kind: string | null,
+    ) => {
+      const path = `${dirPath}/${fileName}`;
+      const title = fileName.replace(/\.md$/, "");
+      let content: string;
+      if (genre && kind) {
+        try {
+          content = await api.renderTemplate(genre, kind, title);
+        } catch (e) {
+          // テンプレートが壊れていても新規作成は止めない
+          setStatus(`テンプレートを使えませんでした(${e})`);
+          content = dirPath.startsWith("codex") ? PLAIN_CODEX : PLAIN_SCENE;
+        }
+      } else {
+        content = dirPath.startsWith("codex") ? PLAIN_CODEX : PLAIN_SCENE;
+      }
       try {
-        const created = await api.createFile(
-          path,
-          dirPath.startsWith("codex") ? NEW_CODEX : NEW_SCENE,
-        );
+        const created = await api.createFile(path, content);
         if (!created) {
           setStatus("同名のファイルが既にあります");
           return;
@@ -212,7 +225,7 @@ export default function App() {
             currentPath={currentPath}
             dirty={dirty}
             onOpen={openFile}
-            onCreate={createFile}
+            onCreate={setNewFileDir}
           />
         </aside>
 
@@ -251,6 +264,18 @@ export default function App() {
           />
         </aside>
       </div>
+
+      {newFileDir !== null && (
+        <NewFileDialog
+          dirPath={newFileDir}
+          onCancel={() => setNewFileDir(null)}
+          onCreate={(fileName, genre, kind) => {
+            const dir = newFileDir;
+            setNewFileDir(null);
+            void createFile(dir, fileName, genre, kind);
+          }}
+        />
+      )}
 
       <footer className="status">{status}</footer>
     </div>

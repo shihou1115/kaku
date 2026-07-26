@@ -54,6 +54,11 @@ export type ContextPreview = {
   total_chars: number;
 };
 
+export type TemplateInfo = {
+  genre: string;
+  kind: string;
+};
+
 export type AiSettings = {
   base_url: string;
   api_key: string | null;
@@ -76,6 +81,10 @@ export const api = {
     invoke<boolean>("create_file", { path, text }),
   fileModifiedMs: (path: string) =>
     invoke<number>("file_modified_ms", { path }),
+  listTemplates: () => invoke<TemplateInfo[]>("list_templates"),
+  renderTemplate: (genre: string, kind: string, title: string) =>
+    invoke<string>("render_template", { genre, kind, title }),
+  openTemplatesDir: () => invoke<string>("open_templates_dir"),
   findMentions: (text: string, patterns: string[]) =>
     invoke<RustMention[]>("find_mentions", { text, patterns }),
   getAiSettings: () => invoke<AiSettings>("get_ai_settings"),

@@ -26,6 +26,7 @@ serde_json = "1"
 # 言及検出(M-02の骨格): codexの名前+別名を一括マルチパターン照合する
 aho-corasick = "1"
 thiserror = "1"
+dirs = "5"
 # AI接続(M-07): OpenAI互換API。uggg の llm.rs を参考にする
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream"] }
 tokio = { version = "1", features = ["sync", "macros", "rt", "time"] }
