@@ -54,5 +54,17 @@ cargo test --manifest-path src-tauri/Cargo.toml
 
 ## 現在地
 
-**M0(Week 1)**: 雛形+PoC#1(CodeMirror 6 × Windows日本語IME × 単純ハイライト)を実施中。
-PoC#1の判定が出るまでMVP実装には進まない(ここの失敗はアーキテクチャに波及するため)。
+- **M0 完了**(2026-07-26): PoC#1合格(8/8)。CodeMirror 6を確定。対応ラダーは発動せず
+- **M1 実装完了・ドッグフーディング待ち**: MVP 6要素を実装済み。次は**1万字書いて体験メモを残す**こと。その結果でM2の優先順位を決める
+
+コード構成:
+
+| 場所 | 役割 |
+|---|---|
+| `src-tauri/src/project.rs` | プロジェクトの読み書き・保存前バックアップ・パス検証 |
+| `src-tauri/src/frontmatter.rs` | 寛容パース。**再シリアライズしない**ので未知フィールドは壊れない |
+| `src-tauri/src/mentions.rs` | aho-corasickの言及検出。UTF-16位置換算あり |
+| `src-tauri/src/ai.rs` | OpenAI互換の薄いクライアント(send/stream/models) |
+| `src-tauri/src/context.rs` | AIへ渡す3系統の組み立て+システムプロンプト |
+| `src/editor/` | CodeMirror 6本体とハイライト |
+| `src/components/` | ツリー・AIパネル |
