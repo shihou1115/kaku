@@ -1,0 +1,104 @@
+/** Rust側コマンドの型付きラッパー。UIから直接 invoke を呼ばない。 */
+
+import { invoke, Channel } from "@tauri-apps/api/core";
+
+export type TreeNode = {
+  path: string;
+  name: string;
+  is_dir: boolean;
+  title: string | null;
+  children: TreeNode[];
+};
+
+export type CodexEntry = {
+  path: string;
+  title: string;
+  aliases: string[];
+  type_: string | null;
+  description: string | null;
+};
+
+export type OpenedProject = {
+  root: string;
+  name: string;
+  tree: TreeNode[];
+  codex: CodexEntry[];
+};
+
+export type FileContent = {
+  path: string;
+  text: string;
+  modified_ms: number;
+};
+
+export type RustMention = {
+  name: string;
+  start_byte: number;
+  end_byte: number;
+  start_utf16: number;
+  end_utf16: number;
+};
+
+export type ContextEntry = {
+  path: string;
+  title: string;
+  source: "mention" | "manual";
+  text: string;
+};
+
+export type ContextPreview = {
+  body: string;
+  body_truncated: boolean;
+  entries: ContextEntry[];
+  dropped_entries: number;
+  total_chars: number;
+};
+
+export type AiSettings = {
+  base_url: string;
+  api_key: string | null;
+  model: string;
+  temperature: number;
+};
+
+export type ChatEvent =
+  | { kind: "Delta"; value: string }
+  | { kind: "Done" }
+  | { kind: "Error"; value: string };
+
+export const api = {
+  openProject: (path: string) => invoke<OpenedProject>("open_project", { path }),
+  refreshProject: () => invoke<OpenedProject>("refresh_project"),
+  readFile: (path: string) => invoke<FileContent>("read_file", { path }),
+  saveFile: (path: string, text: string) =>
+    invoke<number>("save_file", { path, text }),
+  createFile: (path: string, text: string) =>
+    invoke<boolean>("create_file", { path, text }),
+  fileModifiedMs: (path: string) =>
+    invoke<number>("file_modified_ms", { path }),
+  findMentions: (text: string, patterns: string[]) =>
+    invoke<RustMention[]>("find_mentions", { text, patterns }),
+  getAiSettings: () => invoke<AiSettings>("get_ai_settings"),
+  setAiSettings: (settings: AiSettings) =>
+    invoke<void>("set_ai_settings", { settings }),
+  listModels: () => invoke<string[]>("list_models"),
+  buildContext: (
+    body: string,
+    mentionedPaths: string[],
+    manualPaths: string[],
+  ) =>
+    invoke<ContextPreview>("build_context", {
+      body,
+      mentionedPaths,
+      manualPaths,
+    }),
+  askAi: (
+    context: ContextPreview,
+    question: string,
+    onEvent: (e: ChatEvent) => void,
+  ) => {
+    const channel = new Channel<ChatEvent>();
+    channel.onmessage = onEvent;
+    return invoke<void>("ask_ai", { context, question, onEvent: channel });
+  },
+};

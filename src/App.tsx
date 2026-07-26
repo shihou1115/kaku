@@ -1,265 +1,258 @@
 /**
- * PoC#1 検証ハーネス(M0 / docs/05-roadmap.md)。
+ * MVP(M1)の本体。3ペイン構成。
  *
- * 目的: CodeMirror 6 が Windows 日本語 IME で実用に耐えるかを判定する。
- * 合格条件(docs/04-design.md §7-1):
- *   ① 素の状態での日本語長文入力が安定すること
- *   ② codex名ハイライト(単純装飾)が載った文字列上での IME 変換が崩れないこと
- *
- * このハーネス自体は製品コードではない。判定が済んだら MVP 実装に置き換える。
+ * 実装範囲は docs/05-roadmap.md §2 の6要素:
+ *  1. CM6でファイルを開いて編集・保存  2. ファイルツリー  3. codex名ハイライト
+ *  4. AI相談(送信内容を事前提示)      5. 保存時1世代バックアップ(Rust側)
+ *  6. ファイル内検索(Ctrl+F)
  */
 
-import { useCallback, useMemo, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { Editor, type EditorHandle } from "./poc/Editor";
-import { findMentions } from "./poc/mentions";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { api, type CodexEntry, type OpenedProject } from "./api";
+import { Editor, type EditorHandle } from "./editor/Editor";
+import { findMentions } from "./editor/mentions";
+import { FileTree } from "./components/FileTree";
+import { AiPanel } from "./components/AiPanel";
 import "./App.css";
 
-const SAMPLE_TEXT = `　転校初日の朝は、雨だった。
-　佐藤架純は昇降口で靴を履き替えながら、傘の水滴が上履きに落ちるのを見ていた。県立青葉高校の廊下は、前の学校よりずっと薄暗い。
-「……最悪」
-　小さくつぶやいたその声に、誰かが振り向いた気配がした。五十嵐悠二だった。彼は架純を一瞥すると、何も言わずに歩き去っていく。
-　かすみんと呼ばれていたのは、もう遠い町の話だ。ここでは誰も、彼女の名前を知らない。
-`;
-
-const SAMPLE_PATTERNS = [
-  "佐藤架純",
-  "架純",
-  "かすみん",
-  "五十嵐悠二",
-  "悠二",
-  "県立青葉高校",
-];
-
-const CHECKLIST = [
-  { id: "c1", label: "①素の状態(ハイライトOFF)で1000字以上を変換入力して、文字の欠落・重複・並び替えが起きない" },
-  { id: "c2", label: "①変換確定後にカーソルが意図した位置に残る(先頭や別行へ飛ばない)" },
-  { id: "c3", label: "①再変換(確定後にもう一度変換)しても本文が壊れない" },
-  { id: "c4", label: "①Ctrl+Z / Ctrl+Y の undo/redo が変換単位で妥当に戻る" },
-  { id: "c5", label: "②ハイライトONで、ハイライトされた語の直後・直前に変換入力しても表示が崩れない" },
-  { id: "c6", label: "②ハイライトされた語の内部にカーソルを置いて変換・削除しても崩れない" },
-  { id: "c7", label: "②変換中(未確定)の文字にハイライトが誤って掛からない/ちらつかない" },
-  { id: "c8", label: "②長文(サンプルを10回追加)でも入力の体感遅延がない" },
-];
-
-type Metrics = {
-  compositionStart: number;
-  compositionEnd: number;
-  docChanges: number;
-  docLength: number;
-  mentionCount: number;
-};
+const NEW_SCENE = "---\ntitle: \n---\n\n";
+const NEW_CODEX = "---\ntitle: \naliases: []\n---\n\n";
 
 export default function App() {
-  const handleRef = useRef<EditorHandle>({ view: null });
-  const [patternText, setPatternText] = useState(SAMPLE_PATTERNS.join("\n"));
-  const [highlightEnabled, setHighlightEnabled] = useState(true);
-  const [hideWhileComposing, setHideWhileComposing] = useState(false);
-  const [metrics, setMetrics] = useState<Metrics>({
-    compositionStart: 0,
-    compositionEnd: 0,
-    docChanges: 0,
-    docLength: SAMPLE_TEXT.length,
-    mentionCount: 0,
+  const handleRef = useRef<EditorHandle>({
+    view: null,
+    load: () => {},
+    openSearch: () => {},
+    scrollTo: () => {},
   });
-  const [checked, setChecked] = useState<Record<string, boolean | null>>({});
-  const [note, setNote] = useState("");
-  const [rustCheck, setRustCheck] = useState<string>("未実行");
 
+  const [project, setProject] = useState<OpenedProject | null>(null);
+  const [currentPath, setCurrentPath] = useState<string | null>(null);
+  const [text, setText] = useState("");
+  const [savedText, setSavedText] = useState("");
+  const [modifiedMs, setModifiedMs] = useState(0);
+  const [status, setStatus] = useState("");
+  const [highlightEnabled, setHighlightEnabled] = useState(true);
+
+  const dirty = text !== savedText;
+  const codex: CodexEntry[] = project?.codex ?? [];
+
+  /** codexの正式名+別名をまとめたハイライト対象 */
   const patterns = useMemo(
-    () =>
-      patternText
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(Boolean),
-    [patternText],
+    () => codex.flatMap((c) => [c.title, ...c.aliases]),
+    [codex],
   );
 
-  const onDocChange = useCallback(
-    (doc: string, mentionCount: number, docChanged: boolean) => {
-      setMetrics((m) => ({
-        ...m,
-        docChanges: docChanged ? m.docChanges + 1 : m.docChanges,
-        docLength: doc.length,
-        mentionCount,
-      }));
-    },
-    [],
-  );
+  /** 本文に実際に登場したエントリ(AIへ渡す候補) */
+  const mentionedPaths = useMemo(() => {
+    if (patterns.length === 0 || !text) return [];
+    const names = new Set(findMentions(text, patterns).map((m) => m.name));
+    return codex
+      .filter((c) => [c.title, ...c.aliases].some((n) => names.has(n)))
+      .map((c) => c.path);
+  }, [text, patterns, codex]);
 
-  const onComposition = useCallback((kind: "start" | "end") => {
-    setMetrics((m) =>
-      kind === "start"
-        ? { ...m, compositionStart: m.compositionStart + 1 }
-        : { ...m, compositionEnd: m.compositionEnd + 1 },
-    );
-  }, []);
-
-  /** Rust(aho-corasick)とJS実装の検出結果が一致するかを突き合わせる */
-  const compareWithRust = useCallback(async () => {
-    const view = handleRef.current.view;
-    if (!view) return;
-    const text = view.state.doc.toString();
+  const openProject = useCallback(async () => {
+    const picked = await openDialog({
+      directory: true,
+      title: "小説プロジェクトのフォルダを選ぶ(空フォルダなら新規作成)",
+    });
+    if (typeof picked !== "string") return;
     try {
-      const rust = await invoke<
-        { name: string; start_utf16: number; end_utf16: number }[]
-      >("find_mentions", { text, patterns });
-      const js = findMentions(text, patterns);
-      const rKey = rust
-        .map((r) => `${r.start_utf16}-${r.end_utf16}:${r.name}`)
-        .join("|");
-      const jKey = js.map((j) => `${j.from}-${j.to}:${j.name}`).join("|");
-      setRustCheck(
-        rKey === jKey
-          ? `一致 (${rust.length}件) — Rust/JS の位置計算が揃っている`
-          : `不一致!\nRust: ${rKey}\nJS  : ${jKey}`,
-      );
+      const p = await api.openProject(picked);
+      setProject(p);
+      setCurrentPath(null);
+      setText("");
+      setSavedText("");
+      setStatus(`「${p.name}」を開きました`);
     } catch (e) {
-      setRustCheck(`Tauriコマンド呼び出し失敗: ${String(e)}`);
+      setStatus(String(e));
     }
-  }, [patterns]);
-
-  const appendSample = useCallback(() => {
-    const view = handleRef.current.view;
-    if (!view) return;
-    view.dispatch({
-      changes: { from: view.state.doc.length, insert: "\n" + SAMPLE_TEXT },
-    });
   }, []);
 
-  const resultMarkdown = useMemo(() => {
-    const lines = CHECKLIST.map((c) => {
-      const v = checked[c.id];
-      const mark = v === true ? "OK" : v === false ? "NG" : "未";
-      return `- [${mark}] ${c.label}`;
-    });
-    const ngCount = CHECKLIST.filter((c) => checked[c.id] === false).length;
-    const okCount = CHECKLIST.filter((c) => checked[c.id] === true).length;
-    return [
-      "## PoC#1 結果 (CodeMirror 6 × Windows日本語IME)",
-      "",
-      `- 判定: ${
-        ngCount > 0
-          ? "不合格(対応ラダーへ)"
-          : okCount === CHECKLIST.length
-            ? "合格"
-            : "未完了"
-      }`,
-      `- OK ${okCount} / NG ${ngCount} / 未 ${CHECKLIST.length - okCount - ngCount}`,
-      `- 計測: composition開始 ${metrics.compositionStart} / 終了 ${metrics.compositionEnd} / doc変更 ${metrics.docChanges} / 文字数 ${metrics.docLength} / 一致 ${metrics.mentionCount}`,
-      `- Rust照合: ${rustCheck.split("\n")[0]}`,
-      "",
-      ...lines,
-      "",
-      "### メモ",
-      note || "(なし)",
-    ].join("\n");
-  }, [checked, metrics, note, rustCheck]);
+  const openFile = useCallback(
+    async (path: string) => {
+      if (dirty && !confirm("未保存の変更があります。破棄して開きますか?")) {
+        return;
+      }
+      try {
+        const f = await api.readFile(path);
+        setCurrentPath(f.path);
+        setText(f.text);
+        setSavedText(f.text);
+        setModifiedMs(f.modified_ms);
+        handleRef.current.load(f.text);
+        setStatus("");
+      } catch (e) {
+        setStatus(String(e));
+      }
+    },
+    [dirty],
+  );
+
+  const save = useCallback(async () => {
+    if (!currentPath) return;
+    try {
+      const ms = await api.saveFile(currentPath, text);
+      setSavedText(text);
+      setModifiedMs(ms);
+      setStatus(`保存しました(${new Date().toLocaleTimeString()})`);
+      // タイトル変更やcodex追加を反映する
+      const p = await api.refreshProject();
+      setProject(p);
+    } catch (e) {
+      setStatus(String(e));
+    }
+  }, [currentPath, text]);
+
+  const createFile = useCallback(
+    async (dirPath: string) => {
+      const name = prompt(
+        `${dirPath} に作るファイル名(.md は省略可)`,
+        dirPath.startsWith("codex") ? "新しい設定" : "01-新しいシーン",
+      );
+      if (!name) return;
+      const file = name.endsWith(".md") ? name : `${name}.md`;
+      const path = `${dirPath}/${file}`;
+      try {
+        const created = await api.createFile(
+          path,
+          dirPath.startsWith("codex") ? NEW_CODEX : NEW_SCENE,
+        );
+        if (!created) {
+          setStatus("同名のファイルが既にあります");
+          return;
+        }
+        setProject(await api.refreshProject());
+        await openFile(path);
+      } catch (e) {
+        setStatus(String(e));
+      }
+    },
+    [openFile],
+  );
+
+  /** 外部編集の検知: 常駐監視はせず、ウィンドウにフォーカスが戻った時だけ確認する */
+  useEffect(() => {
+    const onFocus = async () => {
+      if (!currentPath) return;
+      try {
+        const ms = await api.fileModifiedMs(currentPath);
+        if (ms === modifiedMs) return;
+        if (dirty) {
+          setStatus(
+            "このファイルはアプリ外で変更されました。未保存の変更があるため自動では読み込みません(別名で保存するか、破棄して開き直してください)",
+          );
+          return;
+        }
+        const f = await api.readFile(currentPath);
+        setText(f.text);
+        setSavedText(f.text);
+        setModifiedMs(f.modified_ms);
+        handleRef.current.load(f.text);
+        setStatus("アプリ外の変更を読み込みました");
+      } catch {
+        /* ファイルが消えた等。次の操作でエラーを出す */
+      }
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [currentPath, modifiedMs, dirty]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        void save();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [save]);
+
+  const charCount = text.replace(/\s/g, "").length;
 
   return (
     <div className="app">
       <header className="app-header">
-        <h1>PoC#1 — CodeMirror 6 × 日本語IME 検証</h1>
-        <p className="sub">
-          M0のゲート。合格条件は「素の状態での日本語長文入力」と「ハイライト装飾上でのIME変換」が崩れないこと。
-        </p>
+        <div className="title">
+          <strong>{project ? project.name : "AI小説執筆支援ツール"}</strong>
+          {currentPath && (
+            <span className="path">
+              {currentPath}
+              {dirty && " *"}
+            </span>
+          )}
+        </div>
+        <div className="tools">
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={highlightEnabled}
+              onChange={(e) => setHighlightEnabled(e.target.checked)}
+            />
+            設定名を強調
+          </label>
+          <span className="count">{charCount}字</span>
+          <button onClick={() => handleRef.current.openSearch()}>検索</button>
+          <button onClick={save} disabled={!currentPath || !dirty}>
+            保存
+          </button>
+          <button className="primary" onClick={openProject}>
+            プロジェクトを開く
+          </button>
+        </div>
       </header>
 
       <div className="main">
-        <section className="pane editor-pane">
-          <div className="pane-head">
-            <strong>本文</strong>
-            <span className="metrics">
-              {metrics.docLength}字 / 一致 {metrics.mentionCount}件 / IME{" "}
-              {metrics.compositionStart}→{metrics.compositionEnd}
-            </span>
-          </div>
-          <Editor
-            initialDoc={SAMPLE_TEXT}
-            patterns={patterns}
-            highlightEnabled={highlightEnabled}
-            hideWhileComposing={hideWhileComposing}
-            onDocChange={onDocChange}
-            onComposition={onComposition}
-            handleRef={handleRef.current}
+        <aside className="pane left">
+          <FileTree
+            tree={project?.tree ?? []}
+            currentPath={currentPath}
+            dirty={dirty}
+            onOpen={openFile}
+            onCreate={createFile}
           />
+        </aside>
+
+        <section className="pane center">
+          {!project && (
+            <div className="empty-state">
+              <h2>プロジェクトを開いてください</h2>
+              <p>
+                空のフォルダを選ぶと manuscript / codex / plot などの構成を作ります。
+                <br />
+                データはすべて普通のMarkdownファイルなので、他のエディタからも編集できます。
+              </p>
+              <button className="primary" onClick={openProject}>
+                フォルダを選ぶ
+              </button>
+            </div>
+          )}
+          <div style={{ display: project ? "contents" : "none" }}>
+            <Editor
+              patterns={patterns}
+              highlightEnabled={highlightEnabled}
+              readOnly={!currentPath}
+              onChange={setText}
+              onSaveRequest={save}
+              handleRef={handleRef.current}
+            />
+          </div>
         </section>
 
-        <aside className="pane side-pane">
-          <div className="block">
-            <h2>操作</h2>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={highlightEnabled}
-                onChange={(e) => setHighlightEnabled(e.target.checked)}
-              />
-              ハイライトを有効にする(②の検証はON、①はOFF)
-            </label>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={hideWhileComposing}
-                onChange={(e) => setHideWhileComposing(e.target.checked)}
-              />
-              IME変換中は装飾を隠す(対応ラダー①の効果確認)
-            </label>
-            <div className="row">
-              <button onClick={appendSample}>サンプル文を末尾に追加</button>
-              <button onClick={compareWithRust}>Rustの検出と照合</button>
-            </div>
-            <pre className="rust-check">{rustCheck}</pre>
-          </div>
-
-          <div className="block">
-            <h2>codex名・別名(1行1件)</h2>
-            <textarea
-              className="patterns"
-              value={patternText}
-              onChange={(e) => setPatternText(e.target.value)}
-              spellCheck={false}
-            />
-            <p className="hint">
-              「佐藤架純」と別名「架純」が両方あっても二重にハイライトされない(最長一致)ことを確認する。
-            </p>
-          </div>
-
-          <div className="block">
-            <h2>チェックリスト</h2>
-            {CHECKLIST.map((c) => (
-              <div key={c.id} className="checkitem">
-                <div className="checkbuttons">
-                  <button
-                    className={checked[c.id] === true ? "ok active" : "ok"}
-                    onClick={() => setChecked((s) => ({ ...s, [c.id]: true }))}
-                  >
-                    OK
-                  </button>
-                  <button
-                    className={checked[c.id] === false ? "ng active" : "ng"}
-                    onClick={() => setChecked((s) => ({ ...s, [c.id]: false }))}
-                  >
-                    NG
-                  </button>
-                </div>
-                <span>{c.label}</span>
-              </div>
-            ))}
-            <textarea
-              className="note"
-              placeholder="気づいたこと(NGの再現手順など)"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-            <button
-              className="primary"
-              onClick={() => navigator.clipboard.writeText(resultMarkdown)}
-            >
-              結果をMarkdownでコピー
-            </button>
-          </div>
+        <aside className="pane right">
+          <AiPanel
+            body={text}
+            mentionedPaths={mentionedPaths}
+            codex={codex}
+            disabled={!project}
+          />
         </aside>
       </div>
+
+      <footer className="status">{status}</footer>
     </div>
   );
 }
