@@ -27,6 +27,9 @@ struct ChatRequest<'a> {
     messages: &'a [ChatMessage],
     temperature: f32,
     stream: bool,
+    /// 構造化出力(経路A)。対応しない接続先には送らない
+    #[serde(skip_serializing_if = "Option::is_none")]
+    response_format: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -100,12 +103,16 @@ pub async fn list_models(base_url: &str, api_key: &Option<String>) -> Result<Vec
 }
 
 /// 単発の chat completion。
+///
+/// `schema` を渡すと構造化出力(経路A)を要求する。対応しないモデルでは
+/// エラーになるため、呼び出し側で経路B(スキーマ無し+寛容パース)へ落とすこと。
 pub async fn chat(
     base_url: &str,
     api_key: &Option<String>,
     model: &str,
     messages: &[ChatMessage],
     temperature: f32,
+    schema: Option<serde_json::Value>,
 ) -> Result<(String, Option<Usage>), String> {
     let url = endpoint(base_url, "chat/completions");
     let body = ChatRequest {
@@ -113,6 +120,7 @@ pub async fn chat(
         messages,
         temperature,
         stream: false,
+        response_format: schema,
     };
     let resp = auth(client().post(&url), api_key)
         .json(&body)
@@ -198,6 +206,7 @@ pub fn stream_request(
         messages,
         temperature,
         stream: true,
+        response_format: None,
     };
     auth(client().post(&url), api_key).json(&body)
 }

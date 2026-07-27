@@ -266,6 +266,96 @@ fn check_notation(
     Ok(proofread::check_notation(&text, &names))
 }
 
+#[derive(Serialize)]
+struct AiProofreadResult {
+    issues: Vec<proofread::AiIssue>,
+    /// 本文が長くて末尾を切り捨てた場合の未検査文字数(0なら全文を見た)
+    unchecked_chars: usize,
+    /// "schema" = 構造化出力が通った / "fallback" = 寛容パースで拾った
+    path: String,
+    model: String,
+}
+
+/// 誤字脱字チェック(M-04-01)。
+///
+/// 経路A(json_schema)で試し、失敗したら経路B(スキーマ無し+寛容パース)へ落とす
+/// (docs/04-design.md §6.3)。どちらで取れたかは結果に含めて可視化する。
+#[tauri::command]
+async fn proofread_ai(
+    text: String,
+    state: State<'_, AppState>,
+) -> Result<AiProofreadResult, String> {
+    let s = state.ai.lock().map_err(|_| "状態の取得に失敗")?.clone();
+    if s.model.trim().is_empty() {
+        return Err("モデルが未設定です。AI相談タブの設定で接続してください".to_string());
+    }
+    let root = root_of(&state)?;
+    let codex = project::load_codex(&root).map_err(to_msg)?;
+    let names: Vec<String> = codex.iter().flat_map(|c| c.patterns()).collect();
+
+    // 長すぎる本文は末尾を落とす。落としたことは呼び出し元へ返す(黙って捨てない)
+    let total = text.chars().count();
+    let (body, unchecked_chars) = if total > proofread::MAX_CHECK_CHARS {
+        (
+            text.chars().take(proofread::MAX_CHECK_CHARS).collect::<String>(),
+            total - proofread::MAX_CHECK_CHARS,
+        )
+    } else {
+        (text.clone(), 0)
+    };
+
+    let messages = vec![
+        ChatMessage {
+            role: "system".into(),
+            content: "あなたは日本語の小説を校正する編集者です。指示に従い、JSONだけを返します。"
+                .into(),
+        },
+        ChatMessage {
+            role: "user".into(),
+            content: proofread::build_prompt(&body, &names),
+        },
+    ];
+
+    // 経路A: 構造化出力
+    let mut path = "schema";
+    let mut raw = match ai::chat(
+        &s.base_url,
+        &s.api_key,
+        &s.model,
+        &messages,
+        0.1,
+        Some(proofread::issue_schema()),
+    )
+    .await
+    {
+        Ok((content, _)) => content,
+        Err(_) => {
+            // 経路B: スキーマ非対応のモデルでも動くよう素の呼び出しへ落とす
+            path = "fallback";
+            ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.1, None)
+                .await?
+                .0
+        }
+    };
+
+    let mut issues = proofread::parse_ai_issues(&raw);
+    // 構造化出力が通ったのに中身が取れない場合も経路Bで測り直す
+    if issues.is_empty() && path == "schema" {
+        path = "fallback";
+        raw = ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.1, None)
+            .await?
+            .0;
+        issues = proofread::parse_ai_issues(&raw);
+    }
+
+    Ok(AiProofreadResult {
+        issues: proofread::resolve_issues(&body, issues),
+        unchecked_chars,
+        path: path.to_string(),
+        model: s.model,
+    })
+}
+
 // ===== AI =====
 
 #[tauri::command]
@@ -404,6 +494,7 @@ pub fn run() {
             open_templates_dir,
             find_mentions,
             check_notation,
+            proofread_ai,
             get_ai_settings,
             set_ai_settings,
             list_models,

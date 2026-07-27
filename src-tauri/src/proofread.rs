@@ -222,6 +222,187 @@ pub fn check_notation(text: &str, names: &[String]) -> Vec<NotationHit> {
     hits
 }
 
+// ===== M-04-01 誤字脱字チェック(LLM) =====
+//
+// 表記ゆれ(上記)と違い、ここはLLMに頼らざるを得ない。
+// ただし**判定材料はできるだけ機械側で用意する**:
+//  - codexの登録名を渡し、固有名詞を「誤字」と誤判定させない
+//  - 引用された箇所が本文に実在するかを機械側で照合する(幻覚の除去)
+
+/// 1件の指摘。位置は保持せず、引用文字列で本文を検索して解決する(D-7)
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct AiIssue {
+    /// 本文からの引用(そのままの表記)
+    pub quote: String,
+    /// 直した形
+    pub suggestion: String,
+    /// 誤字 / 脱字 / 衍字 / 変換ミス / その他
+    pub kind: String,
+    pub reason: String,
+    /// 引用が本文中に見つかったか。見つからないものは幻覚の疑いが強い
+    pub found: bool,
+    /// 見つかった場合の位置(UTF-16)。保存はしない
+    pub start_utf16: Option<usize>,
+    pub end_utf16: Option<usize>,
+}
+
+/// 1回のリクエストで送る本文の上限(文字数)。
+/// 超過分は切り捨て、**切り捨てたことをユーザーに伝える**(黙って落とさない)
+pub const MAX_CHECK_CHARS: usize = 6_000;
+
+/// 構造化出力(経路A)のスキーマ
+pub fn issue_schema() -> serde_json::Value {
+    serde_json::json!({
+        "type": "json_schema",
+        "json_schema": {
+            "name": "proofread_result",
+            "strict": true,
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "issues": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "quote": { "type": "string" },
+                                "suggestion": { "type": "string" },
+                                "kind": { "type": "string" },
+                                "reason": { "type": "string" }
+                            },
+                            "required": ["quote", "suggestion", "kind", "reason"],
+                            "additionalProperties": false
+                        }
+                    }
+                },
+                "required": ["issues"],
+                "additionalProperties": false
+            }
+        }
+    })
+}
+
+/// 小説の本文であることを前提にした校正プロンプト(M-04-04)。
+///
+/// 意図的な崩しや会話文の口語を「誤り」と言わせないことが要点。
+pub fn build_prompt(body: &str, names: &[String]) -> String {
+    let mut s = String::new();
+    s.push_str(
+        "次の日本語の小説本文から、**明らかな誤字・脱字・衍字(余分な文字)・変換ミス**だけを抜き出してください。\n\n\
+         守ること:\n\
+         - 小説の本文です。会話文の口語、方言、意図的なひらがな表記、体言止め、倒置、\n  三点リーダや棒線の使い方は**誤りではありません**。指摘しないでください。\n\
+         - 文体や表現の good/bad は評価しないでください。ここでは誤記だけを見ます。\n\
+         - 迷ったら指摘しないでください。**確実なものだけ**を挙げます。\n\
+         - quote には本文に現れる文字列を**そのまま**書き写してください(前後を変えない)。\n\
+         - 誤りが無ければ空の一覧を返してください。\n\n",
+    );
+    if !names.is_empty() {
+        s.push_str(
+            "次の語はこの作品の固有名詞です。**正しい表記なので誤字として指摘しないでください**:\n",
+        );
+        for n in names.iter().take(80) {
+            s.push_str("- ");
+            s.push_str(n);
+            s.push('\n');
+        }
+        s.push('\n');
+    }
+    s.push_str("出力は次のJSONだけを返してください(説明文は不要です):\n");
+    s.push_str(
+        "{\"issues\":[{\"quote\":\"本文からの引用\",\"suggestion\":\"直した形\",\"kind\":\"誤字|脱字|衍字|変換ミス\",\"reason\":\"理由\"}]}\n\n",
+    );
+    s.push_str("--- 本文ここから ---\n");
+    s.push_str(body);
+    s.push_str("\n--- 本文ここまで ---\n");
+    s
+}
+
+/// 応答から指摘を取り出す(経路A/B共通の寛容パース)。
+///
+/// スキーマ強制が効かないモデルでも拾えるよう、次を受け入れる:
+///  - ```json で囲まれたもの
+///  - {"issues":[...]} / {"items":[...]} / 素の配列
+///  - kind や reason の欠落
+pub fn parse_ai_issues(raw: &str) -> Vec<AiIssue> {
+    let blob = crate::ai::extract_json_blob(raw);
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(blob) else {
+        return Vec::new();
+    };
+    let array = value
+        .get("issues")
+        .or_else(|| value.get("items"))
+        .or_else(|| value.get("results"))
+        .and_then(|v| v.as_array())
+        .or_else(|| value.as_array());
+    let Some(array) = array else {
+        return Vec::new();
+    };
+
+    array
+        .iter()
+        .filter_map(|item| {
+            let quote = item
+                .get("quote")
+                .or_else(|| item.get("text"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            if quote.is_empty() {
+                return None;
+            }
+            let suggestion = item
+                .get("suggestion")
+                .or_else(|| item.get("fixed"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            let kind = item
+                .get("kind")
+                .and_then(|v| v.as_str())
+                .unwrap_or("その他")
+                .trim()
+                .to_string();
+            let reason = item
+                .get("reason")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            Some(AiIssue {
+                quote,
+                suggestion,
+                kind: if kind.is_empty() { "その他".into() } else { kind },
+                reason,
+                found: false,
+                start_utf16: None,
+                end_utf16: None,
+            })
+        })
+        .collect()
+}
+
+/// 引用が本文に実在するかを照合し、位置を埋める。
+///
+/// 見つからない指摘は幻覚の疑いが強いので `found=false` にして後ろへ回す
+/// (消しはしない。モデルの癖を見えるようにしておく)。
+pub fn resolve_issues(body: &str, mut issues: Vec<AiIssue>) -> Vec<AiIssue> {
+    let to_utf16 = Utf16Map::new(body);
+    for issue in issues.iter_mut() {
+        // 同じ引用が複数あっても最初の1つに対応づける(単純検索。04-design §6.4)
+        if let Some(pos) = body.find(&issue.quote) {
+            issue.found = true;
+            issue.start_utf16 = Some(to_utf16.at(pos));
+            issue.end_utf16 = Some(to_utf16.at(pos + issue.quote.len()));
+        }
+    }
+    // 変更のない提案(quote == suggestion)は指摘として意味がないので落とす
+    issues.retain(|i| i.suggestion != i.quote);
+    issues.sort_by_key(|i| (!i.found, i.start_utf16.unwrap_or(usize::MAX)));
+    issues
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -361,6 +542,105 @@ mod tests {
         assert!(check_notation("架純", &names(&[])).is_empty());
         // 1文字の登録名は候補が広がりすぎるので無視する
         assert!(check_notation("木と本", &names(&["木"])).is_empty());
+    }
+
+    // ===== M-04-01(LLM側)のパースと照合 =====
+
+    #[test]
+    fn parses_structured_response() {
+        let raw = r#"{"issues":[{"quote":"昇降口","suggestion":"昇降口で","kind":"脱字","reason":"助詞が抜けています"}]}"#;
+        let got = parse_ai_issues(raw);
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].quote, "昇降口");
+        assert_eq!(got[0].kind, "脱字");
+    }
+
+    #[test]
+    fn parses_fenced_json() {
+        let raw = "```json\n{\"issues\":[{\"quote\":\"雨だつた\",\"suggestion\":\"雨だった\",\"kind\":\"誤字\",\"reason\":\"促音\"}]}\n```";
+        assert_eq!(parse_ai_issues(raw).len(), 1);
+    }
+
+    #[test]
+    fn parses_bare_array_and_alternate_keys() {
+        // スキーマ強制が効かないモデルの揺れを吸収する
+        let raw = r#"[{"text":"つずく","fixed":"つづく"}]"#;
+        let got = parse_ai_issues(raw);
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].quote, "つずく");
+        assert_eq!(got[0].suggestion, "つづく");
+        assert_eq!(got[0].kind, "その他");
+    }
+
+    #[test]
+    fn broken_response_yields_nothing_instead_of_panicking() {
+        assert!(parse_ai_issues("すみません、見つかりませんでした").is_empty());
+        assert!(parse_ai_issues("").is_empty());
+        assert!(parse_ai_issues("{\"issues\":").is_empty());
+    }
+
+    #[test]
+    fn empty_quote_is_dropped() {
+        let raw = r#"{"issues":[{"quote":"  ","suggestion":"x","kind":"誤字","reason":""}]}"#;
+        assert!(parse_ai_issues(raw).is_empty());
+    }
+
+    #[test]
+    fn resolves_quote_position_in_body() {
+        let body = "転校初日の朝は、雨だつた。";
+        let issues = parse_ai_issues(
+            r#"{"issues":[{"quote":"雨だつた","suggestion":"雨だった","kind":"誤字","reason":"促音"}]}"#,
+        );
+        let got = resolve_issues(body, issues);
+        assert_eq!(got.len(), 1);
+        assert!(got[0].found);
+        assert_eq!(got[0].start_utf16, Some(8));
+        assert_eq!(got[0].end_utf16, Some(12));
+    }
+
+    #[test]
+    fn hallucinated_quote_is_marked_not_found_and_sorted_last() {
+        let body = "転校初日の朝は、雨だつた。";
+        let issues = parse_ai_issues(
+            r#"{"issues":[
+                {"quote":"存在しない文","suggestion":"直した文","kind":"誤字","reason":""},
+                {"quote":"雨だつた","suggestion":"雨だった","kind":"誤字","reason":""}
+            ]}"#,
+        );
+        let got = resolve_issues(body, issues);
+        assert_eq!(got.len(), 2);
+        // 本文に実在するものが先、幻覚は後ろ
+        assert!(got[0].found);
+        assert_eq!(got[0].quote, "雨だつた");
+        assert!(!got[1].found);
+    }
+
+    #[test]
+    fn no_op_suggestion_is_dropped() {
+        // 直っていない提案は指摘として意味がない
+        let body = "架純が来た。";
+        let issues = parse_ai_issues(
+            r#"{"issues":[{"quote":"架純","suggestion":"架純","kind":"誤字","reason":"?"}]}"#,
+        );
+        assert!(resolve_issues(body, issues).is_empty());
+    }
+
+    #[test]
+    fn prompt_includes_names_and_body() {
+        let p = build_prompt("　雨だつた。", &names(&["佐藤架純"]));
+        assert!(p.contains("佐藤架純"), "固有名詞を渡していない");
+        assert!(p.contains("雨だつた"), "本文が入っていない");
+        // 会話文や意図的な崩しを指摘させない指示が入っていること(M-04-04)
+        assert!(p.contains("会話文"));
+        assert!(p.contains("迷ったら指摘しないでください"));
+    }
+
+    #[test]
+    fn schema_declares_required_fields() {
+        let s = issue_schema();
+        let req = &s["json_schema"]["schema"]["properties"]["issues"]["items"]["required"];
+        assert!(req.to_string().contains("quote"));
+        assert!(req.to_string().contains("suggestion"));
     }
 
     #[test]

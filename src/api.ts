@@ -64,6 +64,23 @@ export type NotationHit = {
   suggestion_count: number;
 };
 
+export type AiIssue = {
+  quote: string;
+  suggestion: string;
+  kind: string;
+  reason: string;
+  found: boolean;
+  start_utf16: number | null;
+  end_utf16: number | null;
+};
+
+export type AiProofreadResult = {
+  issues: AiIssue[];
+  unchecked_chars: number;
+  path: "schema" | "fallback";
+  model: string;
+};
+
 export type TemplateInfo = {
   genre: string;
   kind: string;
@@ -93,6 +110,8 @@ export const api = {
     invoke<number>("file_modified_ms", { path }),
   checkNotation: (text: string) =>
     invoke<NotationHit[]>("check_notation", { text }),
+  proofreadAi: (text: string) =>
+    invoke<AiProofreadResult>("proofread_ai", { text }),
   countFiles: (path: string) => invoke<number>("count_files", { path }),
   trashEntry: (path: string) => invoke<string>("trash_entry", { path }),
   renameEntry: (from: string, to: string) =>
