@@ -18,6 +18,7 @@ import { AiPanel } from "./components/AiPanel";
 import { NewFileDialog } from "./components/NewFileDialog";
 import { ReferencePane } from "./components/ReferencePane";
 import { ItemMenu, type MenuAction } from "./components/ItemMenu";
+import { ViewMenu, type ViewSettings } from "./components/ViewMenu";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { PromptDialog } from "./components/PromptDialog";
 import "./App.css";
@@ -34,7 +35,25 @@ const LS = {
   rightW: "kaku.rightW",
   rightOpen: "kaku.rightOpen",
   rightTab: "kaku.rightTab",
+  view: "kaku.view",
 };
+
+const DEFAULT_VIEW: ViewSettings = {
+  showLineNumbers: true,
+  showRuler: false,
+  wrapColumns: null,
+};
+
+function storedView(): ViewSettings {
+  try {
+    const raw = localStorage.getItem(LS.view);
+    if (!raw) return DEFAULT_VIEW;
+    const v = JSON.parse(raw) as Partial<ViewSettings>;
+    return { ...DEFAULT_VIEW, ...v };
+  } catch {
+    return DEFAULT_VIEW;
+  }
+}
 
 function storedNum(key: string, fallback: number): number {
   const v = Number(localStorage.getItem(key));
@@ -102,6 +121,8 @@ export default function App() {
   const [modifiedMs, setModifiedMs] = useState(0);
   const [status, setStatus] = useState("");
   const [highlightEnabled, setHighlightEnabled] = useState(true);
+  const [view, setView] = useState<ViewSettings>(storedView);
+  const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [newFileDir, setNewFileDir] = useState<string | null>(null);
   /** 項目メニュー */
   const [menu, setMenu] = useState<{ node: TreeNode; x: number; y: number } | null>(
@@ -147,6 +168,9 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(LS.rightTab, rightTab);
   }, [rightTab]);
+  useEffect(() => {
+    localStorage.setItem(LS.view, JSON.stringify(view));
+  }, [view]);
 
   /** codexの正式名+別名をまとめたハイライト対象 */
   const patterns = useMemo(
@@ -556,6 +580,22 @@ export default function App() {
             設定名を強調
           </label>
           <span className="count">{charCount}字</span>
+          <div className="view-menu-anchor">
+            <button
+              className={viewMenuOpen ? "toggled" : ""}
+              onClick={() => setViewMenuOpen((v) => !v)}
+              title="行番号・ルーラー・折り返しの設定"
+            >
+              表示
+            </button>
+            {viewMenuOpen && (
+              <ViewMenu
+                value={view}
+                onChange={setView}
+                onClose={() => setViewMenuOpen(false)}
+              />
+            )}
+          </div>
           <button onClick={() => handleRef.current.openSearch()}>検索</button>
           <button
             className={rightOpen ? "toggled" : ""}
@@ -585,30 +625,35 @@ export default function App() {
         <Splitter onDrag={(dx) => setLeftW((w) => clamp(w + dx, 160, 480))} />
 
         <section className="pane center">
+          {/* エディタは常に描画しておく。display:none で隠すと寸法が測れず、
+              ルーラーや折り返し幅の計算ができなくなるため */}
           {!project && (
-            <div className="empty-state">
-              <h2>プロジェクトを開いてください</h2>
-              <p>
-                空のフォルダを選ぶと manuscript / codex / plot などの構成を作ります。
-                <br />
-                データはすべて普通のMarkdownファイルなので、他のエディタからも編集できます。
-              </p>
-              <button className="primary" onClick={openProject}>
-                フォルダを選ぶ
-              </button>
+            <div className="empty-state-overlay">
+              <div className="empty-state">
+                <h2>プロジェクトを開いてください</h2>
+                <p>
+                  空のフォルダを選ぶと manuscript / codex / plot などの構成を作ります。
+                  <br />
+                  データはすべて普通のMarkdownファイルなので、他のエディタからも編集できます。
+                </p>
+                <button className="primary" onClick={openProject}>
+                  フォルダを選ぶ
+                </button>
+              </div>
             </div>
           )}
-          <div style={{ display: project ? "contents" : "none" }}>
-            <Editor
+          <Editor
               patterns={patterns}
               highlightEnabled={highlightEnabled}
               readOnly={!currentPath}
+              showLineNumbers={view.showLineNumbers}
+              showRuler={view.showRuler}
+              wrapColumns={view.wrapColumns}
               onChange={setText}
               onSaveRequest={saveNow}
-              onMentionActivate={activateMention}
-              handleRef={handleRef.current}
-            />
-          </div>
+            onMentionActivate={activateMention}
+            handleRef={handleRef.current}
+          />
         </section>
 
         {rightOpen && (

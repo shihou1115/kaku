@@ -199,12 +199,33 @@ button.tab.active {
   min-height: 0;
   overflow: auto;
   margin: 8px 10px 10px;
-  padding: 8px;
+  padding: 8px 8px 8px 0;
   background: #f4f6f8;
   border-radius: 4px;
   font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", sans-serif;
   font-size: 12.5px;
   line-height: 1.8;
+}
+
+.ref-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.ref-ln {
+  flex: 0 0 34px;
+  text-align: right;
+  color: #a9b1ba;
+  font-family: Consolas, monospace;
+  font-size: 10.5px;
+  line-height: 1.9;
+  user-select: none;
+}
+
+.ref-lt {
+  flex: 1;
+  min-width: 0;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -250,10 +271,93 @@ button.toggled {
   position: relative;
 }
 
+.editor-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .editor-host {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+
+/* 任意字数での折り返し。--wrap-width が none なら右端で折り返す */
+.editor-wrap .cm-content {
+  max-width: var(--wrap-width, none);
+}
+
+/* ===== 横ルーラー ===== */
+
+.ruler {
+  height: 18px;
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--border);
+  background: #fbfcfd;
+  overflow: hidden;
+  position: relative;
+}
+
+.ruler-track {
+  position: relative;
+  height: 100%;
+}
+
+.ruler .tick {
+  position: absolute;
+  bottom: 0;
+  width: 1px;
+  height: 5px;
+  background: #c3cad2;
+}
+
+.ruler .tick.major {
+  height: 9px;
+  background: #97a1ab;
+}
+
+.ruler .tick.end {
+  height: 100%;
+  background: rgba(11, 114, 133, 0.35);
+}
+
+.ruler .tick em {
+  position: absolute;
+  bottom: 8px;
+  left: 2px;
+  font-style: normal;
+  font-size: 9px;
+  color: var(--muted);
+  font-family: Consolas, monospace;
+  line-height: 1;
+}
+
+/* ===== 表示設定ポップオーバー ===== */
+
+.view-menu-anchor {
+  position: relative;
+}
+
+.view-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 200;
+  width: 240px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.view-sep {
+  border-top: 1px solid var(--border);
 }
 
 .status {
@@ -319,6 +423,14 @@ button.toggled {
 }
 
 /* ===== 空状態 ===== */
+
+.empty-state-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: var(--panel);
+  display: flex;
+}
 
 .empty-state {
   margin: auto;

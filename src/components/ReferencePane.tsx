@@ -87,7 +87,15 @@ export function ReferencePane({
             <strong>{current?.title ?? refPath}</strong>
             <span className="ref-path">{refPath}</span>
           </div>
-          <pre className="ref-body">{refText}</pre>
+          {/* 行番号は論理行に対応させる。折り返しても番号は行頭に留まる */}
+          <div className="ref-body">
+            {refText.split("\n").map((line, i) => (
+              <div className="ref-line" key={i}>
+                <span className="ref-ln">{i + 1}</span>
+                <span className="ref-lt">{line || "​"}</span>
+              </div>
+            ))}
+          </div>
         </>
       )}
     </div>
