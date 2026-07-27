@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { TreeNode } from "../api";
+import { folderLabel, isRelabeled } from "./folderLabels";
 
 type Props = {
   tree: TreeNode[];
@@ -53,9 +54,11 @@ function Node({
             e.preventDefault();
             onMenu(node, e.clientX, e.clientY);
           }}
+          // 表示名を変えた場合でも、ディスク上の名前は隠さない
+          title={isRelabeled(node.path) ? `${node.path}/` : undefined}
         >
           <span className="twisty">{open ? "▾" : "▸"}</span>
-          <span className="name">{node.name}</span>
+          <span className="name">{folderLabel(node.path, node.name)}</span>
           <button
             className="mini"
             title="このフォルダーに新規ファイル"

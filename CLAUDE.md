@@ -52,6 +52,10 @@ npm run build
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
+```bash
+npm test
+```
+
 ## 現在地
 
 - **M0 完了**(2026-07-26): PoC#1合格(8/8)。CodeMirror 6を確定。対応ラダーは発動せず
@@ -68,5 +72,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 | `src-tauri/src/mentions.rs` | aho-corasickの言及検出。UTF-16位置換算あり |
 | `src-tauri/src/ai.rs` | OpenAI互換の薄いクライアント(send/stream/models) |
 | `src-tauri/src/context.rs` | AIへ渡す3系統の組み立て+システムプロンプト |
-| `src/editor/` | CodeMirror 6本体とハイライト |
-| `src/components/` | ツリー・AIパネル |
+| `src/editor/` | CodeMirror 6本体・ハイライト・言及検出(Rust実装と同じ規則) |
+| `src/components/` | ツリー・AIパネル・各種ダイアログ・フォルダー表示名の対応表 |
+
+テストは Rust 45件(`cargo test`)+ フロント15件(`npm test`)。

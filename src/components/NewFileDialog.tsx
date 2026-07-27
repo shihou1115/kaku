@@ -8,6 +8,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { api, type TemplateInfo } from "../api";
+import { folderDisplayPath } from "./folderLabels";
 
 type Props = {
   dirPath: string;
@@ -86,7 +87,9 @@ export function NewFileDialog({ dirPath, onCancel, onCreate }: Props) {
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>新規作成</h2>
-        <p className="hint">{dirPath} に作ります</p>
+        <p className="hint" title={dirPath}>
+          {folderDisplayPath(dirPath)} に作ります
+        </p>
 
         <label className="field">
           名前

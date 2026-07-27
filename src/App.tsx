@@ -19,6 +19,7 @@ import { NewFileDialog } from "./components/NewFileDialog";
 import { ReferencePane } from "./components/ReferencePane";
 import { ItemMenu, type MenuAction } from "./components/ItemMenu";
 import { ViewMenu, type ViewSettings } from "./components/ViewMenu";
+import { folderLabel } from "./components/folderLabels";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { PromptDialog } from "./components/PromptDialog";
 import "./App.css";
@@ -717,7 +718,7 @@ export default function App() {
           title="削除の確認"
           message={
             trashTarget.node.is_dir
-              ? `フォルダー「${trashTarget.node.name}」を削除します(中のファイル ${trashTarget.count} 件も一緒に移動します)。`
+              ? `フォルダー「${folderLabel(trashTarget.node.path, trashTarget.node.name)}」を削除します(中のファイル ${trashTarget.count} 件も一緒に移動します)。`
               : `「${trashTarget.node.title || trashTarget.node.name}」を削除します。`
           }
           note={
