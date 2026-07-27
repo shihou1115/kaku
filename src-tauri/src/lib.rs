@@ -156,6 +156,60 @@ fn file_modified_ms(path: String, state: State<AppState>) -> Result<u64, String>
     project::modified_ms(&root, &path).map_err(to_msg)
 }
 
+/// 削除対象の件数(確認ダイアログで「何が消えるか」を見せるため)
+#[tauri::command]
+fn count_files(path: String, state: State<AppState>) -> Result<usize, String> {
+    let root = root_of(&state)?;
+    project::count_files(&root, &path).map_err(to_msg)
+}
+
+/// 削除。**消さずにプロジェクト内のゴミ箱へ移す**。戻り値は退避先(UIで案内する)
+#[tauri::command]
+fn trash_entry(path: String, state: State<AppState>) -> Result<String, String> {
+    let root = root_of(&state)?;
+    project::trash(&root, &path).map_err(to_msg)
+}
+
+/// 改名・移動。プロジェクト内のMarkdownリンクも追随する
+#[tauri::command]
+fn rename_entry(from: String, to: String, state: State<AppState>) -> Result<(), String> {
+    let root = root_of(&state)?;
+    project::rename(&root, &from, &to).map_err(to_msg)
+}
+
+#[tauri::command]
+fn duplicate_entry(path: String, state: State<AppState>) -> Result<String, String> {
+    let root = root_of(&state)?;
+    project::duplicate(&root, &path).map_err(to_msg)
+}
+
+#[tauri::command]
+fn create_dir(path: String, state: State<AppState>) -> Result<bool, String> {
+    let root = root_of(&state)?;
+    project::create_dir(&root, &path).map_err(to_msg)
+}
+
+/// エクスプローラで開く(「ファイルが正」を体感させる導線)
+#[tauri::command]
+fn reveal_in_explorer(
+    path: String,
+    app: tauri::AppHandle,
+    state: State<AppState>,
+) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let root = root_of(&state)?;
+    let target = project::resolve(&root, &path).map_err(to_msg)?;
+    // ファイルなら親フォルダを開く
+    let dir = if target.is_dir() {
+        target
+    } else {
+        target.parent().map(|p| p.to_path_buf()).unwrap_or(root)
+    };
+    app.opener()
+        .open_path(dir.to_string_lossy().to_string(), None::<&str>)
+        .map_err(|e| e.to_string())
+}
+
 // ===== テンプレート =====
 
 /// 利用可能なテンプレート一覧(ユーザーが足したジャンルも含む)
@@ -321,6 +375,12 @@ pub fn run() {
             save_file,
             create_file,
             file_modified_ms,
+            count_files,
+            trash_entry,
+            rename_entry,
+            duplicate_entry,
+            create_dir,
+            reveal_in_explorer,
             list_templates,
             render_template,
             open_templates_dir,

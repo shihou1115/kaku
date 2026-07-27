@@ -607,6 +607,71 @@ button.link {
   text-decoration: underline;
 }
 
+/* ===== 項目メニュー ===== */
+
+.item-menu {
+  position: fixed;
+  z-index: 200;
+  min-width: 190px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.item-menu button {
+  border: none;
+  background: none;
+  border-radius: 4px;
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.item-menu button:hover {
+  background: #eef1f4;
+}
+
+.item-menu button.danger {
+  color: #c92a2a;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 4px 4px;
+  margin-top: 2px;
+}
+
+.item-menu button.danger:hover {
+  background: #fff5f5;
+}
+
+.menu-btn {
+  line-height: 16px;
+}
+
+/* ===== 確認ダイアログ ===== */
+
+.modal.confirm {
+  width: 380px;
+}
+
+.confirm-message {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+button.danger-btn {
+  background: #c92a2a;
+  color: #fff;
+  border-color: #c92a2a;
+}
+
+button.danger-btn:hover:not(:disabled) {
+  background: #b02525;
+}
+
 button.link:hover {
   background: none;
 }

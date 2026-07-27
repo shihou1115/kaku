@@ -10,13 +10,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { api, type CodexEntry, type OpenedProject } from "./api";
+import { api, type CodexEntry, type OpenedProject, type TreeNode } from "./api";
 import { Editor, type EditorHandle } from "./editor/Editor";
 import { findMentions } from "./editor/mentions";
 import { FileTree } from "./components/FileTree";
 import { AiPanel } from "./components/AiPanel";
 import { NewFileDialog } from "./components/NewFileDialog";
 import { ReferencePane } from "./components/ReferencePane";
+import { ItemMenu, type MenuAction } from "./components/ItemMenu";
+import { ConfirmDialog } from "./components/ConfirmDialog";
+import { PromptDialog } from "./components/PromptDialog";
 import "./App.css";
 
 /** テンプレートを使わない場合の中身 */
@@ -100,6 +103,20 @@ export default function App() {
   const [status, setStatus] = useState("");
   const [highlightEnabled, setHighlightEnabled] = useState(true);
   const [newFileDir, setNewFileDir] = useState<string | null>(null);
+  /** 項目メニュー */
+  const [menu, setMenu] = useState<{ node: TreeNode; x: number; y: number } | null>(
+    null,
+  );
+  /** 削除確認 */
+  const [trashTarget, setTrashTarget] = useState<{
+    node: TreeNode;
+    count: number;
+  } | null>(null);
+  /** 名前入力(改名 / 新規フォルダー) */
+  const [prompt, setPrompt] = useState<{
+    mode: "rename" | "newFolder";
+    node: TreeNode;
+  } | null>(null);
 
   // ペインの幅と開閉
   const [leftW, setLeftW] = useState(() => storedNum(LS.leftW, 240));
@@ -317,6 +334,121 @@ export default function App() {
     [openFile],
   );
 
+  // ===== 項目メニューの操作 =====
+
+  const handleMenu = useCallback(
+    async (action: MenuAction, node: TreeNode) => {
+      switch (action) {
+        case "newFile":
+          setNewFileDir(node.path);
+          return;
+        case "newFolder":
+        case "rename":
+          setPrompt({ mode: action, node });
+          return;
+        case "reveal":
+          try {
+            await api.revealInExplorer(node.path);
+          } catch (e) {
+            setStatus(String(e));
+          }
+          return;
+        case "duplicate":
+          try {
+            const created = await api.duplicateEntry(node.path);
+            setProject(await api.refreshProject());
+            setStatus(`複製しました: ${created}`);
+          } catch (e) {
+            setStatus(String(e));
+          }
+          return;
+        case "trash":
+          try {
+            const count = await api.countFiles(node.path);
+            setTrashTarget({ node, count });
+          } catch (e) {
+            setStatus(String(e));
+          }
+          return;
+      }
+    },
+    [],
+  );
+
+  const doTrash = useCallback(async () => {
+    if (!trashTarget) return;
+    const { node } = trashTarget;
+    setTrashTarget(null);
+    try {
+      // 削除対象を開いていたら、保存を済ませてから閉じる
+      const openedInside =
+        currentPath === node.path ||
+        (node.is_dir && currentPath?.startsWith(`${node.path}/`));
+      if (openedInside) {
+        await flushSave(true);
+        setCurrentPath(null);
+        setText("");
+        setSavedText("");
+        handleRef.current.load("");
+      }
+      const dest = await api.trashEntry(node.path);
+      if (refPath === node.path) {
+        setRefPath(null);
+        setRefText("");
+      }
+      setProject(await api.refreshProject());
+      setStatus(`ゴミ箱へ移しました(復元元: ${dest})`);
+    } catch (e) {
+      setStatus(String(e));
+    }
+  }, [trashTarget, currentPath, refPath, flushSave]);
+
+  const doPrompt = useCallback(
+    async (value: string) => {
+      if (!prompt) return;
+      const { mode, node } = prompt;
+      setPrompt(null);
+      try {
+        if (mode === "newFolder") {
+          const path = `${node.path}/${value}`;
+          if (!(await api.createDir(path))) {
+            setStatus("同名のフォルダーが既にあります");
+            return;
+          }
+          setProject(await api.refreshProject());
+          setStatus(`フォルダーを作りました: ${path}`);
+          return;
+        }
+        // 改名: 拡張子を書かなかった場合はファイルなら .md を補う
+        let name = value;
+        if (!node.is_dir && !/\.[^./\\]+$/.test(name)) name = `${name}.md`;
+        const dir = node.path.includes("/")
+          ? node.path.slice(0, node.path.lastIndexOf("/"))
+          : "";
+        const to = dir ? `${dir}/${name}` : name;
+        if (to === node.path) return;
+
+        const wasOpen =
+          currentPath === node.path ||
+          (node.is_dir && currentPath?.startsWith(`${node.path}/`));
+        if (wasOpen) await flushSave(true);
+
+        await api.renameEntry(node.path, to);
+        setProject(await api.refreshProject());
+
+        if (currentPath === node.path) {
+          setCurrentPath(to);
+        } else if (node.is_dir && currentPath?.startsWith(`${node.path}/`)) {
+          setCurrentPath(currentPath.replace(node.path, to));
+        }
+        setStatus(`名前を変更しました: ${to}`);
+      } catch (e) {
+        setStatus(String(e));
+      }
+    },
+    [prompt, currentPath, flushSave],
+  );
+
   // ===== 参照ペイン =====
 
   const showReference = useCallback(async (path: string) => {
@@ -446,6 +578,7 @@ export default function App() {
             dirty={dirty}
             onOpen={openFile}
             onCreate={setNewFileDir}
+            onMenu={(node, x, y) => setMenu({ node, x, y })}
           />
         </aside>
 
@@ -523,6 +656,45 @@ export default function App() {
           </>
         )}
       </div>
+
+      {menu && (
+        <ItemMenu
+          x={menu.x}
+          y={menu.y}
+          isDir={menu.node.is_dir}
+          onPick={(action) => void handleMenu(action, menu.node)}
+          onClose={() => setMenu(null)}
+        />
+      )}
+
+      {trashTarget && (
+        <ConfirmDialog
+          title="削除の確認"
+          message={
+            trashTarget.node.is_dir
+              ? `フォルダー「${trashTarget.node.name}」を削除します(中のファイル ${trashTarget.count} 件も一緒に移動します)。`
+              : `「${trashTarget.node.title || trashTarget.node.name}」を削除します。`
+          }
+          note={
+            "完全には消えません。プロジェクト内の .app/trash/ へ移すので、必要ならエクスプローラーから元に戻せます。"
+          }
+          confirmLabel="ゴミ箱へ移す"
+          danger
+          onConfirm={() => void doTrash()}
+          onCancel={() => setTrashTarget(null)}
+        />
+      )}
+
+      {prompt && (
+        <PromptDialog
+          title={prompt.mode === "rename" ? "名前を変更" : "新しいフォルダー"}
+          label={prompt.mode === "rename" ? "新しい名前" : "フォルダー名"}
+          initial={prompt.mode === "rename" ? prompt.node.name : ""}
+          selectStem={prompt.mode === "rename" && !prompt.node.is_dir}
+          onSubmit={(v) => void doPrompt(v)}
+          onCancel={() => setPrompt(null)}
+        />
+      )}
 
       {newFileDir !== null && (
         <NewFileDialog

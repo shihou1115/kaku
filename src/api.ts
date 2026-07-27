@@ -81,6 +81,14 @@ export const api = {
     invoke<boolean>("create_file", { path, text }),
   fileModifiedMs: (path: string) =>
     invoke<number>("file_modified_ms", { path }),
+  countFiles: (path: string) => invoke<number>("count_files", { path }),
+  trashEntry: (path: string) => invoke<string>("trash_entry", { path }),
+  renameEntry: (from: string, to: string) =>
+    invoke<void>("rename_entry", { from, to }),
+  duplicateEntry: (path: string) => invoke<string>("duplicate_entry", { path }),
+  createDir: (path: string) => invoke<boolean>("create_dir", { path }),
+  revealInExplorer: (path: string) =>
+    invoke<void>("reveal_in_explorer", { path }),
   listTemplates: () => invoke<TemplateInfo[]>("list_templates"),
   renderTemplate: (genre: string, kind: string, title: string) =>
     invoke<string>("render_template", { genre, kind, title }),

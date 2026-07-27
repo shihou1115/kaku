@@ -286,6 +286,282 @@ pub fn create_file(root: &Path, relative: &str, content: &str) -> Result<bool, P
     Ok(true)
 }
 
+// ===== 削除・改名・複製 =====
+
+/// 削除は**消さずにゴミ箱へ移す**(`.app/trash/<日時>/<元のパス>`)。
+///
+/// 原則(D-1/D-5)からの帰結: ユーザーの原稿を不可逆に失う操作をアプリが持たない。
+/// 確認ダイアログを押し間違えても、エクスプローラで取り戻せる。
+/// 戻り値は退避先の絶対パス(UIで案内するため)。
+pub fn trash(root: &Path, relative: &str) -> Result<String, ProjectError> {
+    let path = resolve(root, relative)?;
+    if !path.exists() {
+        return Err(ProjectError::Io(io::Error::new(
+            io::ErrorKind::NotFound,
+            format!("見つかりません: {relative}"),
+        )));
+    }
+    let stamp = timestamp_dir(std::time::SystemTime::now());
+    let dest = root.join(APP_DIR).join("trash").join(&stamp).join(relative);
+    if let Some(parent) = dest.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    // 同一ドライブ内なので rename で足りる。失敗したらコピーしてから消す
+    if fs::rename(&path, &dest).is_err() {
+        if path.is_dir() {
+            copy_dir(&path, &dest)?;
+            fs::remove_dir_all(&path)?;
+        } else {
+            fs::copy(&path, &dest)?;
+            fs::remove_file(&path)?;
+        }
+    }
+    Ok(dest.to_string_lossy().to_string())
+}
+
+fn copy_dir(from: &Path, to: &Path) -> Result<(), ProjectError> {
+    fs::create_dir_all(to)?;
+    for entry in fs::read_dir(from)? {
+        let entry = entry?;
+        let target = to.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_dir(&entry.path(), &target)?;
+        } else {
+            fs::copy(entry.path(), target)?;
+        }
+    }
+    Ok(())
+}
+
+/// 中身の件数(削除確認で「フォルダごと消える」ことを見せるため)
+pub fn count_files(root: &Path, relative: &str) -> Result<usize, ProjectError> {
+    let path = resolve(root, relative)?;
+    if path.is_file() {
+        return Ok(1);
+    }
+    fn walk(dir: &Path) -> Result<usize, ProjectError> {
+        let mut n = 0;
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            if entry.file_type()?.is_dir() {
+                n += walk(&entry.path())?;
+            } else {
+                n += 1;
+            }
+        }
+        Ok(n)
+    }
+    walk(&path)
+}
+
+/// 改名・移動。プロジェクト内のMarkdownリンクも追随させる(§5-6)。
+pub fn rename(root: &Path, from: &str, to: &str) -> Result<(), ProjectError> {
+    let src = resolve(root, from)?;
+    let dst = resolve(root, to)?;
+    if !src.exists() {
+        return Err(ProjectError::Io(io::Error::new(
+            io::ErrorKind::NotFound,
+            format!("見つかりません: {from}"),
+        )));
+    }
+    if dst.exists() {
+        return Err(ProjectError::Io(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            format!("同名のファイルが既にあります: {to}"),
+        )));
+    }
+    if let Some(parent) = dst.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::rename(&src, &dst)?;
+    rewrite_links(root, from, to)?;
+    Ok(())
+}
+
+/// 複製。「〜のコピー」を付け、既にあれば連番にする。
+pub fn duplicate(root: &Path, relative: &str) -> Result<String, ProjectError> {
+    let src = resolve(root, relative)?;
+    if !src.is_file() {
+        return Err(ProjectError::Io(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "ファイルのみ複製できます".to_string(),
+        )));
+    }
+    let stem = src.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+    let ext = src
+        .extension()
+        .map(|s| format!(".{}", s.to_string_lossy()))
+        .unwrap_or_default();
+    let dir = relative.rsplit_once('/').map(|(d, _)| d).unwrap_or("");
+    for n in 1..100 {
+        let name = if n == 1 {
+            format!("{stem} のコピー{ext}")
+        } else {
+            format!("{stem} のコピー{n}{ext}")
+        };
+        let candidate = if dir.is_empty() {
+            name
+        } else {
+            format!("{dir}/{name}")
+        };
+        if !resolve(root, &candidate)?.exists() {
+            fs::copy(&src, resolve(root, &candidate)?)?;
+            return Ok(candidate);
+        }
+    }
+    Err(ProjectError::Io(io::Error::new(
+        io::ErrorKind::AlreadyExists,
+        "複製名を決められませんでした".to_string(),
+    )))
+}
+
+pub fn create_dir(root: &Path, relative: &str) -> Result<bool, ProjectError> {
+    let path = resolve(root, relative)?;
+    if path.exists() {
+        return Ok(false);
+    }
+    fs::create_dir_all(path)?;
+    Ok(true)
+}
+
+/// 改名に追随して、他ファイル内の相対リンクを書き換える。
+///
+/// `](相対パス)` 形式のみ扱う。リンク先を各ファイルの位置から解決し、
+/// 改名対象と一致したものだけを差し替える(同名別ファイルを巻き込まない)。
+fn rewrite_links(root: &Path, old_rel: &str, new_rel: &str) -> Result<(), ProjectError> {
+    let mut targets = Vec::new();
+    collect_md(root, root, &mut targets)?;
+    for file in targets {
+        let Ok(text) = fs::read_to_string(&file) else {
+            continue;
+        };
+        let dir = rel_string(root, file.parent().unwrap_or(root));
+        let replaced = replace_links(&text, &dir, old_rel, new_rel);
+        if replaced != text {
+            fs::write(&file, replaced)?;
+        }
+    }
+    Ok(())
+}
+
+fn collect_md(root: &Path, dir: &Path, out: &mut Vec<PathBuf>) -> Result<(), ProjectError> {
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with('.') {
+            continue;
+        }
+        let path = entry.path();
+        if entry.file_type()?.is_dir() {
+            collect_md(root, &path, out)?;
+        } else if path.extension().map(|e| e == "md").unwrap_or(false) {
+            out.push(path);
+        }
+    }
+    Ok(())
+}
+
+/// `base_dir` にあるファイルの本文中のリンクを書き換える。純関数(テスト用に分離)。
+pub fn replace_links(text: &str, base_dir: &str, old_rel: &str, new_rel: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(idx) = rest.find("](") {
+        let (head, tail) = rest.split_at(idx + 2);
+        out.push_str(head);
+        let Some(end) = tail.find(')') else {
+            out.push_str(tail);
+            return out;
+        };
+        let target = &tail[..end];
+        if normalize_join(base_dir, target).as_deref() == Some(old_rel) {
+            out.push_str(&relative_from(base_dir, new_rel));
+        } else {
+            out.push_str(target);
+        }
+        out.push(')');
+        rest = &tail[end + 1..];
+    }
+    out.push_str(rest);
+    out
+}
+
+/// `base_dir` を起点に相対リンクを解決してプロジェクト相対パスにする。
+/// 外部URLや絶対パスは対象外(None)。
+fn normalize_join(base_dir: &str, target: &str) -> Option<String> {
+    if target.is_empty()
+        || target.contains("://")
+        || target.starts_with('/')
+        || target.starts_with('#')
+    {
+        return None;
+    }
+    let mut parts: Vec<&str> = if base_dir.is_empty() {
+        Vec::new()
+    } else {
+        base_dir.split('/').collect()
+    };
+    for seg in target.split('/') {
+        match seg {
+            "" | "." => {}
+            ".." => {
+                parts.pop()?;
+            }
+            s => parts.push(s),
+        }
+    }
+    Some(parts.join("/"))
+}
+
+/// `base_dir` から見た `target_rel` への相対パスを作る
+fn relative_from(base_dir: &str, target_rel: &str) -> String {
+    let base: Vec<&str> = if base_dir.is_empty() {
+        Vec::new()
+    } else {
+        base_dir.split('/').collect()
+    };
+    let target: Vec<&str> = target_rel.split('/').collect();
+    let common = base
+        .iter()
+        .zip(target.iter())
+        .take_while(|(a, b)| a == b)
+        .count();
+    let ups = base.len() - common;
+    let mut parts: Vec<String> = std::iter::repeat("..".to_string()).take(ups).collect();
+    parts.extend(target[common..].iter().map(|s| s.to_string()));
+    parts.join("/")
+}
+
+/// `YYYY-MM-DD_HHMMSS`(UTC)。ゴミ箱フォルダ名を人が読めるようにするため。
+fn timestamp_dir(t: std::time::SystemTime) -> String {
+    let secs = t
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0) as i64;
+    let days = secs.div_euclid(86_400);
+    let rem = secs.rem_euclid(86_400);
+    let (y, m, d) = civil_from_days(days);
+    format!(
+        "{y:04}-{m:02}-{d:02}_{:02}{:02}{:02}",
+        rem / 3600,
+        (rem % 3600) / 60,
+        rem % 60
+    )
+}
+
+/// エポック日数 → 年月日(Howard Hinnant の civil_from_days)
+fn civil_from_days(z: i64) -> (i64, u32, u32) {
+    let z = z + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
+    (if m <= 2 { y + 1 } else { y }, m, d)
+}
+
 /// 外部編集の検知に使う更新時刻(エポックからのミリ秒)。
 ///
 /// 常駐監視はしない。フロントがフォーカス復帰時に問い合わせる(§5-1)。
@@ -416,6 +692,137 @@ mod tests {
             "初回"
         );
         fs::remove_dir_all(root).ok();
+    }
+
+    #[test]
+    fn trash_moves_instead_of_deleting() {
+        let root = tmp();
+        init(&root).unwrap();
+        create_file(&root, "manuscript/01-出会い.md", "本文").unwrap();
+
+        let dest = trash(&root, "manuscript/01-出会い.md").unwrap();
+
+        // 元の場所からは消えるが、ゴミ箱に中身がそのまま残る
+        assert!(!root.join("manuscript/01-出会い.md").exists());
+        assert_eq!(fs::read_to_string(&dest).unwrap(), "本文");
+        assert!(dest.contains("trash"), "ゴミ箱配下にない: {dest}");
+        assert!(dest.ends_with("manuscript\\01-出会い.md") || dest.ends_with("manuscript/01-出会い.md"));
+        fs::remove_dir_all(root).ok();
+    }
+
+    #[test]
+    fn trash_handles_directory_with_children() {
+        let root = tmp();
+        init(&root).unwrap();
+        create_file(&root, "manuscript/第一章/01.md", "a").unwrap();
+        create_file(&root, "manuscript/第一章/02.md", "b").unwrap();
+
+        assert_eq!(count_files(&root, "manuscript/第一章").unwrap(), 2);
+        let dest = trash(&root, "manuscript/第一章").unwrap();
+
+        assert!(!root.join("manuscript/第一章").exists());
+        assert_eq!(
+            fs::read_to_string(PathBuf::from(&dest).join("02.md")).unwrap(),
+            "b"
+        );
+        fs::remove_dir_all(root).ok();
+    }
+
+    #[test]
+    fn trash_rejects_path_escape() {
+        let root = tmp();
+        init(&root).unwrap();
+        assert!(trash(&root, "../外部ファイル.md").is_err());
+        fs::remove_dir_all(root).ok();
+    }
+
+    #[test]
+    fn rename_updates_links_in_other_files() {
+        let root = tmp();
+        init(&root).unwrap();
+        create_file(&root, "codex/characters/悠二.md", "幼馴染\n").unwrap();
+        create_file(
+            &root,
+            "codex/characters/架純.md",
+            "[悠二](悠二.md)と[高校](../locations/青葉高校.md)\n",
+        )
+        .unwrap();
+        create_file(
+            &root,
+            "manuscript/01.md",
+            "登場: [悠二](../codex/characters/悠二.md)\n",
+        )
+        .unwrap();
+
+        rename(
+            &root,
+            "codex/characters/悠二.md",
+            "codex/characters/五十嵐悠二.md",
+        )
+        .unwrap();
+
+        // 同じフォルダからのリンクも、階層をまたぐリンクも追随する
+        assert_eq!(
+            fs::read_to_string(root.join("codex/characters/架純.md")).unwrap(),
+            "[悠二](五十嵐悠二.md)と[高校](../locations/青葉高校.md)\n"
+        );
+        assert_eq!(
+            fs::read_to_string(root.join("manuscript/01.md")).unwrap(),
+            "登場: [悠二](../codex/characters/五十嵐悠二.md)\n"
+        );
+        fs::remove_dir_all(root).ok();
+    }
+
+    #[test]
+    fn rename_refuses_existing_target() {
+        let root = tmp();
+        init(&root).unwrap();
+        create_file(&root, "manuscript/a.md", "a").unwrap();
+        create_file(&root, "manuscript/b.md", "b").unwrap();
+        assert!(rename(&root, "manuscript/a.md", "manuscript/b.md").is_err());
+        // 上書きされていないこと
+        assert_eq!(fs::read_to_string(root.join("manuscript/b.md")).unwrap(), "b");
+        fs::remove_dir_all(root).ok();
+    }
+
+    #[test]
+    fn replace_links_leaves_unrelated_targets() {
+        let text = "[a](悠二.md) [b](../locations/悠二.md) [c](https://example.com/悠二.md) [d](#見出し)";
+        let got = replace_links(
+            text,
+            "codex/characters",
+            "codex/characters/悠二.md",
+            "codex/characters/五十嵐悠二.md",
+        );
+        // 同名でも別フォルダのファイル・外部URL・アンカーは触らない
+        assert_eq!(
+            got,
+            "[a](五十嵐悠二.md) [b](../locations/悠二.md) [c](https://example.com/悠二.md) [d](#見出し)"
+        );
+    }
+
+    #[test]
+    fn duplicate_makes_numbered_copies() {
+        let root = tmp();
+        init(&root).unwrap();
+        create_file(&root, "codex/characters/架純.md", "中身").unwrap();
+
+        let first = duplicate(&root, "codex/characters/架純.md").unwrap();
+        assert_eq!(first, "codex/characters/架純 のコピー.md");
+        assert_eq!(fs::read_to_string(root.join(&first)).unwrap(), "中身");
+
+        let second = duplicate(&root, "codex/characters/架純.md").unwrap();
+        assert_eq!(second, "codex/characters/架純 のコピー2.md");
+        fs::remove_dir_all(root).ok();
+    }
+
+    #[test]
+    fn timestamp_dir_is_readable() {
+        // 2026-07-26 12:34:56 UTC
+        let t = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_785_069_296);
+        assert_eq!(timestamp_dir(t), "2026-07-26_123456");
+        // エポック
+        assert_eq!(timestamp_dir(std::time::UNIX_EPOCH), "1970-01-01_000000");
     }
 
     #[test]
