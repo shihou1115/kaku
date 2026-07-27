@@ -242,6 +242,132 @@ button.tab.active {
   font-size: 10px;
 }
 
+/* ===== 校正タブ ===== */
+
+.proofread-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 10px;
+  gap: 8px;
+}
+
+.pf-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.pf-count {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.pf-stale {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: #a8500a;
+  background: #fff4e6;
+  border: 1px solid #ffd8a8;
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+
+.pf-hint {
+  padding: 4px 2px;
+}
+
+.pf-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pf-item {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 8px;
+  background: #fff;
+}
+
+.pf-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+.pf-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 9px;
+  flex: 0 0 auto;
+}
+
+.pf-badge.high {
+  background: #ffe3e3;
+  border: 1px solid #ffc9c9;
+  color: #c92a2a;
+}
+
+.pf-badge.medium {
+  background: #fff4e6;
+  border: 1px solid #ffd8a8;
+  color: #a8500a;
+}
+
+.pf-candidate {
+  font-weight: 600;
+  color: #c92a2a;
+}
+
+.pf-arrow {
+  color: var(--muted);
+}
+
+.pf-suggestion {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.pf-reason {
+  margin: 4px 0 6px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.pf-occurrences {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.pf-occ {
+  display: inline-flex;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.pf-occ .mini {
+  border: none;
+  border-radius: 0;
+}
+
+.pf-all {
+  margin-left: auto;
+}
+
 /* ===== 保存状態チップ ===== */
 
 .savechip {

@@ -54,6 +54,16 @@ export type ContextPreview = {
   total_chars: number;
 };
 
+export type NotationHit = {
+  candidate: string;
+  suggestion: string;
+  confidence: "high" | "medium";
+  reason: string;
+  occurrences: { start_utf16: number; end_utf16: number }[];
+  candidate_count: number;
+  suggestion_count: number;
+};
+
 export type TemplateInfo = {
   genre: string;
   kind: string;
@@ -81,6 +91,8 @@ export const api = {
     invoke<boolean>("create_file", { path, text }),
   fileModifiedMs: (path: string) =>
     invoke<number>("file_modified_ms", { path }),
+  checkNotation: (text: string) =>
+    invoke<NotationHit[]>("check_notation", { text }),
   countFiles: (path: string) => invoke<number>("count_files", { path }),
   trashEntry: (path: string) => invoke<string>("trash_entry", { path }),
   renameEntry: (from: string, to: string) =>

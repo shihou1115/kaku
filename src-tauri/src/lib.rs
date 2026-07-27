@@ -9,6 +9,7 @@ pub mod context;
 pub mod frontmatter;
 pub mod mentions;
 pub mod project;
+pub mod proofread;
 pub mod templates;
 
 use std::path::PathBuf;
@@ -248,6 +249,23 @@ fn find_mentions(text: String, patterns: Vec<String>) -> Vec<Mention> {
     mentions::find_mentions(&text, &patterns)
 }
 
+// ===== 校正 =====
+
+/// 設定DB連携の固有名詞チェック(M-04-02)。
+///
+/// **機械照合のみでLLMを使わない**(docs/06-decision-log.md §2-5)。
+/// 位置は永続化せず、呼ばれるたびに算出する。
+#[tauri::command]
+fn check_notation(
+    text: String,
+    state: State<AppState>,
+) -> Result<Vec<proofread::NotationHit>, String> {
+    let root = root_of(&state)?;
+    let codex = project::load_codex(&root).map_err(to_msg)?;
+    let names: Vec<String> = codex.iter().flat_map(|c| c.patterns()).collect();
+    Ok(proofread::check_notation(&text, &names))
+}
+
 // ===== AI =====
 
 #[tauri::command]
@@ -385,6 +403,7 @@ pub fn run() {
             render_template,
             open_templates_dir,
             find_mentions,
+            check_notation,
             get_ai_settings,
             set_ai_settings,
             list_models,

@@ -32,6 +32,10 @@ export type EditorHandle = {
   load: (text: string) => void;
   openSearch: () => void;
   scrollTo: (pos: number) => void;
+  /** 範囲を選択して表示する(校正の指摘へ移動する) */
+  selectRange: (from: number, to: number) => void;
+  /** 範囲を置き換える(校正の置換。ユーザー操作でのみ呼ぶ) */
+  replaceRange: (from: number, to: number, text: string) => void;
 };
 
 type Props = {
@@ -243,6 +247,25 @@ export function Editor({
       });
     };
     handleRef.openSearch = () => openSearchPanel(view);
+    handleRef.selectRange = (from: number, to: number) => {
+      const len = view.state.doc.length;
+      const a = Math.max(0, Math.min(from, len));
+      const b = Math.max(a, Math.min(to, len));
+      view.dispatch({
+        selection: { anchor: a, head: b },
+        effects: EditorView.scrollIntoView(a, { y: "center" }),
+      });
+      view.focus();
+    };
+    handleRef.replaceRange = (from: number, to: number, text: string) => {
+      const len = view.state.doc.length;
+      const a = Math.max(0, Math.min(from, len));
+      const b = Math.max(a, Math.min(to, len));
+      view.dispatch({
+        changes: { from: a, to: b, insert: text },
+        selection: { anchor: a + text.length },
+      });
+    };
     handleRef.scrollTo = (pos: number) => {
       const clamped = Math.max(0, Math.min(pos, view.state.doc.length));
       view.dispatch({

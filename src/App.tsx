@@ -17,6 +17,7 @@ import { FileTree } from "./components/FileTree";
 import { AiPanel } from "./components/AiPanel";
 import { NewFileDialog } from "./components/NewFileDialog";
 import { ReferencePane } from "./components/ReferencePane";
+import { ProofreadPane } from "./components/ProofreadPane";
 import { ItemMenu, type MenuAction } from "./components/ItemMenu";
 import { ViewMenu, type ViewSettings } from "./components/ViewMenu";
 import { folderLabel } from "./components/folderLabels";
@@ -105,7 +106,7 @@ function Splitter({ onDrag }: { onDrag: (dx: number) => void }) {
   );
 }
 
-type RightTab = "ai" | "ref";
+type RightTab = "ai" | "ref" | "proof";
 
 export default function App() {
   const handleRef = useRef<EditorHandle>({
@@ -113,6 +114,8 @@ export default function App() {
     load: () => {},
     openSearch: () => {},
     scrollTo: () => {},
+    selectRange: () => {},
+    replaceRange: () => {},
   });
 
   const [project, setProject] = useState<OpenedProject | null>(null);
@@ -633,7 +636,7 @@ export default function App() {
               <div className="empty-state">
                 <h2>プロジェクトを開いてください</h2>
                 <p>
-                  空のフォルダを選ぶと manuscript / codex / plot などの構成を作ります。
+                  空のフォルダーを選ぶと 原稿 / 設定 / プロット などの構成を作ります。
                   <br />
                   データはすべて普通のMarkdownファイルなので、他のエディタからも編集できます。
                 </p>
@@ -676,9 +679,15 @@ export default function App() {
                 >
                   参照
                 </button>
+                <button
+                  className={rightTab === "proof" ? "tab active" : "tab"}
+                  onClick={() => setRightTab("proof")}
+                >
+                  校正
+                </button>
               </div>
               <div className="tab-body">
-                {rightTab === "ai" ? (
+                {rightTab === "ai" && (
                   <AiPanel
                     body={text}
                     mentionedPaths={mentionedPaths}
@@ -686,7 +695,8 @@ export default function App() {
                     disabled={!project}
                     onShowReference={showReference}
                   />
-                ) : (
+                )}
+                {rightTab === "ref" && (
                   <ReferencePane
                     codex={codex}
                     mentionedPaths={mentionedPaths}
@@ -695,6 +705,18 @@ export default function App() {
                     onSelect={showReference}
                     onOpenInEditor={(p) => void openFile(p)}
                     onClose={() => setRightOpen(false)}
+                  />
+                )}
+                {rightTab === "proof" && (
+                  <ProofreadPane
+                    body={text}
+                    disabled={!currentPath}
+                    onJump={(from, to) =>
+                      handleRef.current.selectRange(from, to)
+                    }
+                    onReplace={(from, to, t) =>
+                      handleRef.current.replaceRange(from, to, t)
+                    }
                   />
                 )}
               </div>

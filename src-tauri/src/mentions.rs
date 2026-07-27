@@ -64,13 +64,13 @@ pub fn find_mentions(text: &str, patterns: &[String]) -> Vec<Mention> {
 /// UTF-8 バイトオフセット → UTF-16 コードユニットオフセットの変換表。
 ///
 /// 文字境界ごとの累積値だけを持つ疎な表にして、二分探索で引く。
-struct Utf16Map {
+pub(crate) struct Utf16Map {
     /// (バイトオフセット, その位置までの UTF-16 コードユニット数)
     marks: Vec<(usize, usize)>,
 }
 
 impl Utf16Map {
-    fn new(text: &str) -> Self {
+    pub(crate) fn new(text: &str) -> Self {
         let mut marks = Vec::with_capacity(text.len() / 3 + 1);
         let mut utf16 = 0usize;
         for (byte_idx, ch) in text.char_indices() {
@@ -81,7 +81,7 @@ impl Utf16Map {
         Self { marks }
     }
 
-    fn at(&self, byte_offset: usize) -> usize {
+    pub(crate) fn at(&self, byte_offset: usize) -> usize {
         match self.marks.binary_search_by_key(&byte_offset, |&(b, _)| b) {
             Ok(i) => self.marks[i].1,
             // 文字境界でないオフセットは来ない想定だが、来ても壊さない
