@@ -10,6 +10,7 @@ pub mod frontmatter;
 pub mod mentions;
 pub mod project;
 pub mod proofread;
+pub mod settings;
 pub mod templates;
 
 use std::path::PathBuf;
@@ -40,6 +41,14 @@ struct AiSettings {
     api_key: Option<String>,
     model: String,
     temperature: f32,
+    /// 校正で1回に送る本文の文字数(PoC#7 §7.2)。
+    /// 小さいと実行回数が増えて遅く、大きいとコンテキストを超えて打ち切られる
+    #[serde(default = "default_chunk_chars")]
+    check_chunk_chars: usize,
+}
+
+fn default_chunk_chars() -> usize {
+    proofread::CHUNK_CHARS
 }
 
 impl Default for AiSettings {
@@ -49,6 +58,29 @@ impl Default for AiSettings {
             api_key: None,
             model: String::new(),
             temperature: 0.7,
+            check_chunk_chars: proofread::CHUNK_CHARS,
+        }
+    }
+}
+
+impl AiSettings {
+    /// 保存済みの設定を反映する。**APIキーは保存されないのでメモリ上の値を保つ**
+    fn from_stored(stored: settings::StoredSettings) -> Self {
+        Self {
+            base_url: stored.base_url,
+            api_key: None,
+            model: stored.model,
+            temperature: stored.temperature,
+            check_chunk_chars: settings::clamp_chunk_chars(stored.check_chunk_chars),
+        }
+    }
+
+    fn to_stored(&self) -> settings::StoredSettings {
+        settings::StoredSettings {
+            base_url: self.base_url.clone(),
+            model: self.model.clone(),
+            temperature: self.temperature,
+            check_chunk_chars: self.check_chunk_chars,
         }
     }
 }
@@ -301,8 +333,9 @@ async fn proofread_ai(
     let codex = project::load_codex(&root).map_err(to_msg)?;
     let names: Vec<String> = codex.iter().flat_map(|c| c.patterns()).collect();
 
-    // 長文はまとめて投げると検知率が落ちるので分割して順に検査する(PoC#7)
-    let all_chunks = proofread::split_for_check(&text);
+    // 長文はまとめて投げると応答が打ち切られることがあるので分割して順に検査する
+    // (PoC#7 §7.1)。分割字数は環境によって最適値が違うため設定可能(§7.2)
+    let all_chunks = proofread::split_for_check_with(&text, s.check_chunk_chars);
     let total_chunks = all_chunks.len();
     let chunks: Vec<String> = all_chunks
         .into_iter()
@@ -450,6 +483,10 @@ fn get_ai_settings(state: State<AppState>) -> Result<AiSettings, String> {
 
 #[tauri::command]
 fn set_ai_settings(settings: AiSettings, state: State<AppState>) -> Result<(), String> {
+    let mut settings = settings;
+    settings.check_chunk_chars = settings::clamp_chunk_chars(settings.check_chunk_chars);
+    // 保存に失敗してもアプリは動かす(次回の起動で既定に戻るだけ)
+    let _ = settings::save(&settings.to_stored());
     *state.ai.lock().map_err(|_| "状態の更新に失敗")? = settings;
     Ok(())
 }
@@ -557,10 +594,18 @@ async fn ask_ai(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // 前回の接続設定を復元する(APIキーは保存していないので毎回入力)
+    let state = AppState::default();
+    if let Some(stored) = settings::load() {
+        if let Ok(mut ai) = state.ai.lock() {
+            *ai = AiSettings::from_stored(stored);
+        }
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .manage(AppState::default())
+        .manage(state)
         .invoke_handler(tauri::generate_handler![
             open_project,
             refresh_project,

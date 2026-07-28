@@ -11,7 +11,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, type AiIssue, type NotationHit } from "../api";
+import { api, type AiIssue, type AiSettings, type NotationHit } from "../api";
 
 type Props = {
   /** 現在の本文。結果の鮮度判定に使う */
@@ -44,6 +44,9 @@ export function ProofreadPane({ body, disabled, onJump, onReplace }: Props) {
   const [aiBody, setAiBody] = useState<string | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [aiSettings, setAiSettings] = useState<AiSettings | null>(null);
+  /** 分割字数。設定の取得に失敗しても操作できるよう既定値を持つ */
+  const [chunkChars, setChunkCharsState] = useState(3000);
   const [aiMeta, setAiMeta] = useState<{
     path: string;
     model: string;
@@ -75,6 +78,28 @@ export function ProofreadPane({ body, disabled, onJump, onReplace }: Props) {
     rerun.current = false;
     void run(body);
   }, [body, checkedBody, run]);
+
+  useEffect(() => {
+    api
+      .getAiSettings()
+      .then((s) => {
+        setAiSettings(s);
+        setChunkCharsState(s.check_chunk_chars);
+      })
+      .catch(() => {});
+  }, []);
+
+  /** 分割字数の変更。保存はRust側が行う */
+  const setChunkChars = useCallback(
+    (n: number) => {
+      setChunkCharsState(n);
+      if (!aiSettings) return;
+      const next = { ...aiSettings, check_chunk_chars: n };
+      setAiSettings(next);
+      api.setAiSettings(next).catch(() => {});
+    },
+    [aiSettings],
+  );
 
   const runAi = useCallback(async () => {
     setAiBusy(true);
@@ -248,6 +273,22 @@ export function ProofreadPane({ body, disabled, onJump, onReplace }: Props) {
           <button onClick={() => void runAi()} disabled={disabled || aiBusy}>
             {aiBusy ? "確認中…" : "AIで確認する"}
           </button>
+          {(
+            <label className="pf-chunk" title="1回のリクエストで送る本文の文字数">
+              1回
+              <select
+                value={chunkChars}
+                onChange={(e) => setChunkChars(Number(e.target.value))}
+                disabled={aiBusy}
+              >
+                {[1000, 2000, 3000, 4000, 6000, 8000, 12000].map((n) => (
+                  <option key={n} value={n}>
+                    {n.toLocaleString()}字
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {issues && !aiStale && (
             <span className="pf-count">
               {issues.length === 0 ? "指摘なし" : `${issues.length}件`}
@@ -285,8 +326,13 @@ export function ProofreadPane({ body, disabled, onJump, onReplace }: Props) {
             <strong>採否は必ず自分で決めてください</strong>。
             <br />
             <br />
-            長い本文は3000字ごとに分けて検査します。まとめて渡すと、モデルが
+            長い本文は上の字数ごとに分けて検査します。まとめて渡すと、モデルが
             答えを出す前にコンテキストを使い切って<strong>何も返さないこと</strong>があるためです。
+            <br />
+            <br />
+            所要時間は本文の長さより<strong>実行回数</strong>でほぼ決まります。
+            モデルのコンテキスト長に余裕があるなら字数を大きくした方が速く終わります。
+            打ち切りの警告が出たら小さくしてください。
             <br />
             <br />
             ローカルモデルは30 tok/s 以上が目安です。LM Studio でコンテキスト長を

@@ -264,7 +264,10 @@ pub const MAX_CHECK_CHARS: usize = CHUNK_CHARS * MAX_CHUNKS;
 /// 本文を検査単位に分ける。**行の途中では切らない**(文が割れると検知精度が落ちる)。
 ///
 /// 1行が長すぎる場合だけ、やむを得ず文字数で切る。
-pub fn split_for_check(body: &str) -> Vec<String> {
+/// `chunk_chars` は設定可能(既定 CHUNK_CHARS)。コンテキストに余裕がある環境では
+/// 大きくした方が速い(所要時間は本文長よりも実行回数で決まる。§7.2)。
+pub fn split_for_check_with(body: &str, chunk_chars: usize) -> Vec<String> {
+    let chunk_chars = chunk_chars.max(100);
     if body.trim().is_empty() {
         return Vec::new();
     }
@@ -276,7 +279,7 @@ pub fn split_for_check(body: &str) -> Vec<String> {
         let line_len = line.chars().count();
 
         // 1行だけで上限を超える場合は、その行を文字数で分割する
-        if line_len > CHUNK_CHARS {
+        if line_len > chunk_chars {
             if !current.is_empty() {
                 chunks.push(std::mem::take(&mut current));
                 current_len = 0;
@@ -286,7 +289,7 @@ pub fn split_for_check(body: &str) -> Vec<String> {
             for c in line.chars() {
                 buf.push(c);
                 n += 1;
-                if n == CHUNK_CHARS {
+                if n == chunk_chars {
                     chunks.push(std::mem::take(&mut buf));
                     n = 0;
                 }
@@ -298,7 +301,7 @@ pub fn split_for_check(body: &str) -> Vec<String> {
             continue;
         }
 
-        if current_len + line_len > CHUNK_CHARS && !current.is_empty() {
+        if current_len + line_len > chunk_chars && !current.is_empty() {
             chunks.push(std::mem::take(&mut current));
             current_len = 0;
         }
@@ -309,6 +312,11 @@ pub fn split_for_check(body: &str) -> Vec<String> {
         chunks.push(current);
     }
     chunks
+}
+
+/// 既定の分割字数で分ける
+pub fn split_for_check(body: &str) -> Vec<String> {
+    split_for_check_with(body, CHUNK_CHARS)
 }
 
 /// 同じ指摘の重複を落とす(塊をまたいで同じ語が指摘されることがある)
@@ -738,6 +746,19 @@ mod tests {
     fn split_ignores_empty_body() {
         assert!(split_for_check("").is_empty());
         assert!(split_for_check("   \n  ").is_empty());
+    }
+
+    #[test]
+    fn split_respects_custom_chunk_size() {
+        // 設定で分割字数を変えられること(§7.2: 環境によって最適値が違う)
+        let body = format!("{}\n", "あ".repeat(999)).repeat(6); // 約6000字
+        assert_eq!(split_for_check_with(&body, 1_000).len(), 6);
+        assert_eq!(split_for_check_with(&body, 3_000).len(), 2);
+        assert_eq!(split_for_check_with(&body, 6_000).len(), 1);
+        // どの分割でも本文は変わらない
+        for size in [1_000, 3_000, 6_000] {
+            assert_eq!(split_for_check_with(&body, size).concat(), body);
+        }
     }
 
     #[test]

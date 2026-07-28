@@ -95,6 +95,8 @@ export type AiSettings = {
   api_key: string | null;
   model: string;
   temperature: number;
+  /** 校正で1回に送る本文の文字数 */
+  check_chunk_chars: number;
 };
 
 export type ChatEvent =

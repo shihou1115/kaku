@@ -293,6 +293,20 @@ button.tab.active {
   color: #5f3dc4;
 }
 
+.pf-chunk {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  margin-left: auto;
+}
+
+.pf-chunk select {
+  font-size: 11px;
+  padding: 2px 4px;
+}
+
 .pf-meta {
   margin: 0;
   font-size: 10.5px;
