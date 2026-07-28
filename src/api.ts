@@ -85,6 +85,21 @@ export type AiProofreadResult = {
   warning: string | null;
 };
 
+export type Candidate = {
+  name: string;
+  kind: string;
+  description: string;
+  count: number;
+};
+
+export type ExtractResult = {
+  candidates: Candidate[];
+  rejected: number;
+  chunks: number;
+  elapsed_ms: number;
+  warning: string | null;
+};
+
 export type TemplateInfo = {
   genre: string;
   kind: string;
@@ -116,6 +131,10 @@ export const api = {
     invoke<number>("file_modified_ms", { path }),
   checkNotation: (text: string) =>
     invoke<NotationHit[]>("check_notation", { text }),
+  extractEntities: (text: string) =>
+    invoke<ExtractResult>("extract_entities", { text }),
+  createCodexEntries: (candidates: Candidate[]) =>
+    invoke<string[]>("create_codex_entries", { candidates }),
   proofreadAi: (text: string) =>
     invoke<AiProofreadResult>("proofread_ai", { text }),
   countFiles: (path: string) => invoke<number>("count_files", { path }),

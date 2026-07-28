@@ -6,6 +6,7 @@
 // ドメインロジックは統合テスト(tests/flow.rs)からも叩けるよう公開する
 pub mod ai;
 pub mod context;
+pub mod extract;
 pub mod frontmatter;
 pub mod mentions;
 pub mod project;
@@ -474,6 +475,112 @@ async fn proofread_ai(
     })
 }
 
+#[derive(Serialize)]
+struct ExtractResult {
+    candidates: Vec<extract::Candidate>,
+    /// LLMが挙げたが機械側の検証で落とした数(幻覚・一般名詞・登録済み)
+    rejected: usize,
+    chunks: usize,
+    elapsed_ms: u64,
+    warning: Option<String>,
+}
+
+/// 本文からの設定自動抽出(M-09)。**手動実行のみ**。
+///
+/// 提案するだけで登録はしない。登録は create_codex_entries を別途呼ぶ。
+#[tauri::command]
+async fn extract_entities(
+    text: String,
+    state: State<'_, AppState>,
+) -> Result<ExtractResult, String> {
+    let s = state.ai.lock().map_err(|_| "状態の取得に失敗")?.clone();
+    if s.model.trim().is_empty() {
+        return Err("モデルが未設定です。AI相談タブの設定で接続してください".to_string());
+    }
+    let root = root_of(&state)?;
+    let codex = project::load_codex(&root).map_err(to_msg)?;
+    let known: Vec<String> = codex.iter().flat_map(|c| c.patterns()).collect();
+
+    let chunks = proofread::split_for_check_with(&text, s.check_chunk_chars);
+    let chunks: Vec<String> = chunks.into_iter().take(proofread::MAX_CHUNKS).collect();
+
+    let started = std::time::Instant::now();
+    let mut raw_all = Vec::new();
+    let mut truncated = 0usize;
+    let mut failures = 0usize;
+
+    for chunk in &chunks {
+        let messages = vec![
+            ChatMessage {
+                role: "system".into(),
+                content: "あなたは小説の設定を整理する編集者です。指示に従い、JSONだけを返します。"
+                    .into(),
+            },
+            ChatMessage {
+                role: "user".into(),
+                content: extract::build_prompt(chunk, &known),
+            },
+        ];
+        match ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.1, None).await {
+            Ok(out) => {
+                if out.truncated() {
+                    truncated += 1;
+                }
+                raw_all.extend(extract::parse(&out.content));
+            }
+            Err(_) => failures += 1,
+        }
+    }
+
+    if failures == chunks.len() && !chunks.is_empty() {
+        return Err("AIへの問い合わせに失敗しました。接続設定を確認してください".to_string());
+    }
+
+    let raw_count = raw_all.len();
+    // 位置と重複は本文全体に対して判定する
+    let candidates = extract::verify(&text, raw_all, &codex);
+    let rejected = raw_count.saturating_sub(candidates.len());
+
+    let warning = if truncated > 0 {
+        Some(format!(
+            "{truncated}箇所で応答が途中で打ち切られました。取りこぼしがある可能性があります"
+        ))
+    } else if failures > 0 {
+        Some(format!("{failures}箇所の抽出に失敗しました。結果は一部のみです"))
+    } else {
+        None
+    };
+
+    Ok(ExtractResult {
+        candidates,
+        rejected,
+        chunks: chunks.len(),
+        elapsed_ms: started.elapsed().as_millis() as u64,
+        warning,
+    })
+}
+
+/// 採用した候補をcodexのファイルとして作る(ユーザーが選んだものだけ)
+#[tauri::command]
+fn create_codex_entries(
+    candidates: Vec<extract::Candidate>,
+    state: State<AppState>,
+) -> Result<Vec<String>, String> {
+    let root = root_of(&state)?;
+    let mut created = Vec::new();
+    for c in candidates {
+        let safe = c.name.replace(['\\', '/', ':', '*', '?', '"', '<', '>', '|'], "_");
+        let path = format!("{}/{}.md", extract::folder_for(&c.kind), safe);
+        match project::create_file(&root, &path, &extract::entry_markdown(&c)) {
+            Ok(true) => created.push(path),
+            // 同名が既にある場合は黙って飛ばす(上書きしない)
+            Ok(false) => {}
+            Err(e) => return Err(to_msg(e)),
+        }
+    }
+    Ok(created)
+}
+
 // ===== AI =====
 
 #[tauri::command]
@@ -625,6 +732,8 @@ pub fn run() {
             find_mentions,
             check_notation,
             proofread_ai,
+            extract_entities,
+            create_codex_entries,
             get_ai_settings,
             set_ai_settings,
             list_models,

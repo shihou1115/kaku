@@ -439,6 +439,104 @@ button.tab.active {
   margin-left: auto;
 }
 
+/* ===== 設定抽出タブ ===== */
+
+.extract-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 10px;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.ex-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ex-actions .danger {
+  color: #c92a2a;
+  margin-left: auto;
+}
+
+.ex-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ex-item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 7px 8px;
+  cursor: pointer;
+}
+
+.ex-item:hover {
+  background: #f7f9fa;
+}
+
+.ex-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.ex-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+
+.ex-kind {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 9px;
+  background: #eef1f4;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+
+.ex-kind.character {
+  background: #fff0f6;
+  border-color: #fcc2d7;
+  color: #a61e4d;
+}
+
+.ex-kind.location {
+  background: #e6fcf5;
+  border-color: #96f2d7;
+  color: #087f5b;
+}
+
+.ex-kind.item {
+  background: #fff9db;
+  border-color: #ffec99;
+  color: #8c6d1f;
+}
+
+.ex-count {
+  font-size: 10.5px;
+  color: var(--muted);
+  margin-left: auto;
+}
+
+.ex-desc {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
 /* ===== 保存状態チップ ===== */
 
 .savechip {

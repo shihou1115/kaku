@@ -18,6 +18,7 @@ import { AiPanel } from "./components/AiPanel";
 import { NewFileDialog } from "./components/NewFileDialog";
 import { ReferencePane } from "./components/ReferencePane";
 import { ProofreadPane } from "./components/ProofreadPane";
+import { ExtractPane } from "./components/ExtractPane";
 import { ItemMenu, type MenuAction } from "./components/ItemMenu";
 import { ViewMenu, type ViewSettings } from "./components/ViewMenu";
 import { folderLabel } from "./components/folderLabels";
@@ -106,7 +107,7 @@ function Splitter({ onDrag }: { onDrag: (dx: number) => void }) {
   );
 }
 
-type RightTab = "ai" | "ref" | "proof";
+type RightTab = "ai" | "ref" | "proof" | "extract";
 
 export default function App() {
   const handleRef = useRef<EditorHandle>({
@@ -685,6 +686,12 @@ export default function App() {
                 >
                   校正
                 </button>
+                <button
+                  className={rightTab === "extract" ? "tab active" : "tab"}
+                  onClick={() => setRightTab("extract")}
+                >
+                  抽出
+                </button>
               </div>
               <div className="tab-body">
                 {rightTab === "ai" && (
@@ -705,6 +712,24 @@ export default function App() {
                     onSelect={showReference}
                     onOpenInEditor={(p) => void openFile(p)}
                     onClose={() => setRightOpen(false)}
+                  />
+                )}
+                {rightTab === "extract" && (
+                  <ExtractPane
+                    body={text}
+                    disabled={!currentPath}
+                    onCreated={async (paths) => {
+                      try {
+                        setProject(await api.refreshProject());
+                        setStatus(
+                          paths.length > 0
+                            ? `${paths.length}件を設定に追加しました`
+                            : "追加できるものがありませんでした(同名が既にあります)",
+                        );
+                      } catch (e) {
+                        setStatus(String(e));
+                      }
+                    }}
                   />
                 )}
                 {rightTab === "proof" && (
