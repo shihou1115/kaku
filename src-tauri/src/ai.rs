@@ -42,6 +42,28 @@ struct ChatResponse {
 #[derive(Debug, Deserialize)]
 struct Choice {
     message: ChatMessage,
+    /// "stop" = 正常終了 / "length" = コンテキストや上限で打ち切られた
+    #[serde(default)]
+    finish_reason: Option<String>,
+}
+
+/// 応答一式。**打ち切りを見逃さない**ために finish_reason を必ず持ち回る。
+///
+/// 校正のように「指摘なし」が意味を持つ機能では、打ち切りを
+/// 「誤りが無かった」と取り違えると致命的な誤報告になる。
+#[derive(Debug, Clone)]
+pub struct ChatOutcome {
+    pub content: String,
+    pub usage: Option<Usage>,
+    pub finish_reason: Option<String>,
+}
+
+impl ChatOutcome {
+    /// コンテキスト上限などで応答が打ち切られたか
+    pub fn truncated(&self) -> bool {
+        self.finish_reason.as_deref() == Some("length")
+            || (self.content.trim().is_empty() && self.finish_reason.is_some())
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, Deserialize, Serialize)]
@@ -113,7 +135,7 @@ pub async fn chat(
     messages: &[ChatMessage],
     temperature: f32,
     schema: Option<serde_json::Value>,
-) -> Result<(String, Option<Usage>), String> {
+) -> Result<ChatOutcome, String> {
     let url = endpoint(base_url, "chat/completions");
     let body = ChatRequest {
         model,
@@ -136,12 +158,12 @@ pub async fn chat(
         .json()
         .await
         .map_err(|e| format!("応答の解析に失敗: {e}"))?;
-    let content = parsed
-        .choices
-        .first()
-        .map(|c| c.message.content.clone())
-        .unwrap_or_default();
-    Ok((content, parsed.usage))
+    let first = parsed.choices.first();
+    Ok(ChatOutcome {
+        content: first.map(|c| c.message.content.clone()).unwrap_or_default(),
+        finish_reason: first.and_then(|c| c.finish_reason.clone()),
+        usage: parsed.usage,
+    })
 }
 
 /// SSE の1行から本文の増分を取り出す。

@@ -319,6 +319,8 @@ async fn proofread_ai(
     let mut collected = Vec::new();
     let mut completion_tokens = 0u64;
     let mut failures = 0usize;
+    // 応答が打ち切られた塊の数。「指摘なし」と取り違えると誤報告になる
+    let mut truncated = 0usize;
 
     for chunk in &chunks {
         let messages = vec![
@@ -336,6 +338,7 @@ async fn proofread_ai(
 
         // 経路A: 構造化出力。失敗したら経路B(スキーマ無し+寛容パース)へ落とす
         let mut used_fallback = false;
+        let mut chunk_truncated = false;
         let raw = match ai::chat(
             &s.base_url,
             &s.api_key,
@@ -346,16 +349,24 @@ async fn proofread_ai(
         )
         .await
         {
-            Ok((content, usage)) => {
-                completion_tokens += usage.map(|u| u.completion_tokens).unwrap_or(0);
-                content
+            Ok(out) => {
+                completion_tokens += out.usage.map(|u| u.completion_tokens).unwrap_or(0);
+                if out.truncated() {
+                    truncated += 1;
+                    chunk_truncated = true;
+                }
+                out.content
             }
             Err(_) => {
                 used_fallback = true;
                 match ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.1, None).await {
-                    Ok((content, usage)) => {
-                        completion_tokens += usage.map(|u| u.completion_tokens).unwrap_or(0);
-                        content
+                    Ok(out) => {
+                        completion_tokens += out.usage.map(|u| u.completion_tokens).unwrap_or(0);
+                        if out.truncated() {
+                            truncated += 1;
+                            chunk_truncated = true;
+                        }
+                        out.content
                     }
                     Err(_) => {
                         // 一部が落ちても、取れた分は返す(全部やり直させない)
@@ -367,13 +378,14 @@ async fn proofread_ai(
         };
 
         let mut issues = proofread::parse_ai_issues(&raw);
-        // 構造化出力が通ったのに中身が取れない場合も経路Bで測り直す
-        if issues.is_empty() && !used_fallback {
-            if let Ok((content, usage)) =
-                ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.1, None).await
+        // 構造化出力が通ったのに中身が取れない場合は経路Bで測り直す。
+        // ただし**打ち切られていた場合は再試行しない**。原因はコンテキスト長の
+        // 不足であって出力形式ではないため、投げ直しても同じ結果になり時間を捨てるだけ
+        if issues.is_empty() && !used_fallback && !chunk_truncated {
+            if let Ok(out) = ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.1, None).await
             {
-                completion_tokens += usage.map(|u| u.completion_tokens).unwrap_or(0);
-                let retried = proofread::parse_ai_issues(&content);
+                completion_tokens += out.usage.map(|u| u.completion_tokens).unwrap_or(0);
+                let retried = proofread::parse_ai_issues(&out.content);
                 if !retried.is_empty() {
                     used_fallback = true;
                     issues = retried;
@@ -398,7 +410,15 @@ async fn proofread_ai(
         None
     };
 
-    let warning = if failures > 0 {
+    // 打ち切りは「指摘なし」と区別して必ず伝える。
+    // 校正で「誤りが無い」と誤解させるのは最悪の誤報告になる
+    let warning = if truncated > 0 {
+        Some(format!(
+            "{truncated}箇所で応答が途中で打ち切られました(モデルのコンテキスト長が不足しています)。\
+             見落としがある可能性が高いので、LM Studio のコンテキスト長を増やすか、\
+             短い範囲に区切って確認してください"
+        ))
+    } else if failures > 0 {
         Some(format!(
             "{failures}箇所の検査に失敗しました。結果は一部のみです"
         ))

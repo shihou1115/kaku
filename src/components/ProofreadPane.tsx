@@ -285,8 +285,9 @@ export function ProofreadPane({ body, disabled, onJump, onReplace }: Props) {
             <strong>採否は必ず自分で決めてください</strong>。
             <br />
             <br />
-            長い本文は3000字ごとに分けて検査します(まとめて渡すと検知率が落ちるため)。
-            ローカルモデルでは30 tok/s 以上を目安にしてください。
+            長い本文は3000字ごとに分けて検査します。まとめて渡すと、モデルが
+            答えを出す前にコンテキストを使い切って<strong>何も返さないこと</strong>があるためです。
+            ローカルモデルでは30 tok/s 以上、コンテキスト長は長めを目安にしてください。
           </p>
         )}
         {issues?.length === 0 && !aiStale && (
