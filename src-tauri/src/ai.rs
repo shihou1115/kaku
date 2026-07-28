@@ -84,11 +84,18 @@ struct ModelInfo {
     id: String,
 }
 
+/// 応答を待つ上限(秒)。
+///
+/// ローカルLLMは初回のモデルロードに時間がかかる(uggg の実測にならい 180 秒)。
+/// 校正のように出力トークン数が多い用途では、遅いモデルだとこれでも足りない。
+/// その場合は「設定を見直せ」と伝える方が、待ち続けるより親切
+/// (docs/04-design.md §7.2)。
+pub const TIMEOUT_SECS: u64 = 180;
+
 pub fn client() -> reqwest::Client {
-    // ローカルLLMは初回のモデルロードに時間がかかる(uggg の実測にならい 180 秒)。
     // 接続自体は localhost なら即時なので connect は短くてよい。
     reqwest::Client::builder()
-        .timeout(Duration::from_secs(180))
+        .timeout(Duration::from_secs(TIMEOUT_SECS))
         .connect_timeout(Duration::from_secs(15))
         .build()
         .expect("reqwest client build failed")
@@ -105,13 +112,32 @@ fn auth(req: reqwest::RequestBuilder, api_key: &Option<String>) -> reqwest::Requ
     }
 }
 
+/// 接続失敗の理由を、ユーザーが次に何をすべきか分かる日本語にする。
+///
+/// タイムアウトを「接続できません」と出すと、設定ミスだと誤解して
+/// 接続先やキーを疑うことになる。実際にはモデルが遅いだけのことがある
+/// (LM Studio の並列数やコンテキスト長の設定で速度は桁違いに変わる)。
+pub fn describe_error(e: &reqwest::Error, url: &str) -> String {
+    if e.is_timeout() {
+        format!(
+            "応答が {} 秒以内に返りませんでした。モデルが遅すぎる可能性があります。\
+             LM Studio の設定(コンテキスト長・並列数)を見直すか、軽いモデルに替えてください",
+            TIMEOUT_SECS
+        )
+    } else if e.is_connect() {
+        format!("接続できませんでした({url})。LM Studio が起動しているか確認してください")
+    } else {
+        format!("通信に失敗しました({url}): {e}")
+    }
+}
+
 /// 接続テスト兼モデル一覧取得(M-07)。LM Studio では現在ロード中のモデルが返る。
 pub async fn list_models(base_url: &str, api_key: &Option<String>) -> Result<Vec<String>, String> {
     let url = endpoint(base_url, "models");
     let resp = auth(client().get(&url), api_key)
         .send()
         .await
-        .map_err(|e| format!("接続できませんでした ({url}): {e}"))?;
+        .map_err(|e| describe_error(&e, &url))?;
     let status = resp.status();
     if !status.is_success() {
         let body = resp.text().await.unwrap_or_default();
@@ -148,7 +174,7 @@ pub async fn chat(
         .json(&body)
         .send()
         .await
-        .map_err(|e| format!("接続できませんでした ({url}): {e}"))?;
+        .map_err(|e| describe_error(&e, &url))?;
     let status = resp.status();
     if !status.is_success() {
         let text = resp.text().await.unwrap_or_default();

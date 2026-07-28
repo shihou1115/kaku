@@ -287,7 +287,11 @@ export function ProofreadPane({ body, disabled, onJump, onReplace }: Props) {
             <br />
             長い本文は3000字ごとに分けて検査します。まとめて渡すと、モデルが
             答えを出す前にコンテキストを使い切って<strong>何も返さないこと</strong>があるためです。
-            ローカルモデルでは30 tok/s 以上、コンテキスト長は長めを目安にしてください。
+            <br />
+            <br />
+            ローカルモデルは30 tok/s 以上が目安です。LM Studio でコンテキスト長を
+            増やすときは<strong>並列数を1に下げてください</strong>。KVキャッシュが
+            並列数の分だけ増え、VRAMから溢れると速度が桁違いに落ちます。
           </p>
         )}
         {issues?.length === 0 && !aiStale && (

@@ -514,7 +514,7 @@ async fn ask_ai(
     let resp = ai::stream_request(&s.base_url, &s.api_key, &s.model, &messages, s.temperature)
         .send()
         .await
-        .map_err(|e| format!("接続できませんでした: {e}"))?;
+        .map_err(|e| ai::describe_error(&e, &s.base_url))?;
 
     if !resp.status().is_success() {
         let status = resp.status();

@@ -88,10 +88,10 @@ async fn detection_rate_by_length() {
     eprintln!("接続先: {base_url}\nモデル: {model}\n");
     eprintln!("埋め込んだ誤り: {}件", ERRORS.len());
     eprintln!(
-        "{:>7} | {:>6} | {:>8} | {:>6} | {:>7} | {}",
-        "文字数", "検知", "検知率", "誤検出", "prompt", "所要"
+        "{:>7} | {:>6} | {:>8} | {:>6} | {:>7} | {:>7} | {:>7} | {}",
+        "文字数", "検知", "検知率", "誤検出", "prompt", "出力tok", "tok/s", "所要"
     );
-    eprintln!("{}", "-".repeat(64));
+    eprintln!("{}", "-".repeat(84));
 
     let lengths: Vec<usize> = std::env::var("KAKU_LENGTHS")
         .ok()
@@ -143,14 +143,22 @@ async fn detection_rate_by_length() {
                     .iter()
                     .filter(|i| !ERRORS.iter().any(|(w, _)| i.quote.contains(w)))
                     .count();
+                let completion = usage.map(|u| u.completion_tokens).unwrap_or(0);
+                let tok_per_sec = if completion > 0 && elapsed.as_secs_f64() > 0.0 {
+                    format!("{:.1}", completion as f64 / elapsed.as_secs_f64())
+                } else {
+                    "-".to_string()
+                };
                 eprintln!(
-                    "{:>7} | {:>4}/{:<2} | {:>7.0}% | {:>6} | {:>7} | {:.1}秒",
+                    "{:>7} | {:>4}/{:<2} | {:>7.0}% | {:>6} | {:>7} | {:>7} | {:>7} | {:.1}秒",
                     actual_chars,
                     detected,
                     ERRORS.len(),
                     detected as f64 / ERRORS.len() as f64 * 100.0,
                     extra,
                     usage.map(|u| u.prompt_tokens.to_string()).unwrap_or("-".into()),
+                    completion,
+                    tok_per_sec,
                     elapsed.as_secs_f64()
                 );
                 // 0件のときは「見落とし」か「応答が壊れている」かを切り分ける
