@@ -79,6 +79,10 @@ export type AiProofreadResult = {
   unchecked_chars: number;
   path: "schema" | "fallback";
   model: string;
+  chunks: number;
+  elapsed_ms: number;
+  tokens_per_sec: number | null;
+  warning: string | null;
 };
 
 export type TemplateInfo = {

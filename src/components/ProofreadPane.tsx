@@ -48,6 +48,10 @@ export function ProofreadPane({ body, disabled, onJump, onReplace }: Props) {
     path: string;
     model: string;
     unchecked: number;
+    chunks: number;
+    elapsedMs: number;
+    tokensPerSec: number | null;
+    warning: string | null;
   } | null>(null);
 
   const run = useCallback(async (target: string) => {
@@ -79,7 +83,15 @@ export function ProofreadPane({ body, disabled, onJump, onReplace }: Props) {
       const r = await api.proofreadAi(body);
       setIssues(r.issues);
       setAiBody(body);
-      setAiMeta({ path: r.path, model: r.model, unchecked: r.unchecked_chars });
+      setAiMeta({
+        path: r.path,
+        model: r.model,
+        unchecked: r.unchecked_chars,
+        chunks: r.chunks,
+        elapsedMs: r.elapsed_ms,
+        tokensPerSec: r.tokens_per_sec,
+        warning: r.warning,
+      });
     } catch (e) {
       setAiError(String(e));
     } finally {
@@ -246,10 +258,19 @@ export function ProofreadPane({ body, disabled, onJump, onReplace }: Props) {
         {aiMeta && (
           <p className="pf-meta">
             {aiMeta.model} / {aiMeta.path === "schema" ? "構造化出力" : "寛容パース"}
-            {aiMeta.unchecked > 0 &&
-              ` / 本文が長いため末尾${aiMeta.unchecked}字は未検査`}
+            {aiMeta.chunks > 1 && ` / ${aiMeta.chunks}分割`}
+            {` / ${(aiMeta.elapsedMs / 1000).toFixed(1)}秒`}
+            {aiMeta.tokensPerSec !== null &&
+              ` (${aiMeta.tokensPerSec.toFixed(0)} tok/s)`}
+            {aiMeta.unchecked > 0 && (
+              <>
+                <br />
+                本文が長いため末尾{aiMeta.unchecked}字は未検査です。分けて確認してください。
+              </>
+            )}
           </p>
         )}
+        {aiMeta?.warning && <p className="pf-stale">{aiMeta.warning}</p>}
         {aiStale && (
           <p className="pf-stale">
             本文が変わりました。結果が古い可能性があります。
@@ -262,6 +283,10 @@ export function ProofreadPane({ body, disabled, onJump, onReplace }: Props) {
             変換ミスや脱字を探します。会話文の崩しや意図的なひらがなは
             指摘しないよう指示しています。確率的な判定なので、
             <strong>採否は必ず自分で決めてください</strong>。
+            <br />
+            <br />
+            長い本文は3000字ごとに分けて検査します(まとめて渡すと検知率が落ちるため)。
+            ローカルモデルでは30 tok/s 以上を目安にしてください。
           </p>
         )}
         {issues?.length === 0 && !aiStale && (

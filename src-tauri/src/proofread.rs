@@ -246,9 +246,85 @@ pub struct AiIssue {
     pub end_utf16: Option<usize>,
 }
 
-/// 1回のリクエストで送る本文の上限(文字数)。
-/// 超過分は切り捨て、**切り捨てたことをユーザーに伝える**(黙って落とさない)
-pub const MAX_CHECK_CHARS: usize = 6_000;
+/// 1回のリクエストで送る本文の長さ(文字数)。
+///
+/// PoC#7(2026-07-26)の実測: **長文になると検知率が有意に低下し、3000字程度までなら
+/// 実用に耐える**。単純に切り捨てると未検査部分が生まれるため、この長さで分割して
+/// 順に検査する。「単純な切り捨てから始め、必要になってから高度化する」の
+/// 高度化の条件(実測による裏づけ)が揃ったための変更。
+pub const CHUNK_CHARS: usize = 3_000;
+
+/// 1回の実行で検査する塊の上限。
+/// ローカルLLMは30トークン/秒程度なので、際限なく投げると待ち時間が現実的でなくなる
+pub const MAX_CHUNKS: usize = 4;
+
+/// 1回の実行で検査できる最大の文字数
+pub const MAX_CHECK_CHARS: usize = CHUNK_CHARS * MAX_CHUNKS;
+
+/// 本文を検査単位に分ける。**行の途中では切らない**(文が割れると検知精度が落ちる)。
+///
+/// 1行が長すぎる場合だけ、やむを得ず文字数で切る。
+pub fn split_for_check(body: &str) -> Vec<String> {
+    if body.trim().is_empty() {
+        return Vec::new();
+    }
+    let mut chunks = Vec::new();
+    let mut current = String::new();
+    let mut current_len = 0usize;
+
+    for line in body.split_inclusive('\n') {
+        let line_len = line.chars().count();
+
+        // 1行だけで上限を超える場合は、その行を文字数で分割する
+        if line_len > CHUNK_CHARS {
+            if !current.is_empty() {
+                chunks.push(std::mem::take(&mut current));
+                current_len = 0;
+            }
+            let mut buf = String::new();
+            let mut n = 0usize;
+            for c in line.chars() {
+                buf.push(c);
+                n += 1;
+                if n == CHUNK_CHARS {
+                    chunks.push(std::mem::take(&mut buf));
+                    n = 0;
+                }
+            }
+            if !buf.is_empty() {
+                current = buf;
+                current_len = n;
+            }
+            continue;
+        }
+
+        if current_len + line_len > CHUNK_CHARS && !current.is_empty() {
+            chunks.push(std::mem::take(&mut current));
+            current_len = 0;
+        }
+        current.push_str(line);
+        current_len += line_len;
+    }
+    if !current.is_empty() {
+        chunks.push(current);
+    }
+    chunks
+}
+
+/// 同じ指摘の重複を落とす(塊をまたいで同じ語が指摘されることがある)
+pub fn dedupe_issues(issues: Vec<AiIssue>) -> Vec<AiIssue> {
+    let mut seen: Vec<(String, String)> = Vec::new();
+    let mut out = Vec::new();
+    for i in issues {
+        let key = (i.quote.clone(), i.suggestion.clone());
+        if seen.contains(&key) {
+            continue;
+        }
+        seen.push(key);
+        out.push(i);
+    }
+    out
+}
 
 /// 構造化出力(経路A)のスキーマ
 pub fn issue_schema() -> serde_json::Value {
@@ -623,6 +699,59 @@ mod tests {
             r#"{"issues":[{"quote":"架純","suggestion":"架純","kind":"誤字","reason":"?"}]}"#,
         );
         assert!(resolve_issues(body, issues).is_empty());
+    }
+
+    #[test]
+    fn split_keeps_short_body_whole() {
+        let body = "　転校初日の朝は、雨だった。\n　昇降口で靴を履き替える。\n";
+        let chunks = split_for_check(body);
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0], body);
+    }
+
+    #[test]
+    fn split_breaks_at_line_boundaries() {
+        // 1行1200字 × 4行。3000字上限なので 2行ずつに割れる
+        let line = format!("{}\n", "あ".repeat(1199));
+        let body = line.repeat(4);
+        let chunks = split_for_check(&body);
+        assert_eq!(chunks.len(), 2);
+        for c in &chunks {
+            assert!(c.chars().count() <= CHUNK_CHARS, "上限超過: {}", c.chars().count());
+            // 行の途中で切れていないこと
+            assert!(c.ends_with('\n'));
+        }
+        assert_eq!(chunks.concat(), body, "分割で本文が変わってはいけない");
+    }
+
+    #[test]
+    fn split_handles_single_long_line() {
+        // 改行が無い長文でも落ちない(やむを得ず文字数で切る)
+        let body = "あ".repeat(7_000);
+        let chunks = split_for_check(&body);
+        assert_eq!(chunks.len(), 3);
+        assert_eq!(chunks.concat(), body);
+        assert!(chunks.iter().all(|c| c.chars().count() <= CHUNK_CHARS));
+    }
+
+    #[test]
+    fn split_ignores_empty_body() {
+        assert!(split_for_check("").is_empty());
+        assert!(split_for_check("   \n  ").is_empty());
+    }
+
+    #[test]
+    fn dedupe_drops_repeated_issue_across_chunks() {
+        let issues = parse_ai_issues(
+            r#"{"issues":[
+                {"quote":"雨だつた","suggestion":"雨だった","kind":"誤字","reason":"a"},
+                {"quote":"雨だつた","suggestion":"雨だった","kind":"誤字","reason":"b"},
+                {"quote":"つずく","suggestion":"つづく","kind":"誤字","reason":"c"}
+            ]}"#,
+        );
+        let got = dedupe_issues(issues);
+        assert_eq!(got.len(), 2);
+        assert_eq!(got[0].reason, "a", "先に出たものを残す");
     }
 
     #[test]

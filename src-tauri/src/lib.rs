@@ -274,6 +274,14 @@ struct AiProofreadResult {
     /// "schema" = 構造化出力が通った / "fallback" = 寛容パースで拾った
     path: String,
     model: String,
+    /// 検査した塊の数(PoC#7: 長文は分割しないと検知率が落ちる)
+    chunks: usize,
+    /// 所要時間。ローカルLLMの速度をユーザーが判断できるようにする
+    elapsed_ms: u64,
+    /// 出力トークン/秒(usageを返さないモデルでは None)
+    tokens_per_sec: Option<f64>,
+    /// 一部の塊で失敗した場合の断り書き
+    warning: Option<String>,
 }
 
 /// 誤字脱字チェック(M-04-01)。
@@ -293,66 +301,123 @@ async fn proofread_ai(
     let codex = project::load_codex(&root).map_err(to_msg)?;
     let names: Vec<String> = codex.iter().flat_map(|c| c.patterns()).collect();
 
-    // 長すぎる本文は末尾を落とす。落としたことは呼び出し元へ返す(黙って捨てない)
-    let total = text.chars().count();
-    let (body, unchecked_chars) = if total > proofread::MAX_CHECK_CHARS {
-        (
-            text.chars().take(proofread::MAX_CHECK_CHARS).collect::<String>(),
-            total - proofread::MAX_CHECK_CHARS,
-        )
+    // 長文はまとめて投げると検知率が落ちるので分割して順に検査する(PoC#7)
+    let all_chunks = proofread::split_for_check(&text);
+    let total_chunks = all_chunks.len();
+    let chunks: Vec<String> = all_chunks
+        .into_iter()
+        .take(proofread::MAX_CHUNKS)
+        .collect();
+    let unchecked_chars = if total_chunks > chunks.len() {
+        text.chars().count() - chunks.iter().map(|c| c.chars().count()).sum::<usize>()
     } else {
-        (text.clone(), 0)
+        0
     };
 
-    let messages = vec![
-        ChatMessage {
-            role: "system".into(),
-            content: "あなたは日本語の小説を校正する編集者です。指示に従い、JSONだけを返します。"
-                .into(),
-        },
-        ChatMessage {
-            role: "user".into(),
-            content: proofread::build_prompt(&body, &names),
-        },
-    ];
-
-    // 経路A: 構造化出力
+    let started = std::time::Instant::now();
     let mut path = "schema";
-    let mut raw = match ai::chat(
-        &s.base_url,
-        &s.api_key,
-        &s.model,
-        &messages,
-        0.1,
-        Some(proofread::issue_schema()),
-    )
-    .await
-    {
-        Ok((content, _)) => content,
-        Err(_) => {
-            // 経路B: スキーマ非対応のモデルでも動くよう素の呼び出しへ落とす
-            path = "fallback";
-            ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.1, None)
-                .await?
-                .0
-        }
-    };
+    let mut collected = Vec::new();
+    let mut completion_tokens = 0u64;
+    let mut failures = 0usize;
 
-    let mut issues = proofread::parse_ai_issues(&raw);
-    // 構造化出力が通ったのに中身が取れない場合も経路Bで測り直す
-    if issues.is_empty() && path == "schema" {
-        path = "fallback";
-        raw = ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.1, None)
-            .await?
-            .0;
-        issues = proofread::parse_ai_issues(&raw);
+    for chunk in &chunks {
+        let messages = vec![
+            ChatMessage {
+                role: "system".into(),
+                content:
+                    "あなたは日本語の小説を校正する編集者です。指示に従い、JSONだけを返します。"
+                        .into(),
+            },
+            ChatMessage {
+                role: "user".into(),
+                content: proofread::build_prompt(chunk, &names),
+            },
+        ];
+
+        // 経路A: 構造化出力。失敗したら経路B(スキーマ無し+寛容パース)へ落とす
+        let mut used_fallback = false;
+        let raw = match ai::chat(
+            &s.base_url,
+            &s.api_key,
+            &s.model,
+            &messages,
+            0.1,
+            Some(proofread::issue_schema()),
+        )
+        .await
+        {
+            Ok((content, usage)) => {
+                completion_tokens += usage.map(|u| u.completion_tokens).unwrap_or(0);
+                content
+            }
+            Err(_) => {
+                used_fallback = true;
+                match ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.1, None).await {
+                    Ok((content, usage)) => {
+                        completion_tokens += usage.map(|u| u.completion_tokens).unwrap_or(0);
+                        content
+                    }
+                    Err(_) => {
+                        // 一部が落ちても、取れた分は返す(全部やり直させない)
+                        failures += 1;
+                        continue;
+                    }
+                }
+            }
+        };
+
+        let mut issues = proofread::parse_ai_issues(&raw);
+        // 構造化出力が通ったのに中身が取れない場合も経路Bで測り直す
+        if issues.is_empty() && !used_fallback {
+            if let Ok((content, usage)) =
+                ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.1, None).await
+            {
+                completion_tokens += usage.map(|u| u.completion_tokens).unwrap_or(0);
+                let retried = proofread::parse_ai_issues(&content);
+                if !retried.is_empty() {
+                    used_fallback = true;
+                    issues = retried;
+                }
+            }
+        }
+        if used_fallback {
+            path = "fallback";
+        }
+        collected.extend(issues);
     }
 
+    if failures == chunks.len() && !chunks.is_empty() {
+        return Err("AIへの問い合わせに失敗しました。接続設定を確認してください".to_string());
+    }
+
+    let elapsed = started.elapsed();
+    let elapsed_ms = elapsed.as_millis() as u64;
+    let tokens_per_sec = if completion_tokens > 0 && elapsed.as_secs_f64() > 0.0 {
+        Some(completion_tokens as f64 / elapsed.as_secs_f64())
+    } else {
+        None
+    };
+
+    let warning = if failures > 0 {
+        Some(format!(
+            "{failures}箇所の検査に失敗しました。結果は一部のみです"
+        ))
+    } else {
+        None
+    };
+
+    // 位置は本文全体に対して引き直す(塊ごとのずれを持ち込まない)
+    let issues = proofread::resolve_issues(&text, proofread::dedupe_issues(collected));
+
     Ok(AiProofreadResult {
-        issues: proofread::resolve_issues(&body, issues),
+        issues,
         unchecked_chars,
         path: path.to_string(),
         model: s.model,
+        chunks: chunks.len(),
+        elapsed_ms,
+        tokens_per_sec,
+        warning,
     })
 }
 
