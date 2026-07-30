@@ -182,6 +182,70 @@ export default function App() {
     });
   }, []);
 
+  // ===== AIの状態(ヘッダーに出す) =====
+  //
+  // 接続状態と実行状態は複数のペインに散らばると食い違うので、ここで一元管理する。
+  // 実行中の表示があることで「動いているのか止まっているのか」が常に分かる
+
+  const [aiConn, setAiConn] = useState<"unknown" | "ok" | "error">("unknown");
+  const [models, setModels] = useState<string[]>([]);
+  const [connDetail, setConnDetail] = useState("");
+  /** 実行中の処理。複数同時に走りうるので発生源ごとに持つ */
+  const [busyMap, setBusyMap] = useState<Record<string, string>>({});
+
+  const setAiBusy = useCallback((source: string, label: string | null) => {
+    setBusyMap((prev) => {
+      if (label === null) {
+        if (!(source in prev)) return prev;
+        const next = { ...prev };
+        delete next[source];
+        return next;
+      }
+      return { ...prev, [source]: label };
+    });
+  }, []);
+
+  const checkConnection = useCallback(async () => {
+    setAiConn("unknown");
+    setConnDetail("確認中…");
+    try {
+      const list = await api.listModels();
+      setModels(list);
+      setAiConn("ok");
+      setConnDetail(`${list.length}モデル`);
+      return list;
+    } catch (e) {
+      setAiConn("error");
+      setConnDetail(String(e));
+      return [];
+    }
+  }, []);
+
+  // 起動時に一度だけ疎通を見る(接続先が応答しなければ即座に失敗する)
+  useEffect(() => {
+    if (!aiSettings) return;
+    void checkConnection();
+    // 設定の読み込み完了時に一度だけ
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiSettings !== null]);
+
+  const busyLabels = Object.values(busyMap);
+  const aiStatus = busyLabels.length > 0
+    ? {
+        kind: "busy" as const,
+        text:
+          busyLabels.length === 1
+            ? busyLabels[0]
+            : `${busyLabels[0]} 他${busyLabels.length - 1}件`,
+      }
+    : aiConn === "error"
+      ? { kind: "error" as const, text: "未接続" }
+      : !aiSettings?.model
+        ? { kind: "warn" as const, text: "モデル未選択" }
+        : aiConn === "ok"
+          ? { kind: "ok" as const, text: "接続OK" }
+          : { kind: "warn" as const, text: "未確認" };
+
   const dirty = text !== savedText;
   const codex: CodexEntry[] = project?.codex ?? [];
 
@@ -609,6 +673,21 @@ export default function App() {
             設定名を強調
           </label>
           <span className="count">{charCount}字</span>
+          <button
+            className={`ai-status ${aiStatus.kind}`}
+            title={
+              connDetail
+                ? `AI: ${aiStatus.text}(${connDetail})クリックで設定へ`
+                : "クリックでAI設定へ"
+            }
+            onClick={() => {
+              setRightOpen(true);
+              setRightTab("ai");
+            }}
+          >
+            <span className="ai-dot" />
+            {aiStatus.text}
+          </button>
           <div className="view-menu-anchor">
             <button
               className={viewMenuOpen ? "toggled" : ""}
@@ -732,6 +811,10 @@ export default function App() {
                     disabled={!project}
                     settings={aiSettings}
                     onPatchSettings={patchAiSettings}
+                    models={models}
+                    connDetail={connDetail}
+                    onCheckConnection={checkConnection}
+                    onBusy={(l) => setAiBusy("chat", l)}
                     onShowReference={showReference}
                   />
                 </div>
@@ -756,6 +839,7 @@ export default function App() {
                   <ExtractPane
                     body={text}
                     disabled={!currentPath}
+                    onBusy={(l) => setAiBusy("extract", l)}
                     onCreated={async (paths) => {
                       try {
                         setProject(await api.refreshProject());
@@ -779,6 +863,7 @@ export default function App() {
                     disabled={!currentPath}
                     settings={aiSettings}
                     onPatchSettings={patchAiSettings}
+                    onBusy={(l) => setAiBusy("proof", l)}
                     onJump={(from, to) =>
                       handleRef.current.selectRange(from, to)
                     }

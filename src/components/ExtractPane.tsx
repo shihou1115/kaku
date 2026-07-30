@@ -17,6 +17,8 @@ import { api, type Candidate } from "../api";
 type Props = {
   body: string;
   disabled: boolean;
+  /** 実行中であることをヘッダーへ伝える。終わったら null */
+  onBusy: (label: string | null) => void;
   /** 登録後にツリーとcodexを読み直す */
   onCreated: (paths: string[]) => void;
 };
@@ -28,7 +30,7 @@ const KIND_LABEL: Record<string, string> = {
   term: "用語",
 };
 
-export function ExtractPane({ body, disabled, onCreated }: Props) {
+export function ExtractPane({ body, disabled, onBusy, onCreated }: Props) {
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
   const [chosen, setChosen] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
@@ -42,6 +44,7 @@ export function ExtractPane({ body, disabled, onCreated }: Props) {
 
   const run = useCallback(async () => {
     setBusy(true);
+    onBusy("抽出中");
     setError(null);
     try {
       const r = await api.extractEntities(body);
@@ -58,8 +61,9 @@ export function ExtractPane({ body, disabled, onCreated }: Props) {
       setError(String(e));
     } finally {
       setBusy(false);
+      onBusy(null);
     }
-  }, [body]);
+  }, [body, onBusy]);
 
   const toggle = useCallback((name: string) => {
     setChosen((prev) => {

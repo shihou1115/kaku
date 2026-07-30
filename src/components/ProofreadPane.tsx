@@ -20,6 +20,8 @@ type Props = {
   /** AI設定はAppが一元管理する(タブ常駐で写しを持つと上書き事故が起きる) */
   settings: AiSettings | null;
   onPatchSettings: (p: Partial<AiSettings>) => void;
+  /** 実行中であることをヘッダーへ伝える。終わったら null */
+  onBusy: (label: string | null) => void;
   onJump: (from: number, to: number) => void;
   onReplace: (from: number, to: number, text: string) => void;
 };
@@ -39,6 +41,7 @@ export function ProofreadPane({
   disabled,
   settings,
   onPatchSettings,
+  onBusy,
   onJump,
   onReplace,
 }: Props) {
@@ -96,6 +99,7 @@ export function ProofreadPane({
 
   const runAi = useCallback(async () => {
     setAiBusy(true);
+    onBusy("校正中");
     setAiError(null);
     try {
       const r = await api.proofreadAi(body);
@@ -114,8 +118,9 @@ export function ProofreadPane({
       setAiError(String(e));
     } finally {
       setAiBusy(false);
+      onBusy(null);
     }
-  }, [body]);
+  }, [body, onBusy]);
 
   const replaceNotation = useCallback(
     (from: number, to: number, text: string) => {

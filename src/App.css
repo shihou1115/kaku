@@ -61,6 +61,71 @@ body,
   flex: 0 0 auto;
 }
 
+/* ===== AIの状態表示(ヘッダー) ===== */
+
+.ai-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 11px;
+  white-space: nowrap;
+}
+
+.ai-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: currentColor;
+}
+
+.ai-status.ok {
+  color: #087f5b;
+  background: #e6fcf5;
+  border-color: #96f2d7;
+}
+
+.ai-status.warn {
+  color: #a8500a;
+  background: #fff4e6;
+  border-color: #ffd8a8;
+}
+
+.ai-status.error {
+  color: #c92a2a;
+  background: #fff5f5;
+  border-color: #ffc9c9;
+}
+
+.ai-status.busy {
+  color: #1864ab;
+  background: #e7f5ff;
+  border-color: #a5d8ff;
+}
+
+/* 実行中は点滅させ、動いていることを一目で分かるようにする */
+.ai-status.busy .ai-dot {
+  animation: ai-pulse 1s ease-in-out infinite;
+}
+
+@keyframes ai-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-status.busy .ai-dot {
+    animation: none;
+  }
+}
+
 .tools .count {
   font-size: 12px;
   color: var(--muted);

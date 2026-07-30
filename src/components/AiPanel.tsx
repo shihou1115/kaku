@@ -23,6 +23,12 @@ type Props = {
   /** AI設定はAppが一元管理する(タブ常駐で写しを持つと上書き事故が起きる) */
   settings: AiSettings | null;
   onPatchSettings: (p: Partial<AiSettings>) => void;
+  /** 接続状態もAppが持つ(ヘッダーの状態表示と食い違わせないため) */
+  models: string[];
+  connDetail: string;
+  onCheckConnection: () => Promise<string[]>;
+  /** 実行中であることをヘッダーへ伝える。終わったら null */
+  onBusy: (label: string | null) => void;
   /** 設定の中身を参照タブで開く */
   onShowReference: (path: string) => void;
 };
@@ -34,10 +40,12 @@ export function AiPanel({
   disabled,
   settings,
   onPatchSettings,
+  models,
+  connDetail,
+  onCheckConnection,
+  onBusy,
   onShowReference,
 }: Props) {
-  const [models, setModels] = useState<string[]>([]);
-  const [connState, setConnState] = useState("未接続");
   const [showSettings, setShowSettings] = useState(false);
   const [manual, setManual] = useState<string[]>([]);
   const [preview, setPreview] = useState<ContextPreview | null>(null);
@@ -52,18 +60,12 @@ export function AiPanel({
   const patch = onPatchSettings;
 
   const connect = useCallback(async () => {
-    setConnState("接続中…");
-    try {
-      const list = await api.listModels();
-      setModels(list);
-      setConnState(`接続OK (${list.length}モデル)`);
-      if (list.length > 0 && settings && !settings.model) {
-        patch({ model: list[0] });
-      }
-    } catch (e) {
-      setConnState(String(e));
+    const list = await onCheckConnection();
+    // モデル未選択なら先頭を入れておく(P-8: 選ばせる手間を減らす)
+    if (list.length > 0 && settings && !settings.model) {
+      patch({ model: list[0] });
     }
-  }, [settings, patch]);
+  }, [settings, patch, onCheckConnection]);
 
   const makePreview = useCallback(async () => {
     setError(null);
@@ -87,6 +89,7 @@ export function AiPanel({
       }
     }
     setBusy(true);
+    onBusy("応答中");
     setAnswer("");
     setError(null);
     setEmptyAnswer(false);
@@ -108,8 +111,9 @@ export function AiPanel({
       setError(String(e));
     } finally {
       setBusy(false);
+      onBusy(null);
     }
-  }, [question, preview, body, mentionedPaths, manual]);
+  }, [question, preview, body, mentionedPaths, manual, onBusy]);
 
   const mentioned = codex.filter((c) => mentionedPaths.includes(c.path));
 
@@ -142,7 +146,7 @@ export function AiPanel({
             </label>
             <div className="row">
               <button onClick={connect}>接続テスト</button>
-              <span className="conn">{connState}</span>
+              <span className="conn">{connDetail || "未確認"}</span>
             </div>
             <label>
               モデル
