@@ -478,6 +478,8 @@ async fn proofread_ai(
 #[derive(Serialize)]
 struct ExtractResult {
     candidates: Vec<extract::Candidate>,
+    /// 複数の対象に結び付いたため、どちらにも付けなかった呼び名
+    conflicts: Vec<String>,
     /// LLMが挙げたが機械側の検証で落とした数(幻覚・一般名詞・登録済み)
     rejected: usize,
     chunks: usize,
@@ -537,9 +539,10 @@ async fn extract_entities(
     }
 
     let raw_count = raw_all.len();
-    // 位置と重複は本文全体に対して判定する
-    let candidates = extract::verify(&text, raw_all, &codex);
-    let rejected = raw_count.saturating_sub(candidates.len());
+    // 実在性・重複・名寄せの検証は本文全体に対して行う
+    let verified = extract::verify(&text, raw_all, &codex);
+    let rejected = raw_count.saturating_sub(verified.candidates.len());
+    let (candidates, conflicts) = (verified.candidates, verified.conflicts);
 
     let warning = if truncated > 0 {
         Some(format!(
@@ -553,6 +556,7 @@ async fn extract_entities(
 
     Ok(ExtractResult {
         candidates,
+        conflicts,
         rejected,
         chunks: chunks.len(),
         elapsed_ms: started.elapsed().as_millis() as u64,
@@ -560,25 +564,43 @@ async fn extract_entities(
     })
 }
 
-/// 採用した候補をcodexのファイルとして作る(ユーザーが選んだものだけ)
+/// 採用した候補をcodexへ反映する(ユーザーが選んだものだけ)。
+///
+/// `existing_path` があれば**既存ファイルへ別名を追加**し、無ければ新規作成する。
+/// 別名追加は `aliases:` の行だけを書き換え、他の行はそのまま残す
+/// (フロントマターを再シリアライズしない原則=03 §4.1)。
 #[tauri::command]
 fn create_codex_entries(
     candidates: Vec<extract::Candidate>,
     state: State<AppState>,
 ) -> Result<Vec<String>, String> {
     let root = root_of(&state)?;
-    let mut created = Vec::new();
+    let mut touched = Vec::new();
     for c in candidates {
-        let safe = c.name.replace(['\\', '/', ':', '*', '?', '"', '<', '>', '|'], "_");
-        let path = format!("{}/{}.md", extract::folder_for(&c.kind), safe);
-        match project::create_file(&root, &path, &extract::entry_markdown(&c)) {
-            Ok(true) => created.push(path),
-            // 同名が既にある場合は黙って飛ばす(上書きしない)
-            Ok(false) => {}
-            Err(e) => return Err(to_msg(e)),
+        match &c.existing_path {
+            Some(path) => {
+                let source = project::read_text(&root, path).map_err(to_msg)?;
+                let updated = frontmatter::add_aliases(&source, &c.aliases);
+                if updated != source {
+                    project::write_text(&root, path, &updated).map_err(to_msg)?;
+                    touched.push(path.clone());
+                }
+            }
+            None => {
+                let safe = c
+                    .name
+                    .replace(['\\', '/', ':', '*', '?', '"', '<', '>', '|'], "_");
+                let path = format!("{}/{}.md", extract::folder_for(&c.kind), safe);
+                match project::create_file(&root, &path, &extract::entry_markdown(&c)) {
+                    Ok(true) => touched.push(path),
+                    // 同名が既にある場合は黙って飛ばす(上書きしない)
+                    Ok(false) => {}
+                    Err(e) => return Err(to_msg(e)),
+                }
+            }
         }
     }
-    Ok(created)
+    Ok(touched)
 }
 
 // ===== AI =====

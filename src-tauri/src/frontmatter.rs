@@ -111,6 +111,131 @@ pub fn parse_source(source: &str) -> FrontMatter {
     }
 }
 
+/// 既存ファイルに別名を足す(名寄せ用)。
+///
+/// **`aliases:` の行だけを書き換え、他の行はそのまま残す**。
+/// フロントマター全体を作り直すと、V1が解釈しないフィールド(id/relations/progression 等)
+/// が失われる([03-data-format.md](../../docs/03-data-format.md) §4.1)。
+/// この関数はテキストとしての外科手術に徹する。
+///
+/// - 既に登録済みの別名、正式名と同じものは足さない
+/// - 足すものが無ければ**元の文字列をそのまま返す**(無駄な書き込みを避ける)
+/// - `aliases` 行が無ければ `title` の直後に挿入する
+/// - フロントマターが無ければ先頭に作る
+pub fn add_aliases(source: &str, additions: &[String]) -> String {
+    let nl = if source.contains("\r\n") { "\r\n" } else { "\n" };
+    let current = parse_source(source);
+
+    let mut merged = current.aliases.clone();
+    for a in additions {
+        let a = a.trim();
+        if a.is_empty() {
+            continue;
+        }
+        if current.title.as_deref() == Some(a) {
+            continue;
+        }
+        if merged.iter().any(|m| m == a) {
+            continue;
+        }
+        merged.push(a.to_string());
+    }
+    if merged.len() == current.aliases.len() {
+        return source.to_string();
+    }
+
+    let alias_line = format!(
+        "aliases: [{}]",
+        merged
+            .iter()
+            .map(|a| quote_if_needed(a))
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+
+    // フロントマターが無ければ作る。
+    // ただし `---` で始まるのに閉じられていない場合は**壊れたフロントマター**なので触らない
+    // (先頭に足すと `---` が二重になり、さらに壊れる)
+    if split(source).0.is_none() {
+        let head = source.strip_prefix('\u{feff}').unwrap_or(source);
+        let looks_broken = head
+            .strip_prefix("---")
+            .map(|r| r.starts_with('\n') || r.starts_with("\r\n"))
+            .unwrap_or(false);
+        if looks_broken {
+            return source.to_string();
+        }
+        return format!("---{nl}{alias_line}{nl}---{nl}{nl}{source}");
+    }
+
+    let mut out = String::with_capacity(source.len() + alias_line.len() + 8);
+    let mut fence = 0u8;
+    let mut wrote = false;
+    let mut skipping_block = false;
+    let mut title_line_end: Option<usize> = None;
+
+    for line in source.split_inclusive('\n') {
+        let bare = line.trim_end_matches(['\n', '\r']);
+
+        if bare == "---" || bare == "..." {
+            fence += 1;
+            // フロントマターを閉じる直前で、まだ書けていなければここで入れる
+            if fence == 2 && !wrote {
+                match title_line_end {
+                    // title の直後に入れたかったが行き過ぎたので閉じ括弧の前に置く
+                    _ => {
+                        out.push_str(&alias_line);
+                        out.push_str(nl);
+                        wrote = true;
+                    }
+                }
+            }
+            skipping_block = false;
+            out.push_str(line);
+            continue;
+        }
+
+        let in_fm = fence == 1;
+        if in_fm {
+            // ブロック形式の続き( - 項目 )は読み飛ばす
+            if skipping_block {
+                let t = bare.trim_start();
+                if t.starts_with('-') && (bare.starts_with(' ') || bare.starts_with('\t')) {
+                    continue;
+                }
+                skipping_block = false;
+            }
+            if !wrote && bare.trim_start().starts_with("aliases:") {
+                out.push_str(&alias_line);
+                out.push_str(nl);
+                wrote = true;
+                // インライン形式なら後続は無い。ブロック形式なら項目行を捨てる
+                skipping_block = bare.split_once(':').map(|(_, v)| v.trim().is_empty()).unwrap_or(false);
+                continue;
+            }
+            if bare.trim_start().starts_with("title:") {
+                title_line_end = Some(out.len() + line.len());
+            }
+        }
+        out.push_str(line);
+    }
+
+    // フロントマターが閉じていない等の異常時は末尾に足さない(壊さない方を選ぶ)
+    if !wrote {
+        return source.to_string();
+    }
+    out
+}
+
+/// YAMLのインライン配列に入れて壊れる文字があれば引用符で包む
+fn quote_if_needed(value: &str) -> String {
+    if value.contains([',', '[', ']', '"', '\'', ':', '#']) {
+        format!("\"{}\"", value.replace('"', "\\\""))
+    } else {
+        value.to_string()
+    }
+}
+
 fn parse_inline_list(value: &str) -> Vec<String> {
     let inner = value
         .strip_prefix('[')
@@ -230,6 +355,89 @@ mod tests {
         let got = parse(fm);
         assert_eq!(got.title.as_deref(), Some("佐藤架純"));
         assert!(got.aliases.is_empty());
+    }
+
+    // ===== 名寄せ: 別名の追加 =====
+
+    #[test]
+    fn adds_aliases_to_inline_form() {
+        let src = "---\ntype: character\ntitle: 黒木龍一\naliases: [黒木]\n---\n\n本文\n";
+        let got = add_aliases(&src.to_string(), &["龍一".into(), "教授".into()]);
+        assert!(got.contains("aliases: [黒木, 龍一, 教授]"), "{got}");
+        // 他の行は温存されること
+        assert!(got.contains("type: character"));
+        assert!(got.contains("title: 黒木龍一"));
+        assert!(got.ends_with("本文\n"));
+    }
+
+    #[test]
+    fn adds_aliases_to_block_form() {
+        let src = "---\ntitle: 黒木龍一\naliases:\n  - 黒木\n  - 龍一\ntype: character\n---\n本文\n";
+        let got = add_aliases(src, &["教授".into()]);
+        assert!(got.contains("aliases: [黒木, 龍一, 教授]"), "{got}");
+        // ブロックの項目行が残っていないこと
+        assert!(!got.contains("  - 黒木"), "{got}");
+        // 後続のキーは温存
+        assert!(got.contains("type: character"));
+        assert!(got.ends_with("本文\n"));
+    }
+
+    #[test]
+    fn inserts_aliases_when_absent() {
+        let src = "---\ntype: character\ntitle: 黒木龍一\n---\n\n本文\n";
+        let got = add_aliases(src, &["教授".into()]);
+        assert!(got.contains("aliases: [教授]"), "{got}");
+        assert!(got.contains("title: 黒木龍一"));
+        assert!(got.ends_with("本文\n"));
+    }
+
+    #[test]
+    fn preserves_unknown_fields() {
+        // V1が解釈しないフィールドを失わないこと(再シリアライズしない原則)
+        let src = "---\nid: chr-kuroki\ntitle: 黒木龍一\nrelations:\n  - to: chr-x\n    rel: 師弟\nprogression:\n  - at: 第三章\n    note: 失踪\n---\n本文\n";
+        let got = add_aliases(src, &["教授".into()]);
+        assert!(got.contains("id: chr-kuroki"), "{got}");
+        assert!(got.contains("  - to: chr-x"), "{got}");
+        assert!(got.contains("    note: 失踪"), "{got}");
+        assert!(got.contains("aliases: [教授]"), "{got}");
+    }
+
+    #[test]
+    fn skips_duplicates_and_title() {
+        let src = "---\ntitle: 黒木龍一\naliases: [黒木]\n---\n";
+        // 登録済み・正式名と同じものは足さない
+        let got = add_aliases(src, &["黒木".into(), "黒木龍一".into()]);
+        assert_eq!(got, src, "足すものが無ければ原文のまま返す");
+    }
+
+    #[test]
+    fn quotes_values_that_would_break_inline_array() {
+        let src = "---\ntitle: X\n---\n";
+        let got = add_aliases(src, &["a, b".into()]);
+        assert!(got.contains("aliases: [\"a, b\"]"), "{got}");
+    }
+
+    #[test]
+    fn creates_frontmatter_when_missing() {
+        let src = "本文だけのファイル\n";
+        let got = add_aliases(src, &["教授".into()]);
+        assert!(got.starts_with("---\naliases: [教授]\n---\n"), "{got}");
+        assert!(got.ends_with("本文だけのファイル\n"));
+    }
+
+    #[test]
+    fn keeps_crlf_line_endings() {
+        let src = "---\r\ntitle: X\r\n---\r\n本文\r\n";
+        let got = add_aliases(src, &["別名".into()]);
+        assert!(got.contains("aliases: [別名]\r\n"), "{got:?}");
+        assert!(got.contains("title: X\r\n"));
+    }
+
+    #[test]
+    fn unclosed_frontmatter_is_left_untouched() {
+        // 壊れたファイルは触らない(壊さない方を選ぶ)
+        let src = "---\ntitle: X\n本文\n";
+        assert_eq!(add_aliases(src, &["別名".into()]), src);
     }
 
     #[test]

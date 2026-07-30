@@ -90,10 +90,16 @@ export type Candidate = {
   kind: string;
   description: string;
   count: number;
+  /** 同じ対象を指す別の呼び名(名寄せの成果) */
+  aliases: string[];
+  /** ある場合は既存エントリへの別名追加。新規作成ではない */
+  existing_path: string | null;
 };
 
 export type ExtractResult = {
   candidates: Candidate[];
+  /** 複数の対象に結び付いたため、どちらにも付けなかった呼び名 */
+  conflicts: string[];
   rejected: number;
   chunks: number;
   elapsed_ms: number;

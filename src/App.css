@@ -539,17 +539,67 @@ button.tab.active {
 }
 
 .ex-item {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
   border: 1px solid var(--border);
   border-radius: 5px;
   padding: 7px 8px;
+}
+
+.ex-main {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
   cursor: pointer;
 }
 
-.ex-item:hover {
+.ex-main:hover {
   background: #f7f9fa;
+}
+
+/* ===== 名寄せ: 別名 ===== */
+
+.ex-aliases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  margin: 6px 0 0 22px;
+}
+
+.ex-aliases-label {
+  font-size: 10px;
+  color: var(--muted);
+  margin-right: 2px;
+}
+
+button.ex-alias {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: rgba(56, 139, 253, 0.12);
+  border: 1px solid rgba(56, 139, 253, 0.35);
+  color: #1864ab;
+}
+
+button.ex-alias:hover {
+  background: rgba(56, 139, 253, 0.22);
+}
+
+/* 外した別名は取り消し線で示す(消さないので戻せることが分かる) */
+button.ex-alias.off {
+  background: #f1f3f5;
+  border-color: var(--border);
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.ex-existing {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 9px;
+  background: #fff9db;
+  border: 1px solid #ffec99;
+  color: #8c6d1f;
+  flex: 0 0 auto;
 }
 
 .ex-body {
