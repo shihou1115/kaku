@@ -41,6 +41,8 @@ export function AiPanel({
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** 応答が空のまま終わったか。検閲による拒否で起きうる(04-design §8.1) */
+  const [emptyAnswer, setEmptyAnswer] = useState(false);
   const answerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -97,15 +99,21 @@ export function AiPanel({
     setBusy(true);
     setAnswer("");
     setError(null);
+    setEmptyAnswer(false);
+    let received = 0;
     try {
       await api.askAi(ctx, question, (ev) => {
         if (ev.kind === "Delta") {
+          received += ev.value.length;
           setAnswer((a) => a + ev.value);
           answerRef.current?.scrollTo(0, answerRef.current.scrollHeight);
         } else if (ev.kind === "Error") {
           setError(ev.value);
         }
       });
+      // 応答が1文字も返らないことがある。多くは検閲による拒否(§8.1)。
+      // 画面が無反応に見えて原因が分からないので、明示して次の手を示す
+      if (received === 0) setEmptyAnswer(true);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -246,6 +254,15 @@ export function AiPanel({
           </details>
         )}
         {error && <p className="error">{error}</p>}
+        {emptyAnswer && !error && (
+          <p className="pf-stale">
+            モデルが応答を返しませんでした。
+            <strong>題材によっては検閲で拒否される</strong>ことがあります
+            (犯罪・暴力・性描写など)。校正や設定抽出は通っても、
+            <strong>展開案のような「書かせる」依頼は拒否されやすい</strong>傾向があります。
+            非検閲モデルに切り替えてお試しください。
+          </p>
+        )}
       </div>
 
       {(answer || busy) && (
