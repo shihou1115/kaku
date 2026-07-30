@@ -7,7 +7,7 @@
  * - コンテキストは3系統だけ: 本文 / 名前一致codex / 手動追加codex
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   api,
   type AiSettings,
@@ -20,6 +20,9 @@ type Props = {
   mentionedPaths: string[];
   codex: CodexEntry[];
   disabled: boolean;
+  /** AI設定はAppが一元管理する(タブ常駐で写しを持つと上書き事故が起きる) */
+  settings: AiSettings | null;
+  onPatchSettings: (p: Partial<AiSettings>) => void;
   /** 設定の中身を参照タブで開く */
   onShowReference: (path: string) => void;
 };
@@ -29,9 +32,10 @@ export function AiPanel({
   mentionedPaths,
   codex,
   disabled,
+  settings,
+  onPatchSettings,
   onShowReference,
 }: Props) {
-  const [settings, setSettings] = useState<AiSettings | null>(null);
   const [models, setModels] = useState<string[]>([]);
   const [connState, setConnState] = useState("未接続");
   const [showSettings, setShowSettings] = useState(false);
@@ -45,21 +49,7 @@ export function AiPanel({
   const [emptyAnswer, setEmptyAnswer] = useState(false);
   const answerRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    api.getAiSettings().then(setSettings).catch(() => {});
-  }, []);
-
-  const patch = useCallback(
-    (p: Partial<AiSettings>) => {
-      setSettings((s) => {
-        if (!s) return s;
-        const next = { ...s, ...p };
-        api.setAiSettings(next).catch(() => {});
-        return next;
-      });
-    },
-    [],
-  );
+  const patch = onPatchSettings;
 
   const connect = useCallback(async () => {
     setConnState("接続中…");

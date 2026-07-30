@@ -10,7 +10,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { api, type CodexEntry, type OpenedProject, type TreeNode } from "./api";
+import {
+  api,
+  type AiSettings,
+  type CodexEntry,
+  type OpenedProject,
+  type TreeNode,
+} from "./api";
 import { Editor, type EditorHandle } from "./editor/Editor";
 import { findMentions } from "./editor/mentions";
 import { FileTree } from "./components/FileTree";
@@ -157,6 +163,24 @@ export default function App() {
   // 参照ペインの表示対象
   const [refPath, setRefPath] = useState<string | null>(null);
   const [refText, setRefText] = useState("");
+
+  // AI設定はここで一元管理する。
+  // 右ペインの各タブを常駐させるため、複数のペインが設定の写しを持つと
+  // 古い値で上書きし合う。持ち主を1つにして防ぐ
+  const [aiSettings, setAiSettings] = useState<AiSettings | null>(null);
+
+  useEffect(() => {
+    api.getAiSettings().then(setAiSettings).catch(() => {});
+  }, []);
+
+  const patchAiSettings = useCallback((p: Partial<AiSettings>) => {
+    setAiSettings((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...p };
+      api.setAiSettings(next).catch(() => {});
+      return next;
+    });
+  }, []);
 
   const dirty = text !== savedText;
   const codex: CodexEntry[] = project?.codex ?? [];
@@ -693,17 +717,28 @@ export default function App() {
                   抽出
                 </button>
               </div>
+              {/* 各タブは常に描画しておき、CSSで表示を切り替える。
+                  条件描画にすると切替のたびに破棄され、実行中のAI処理の結果と
+                  「実行中」の表示が失われる(60秒待った結果が消える) */}
               <div className="tab-body">
-                {rightTab === "ai" && (
+                <div
+                  className="tab-pane"
+                  style={{ display: rightTab === "ai" ? "block" : "none" }}
+                >
                   <AiPanel
                     body={text}
                     mentionedPaths={mentionedPaths}
                     codex={codex}
                     disabled={!project}
+                    settings={aiSettings}
+                    onPatchSettings={patchAiSettings}
                     onShowReference={showReference}
                   />
-                )}
-                {rightTab === "ref" && (
+                </div>
+                <div
+                  className="tab-pane"
+                  style={{ display: rightTab === "ref" ? "block" : "none" }}
+                >
                   <ReferencePane
                     codex={codex}
                     mentionedPaths={mentionedPaths}
@@ -713,8 +748,11 @@ export default function App() {
                     onOpenInEditor={(p) => void openFile(p)}
                     onClose={() => setRightOpen(false)}
                   />
-                )}
-                {rightTab === "extract" && (
+                </div>
+                <div
+                  className="tab-pane"
+                  style={{ display: rightTab === "extract" ? "block" : "none" }}
+                >
                   <ExtractPane
                     body={text}
                     disabled={!currentPath}
@@ -731,11 +769,16 @@ export default function App() {
                       }
                     }}
                   />
-                )}
-                {rightTab === "proof" && (
+                </div>
+                <div
+                  className="tab-pane"
+                  style={{ display: rightTab === "proof" ? "block" : "none" }}
+                >
                   <ProofreadPane
                     body={text}
                     disabled={!currentPath}
+                    settings={aiSettings}
+                    onPatchSettings={patchAiSettings}
                     onJump={(from, to) =>
                       handleRef.current.selectRange(from, to)
                     }
@@ -743,7 +786,7 @@ export default function App() {
                       handleRef.current.replaceRange(from, to, t)
                     }
                   />
-                )}
+                </div>
               </div>
             </aside>
           </>

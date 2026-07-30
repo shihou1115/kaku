@@ -157,6 +157,12 @@ button.tab.active {
   overflow-y: auto;
 }
 
+/* 非表示のタブも描画したままにする(実行中のAI処理を失わないため)。
+   表示中のものだけが高さを占める */
+.tab-pane {
+  height: 100%;
+}
+
 /* ===== 参照タブ ===== */
 
 .reference-pane {

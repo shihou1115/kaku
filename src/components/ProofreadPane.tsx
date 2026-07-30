@@ -17,6 +17,9 @@ type Props = {
   /** 現在の本文。結果の鮮度判定に使う */
   body: string;
   disabled: boolean;
+  /** AI設定はAppが一元管理する(タブ常駐で写しを持つと上書き事故が起きる) */
+  settings: AiSettings | null;
+  onPatchSettings: (p: Partial<AiSettings>) => void;
   onJump: (from: number, to: number) => void;
   onReplace: (from: number, to: number, text: string) => void;
 };
@@ -31,7 +34,14 @@ function reresolve(issues: AiIssue[], body: string): AiIssue[] {
   });
 }
 
-export function ProofreadPane({ body, disabled, onJump, onReplace }: Props) {
+export function ProofreadPane({
+  body,
+  disabled,
+  settings,
+  onPatchSettings,
+  onJump,
+  onReplace,
+}: Props) {
   // --- 表記ゆれ(機械照合) ---
   const [hits, setHits] = useState<NotationHit[] | null>(null);
   const [checkedBody, setCheckedBody] = useState<string | null>(null);
@@ -44,9 +54,8 @@ export function ProofreadPane({ body, disabled, onJump, onReplace }: Props) {
   const [aiBody, setAiBody] = useState<string | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
-  const [aiSettings, setAiSettings] = useState<AiSettings | null>(null);
-  /** 分割字数。設定の取得に失敗しても操作できるよう既定値を持つ */
-  const [chunkChars, setChunkCharsState] = useState(3000);
+  /** 分割字数。設定が未取得でも操作できるよう既定値へ落とす */
+  const chunkChars = settings?.check_chunk_chars ?? 3000;
   const [aiMeta, setAiMeta] = useState<{
     path: string;
     model: string;
@@ -79,26 +88,10 @@ export function ProofreadPane({ body, disabled, onJump, onReplace }: Props) {
     void run(body);
   }, [body, checkedBody, run]);
 
-  useEffect(() => {
-    api
-      .getAiSettings()
-      .then((s) => {
-        setAiSettings(s);
-        setChunkCharsState(s.check_chunk_chars);
-      })
-      .catch(() => {});
-  }, []);
-
   /** 分割字数の変更。保存はRust側が行う */
   const setChunkChars = useCallback(
-    (n: number) => {
-      setChunkCharsState(n);
-      if (!aiSettings) return;
-      const next = { ...aiSettings, check_chunk_chars: n };
-      setAiSettings(next);
-      api.setAiSettings(next).catch(() => {});
-    },
-    [aiSettings],
+    (n: number) => onPatchSettings({ check_chunk_chars: n }),
+    [onPatchSettings],
   );
 
   const runAi = useCallback(async () => {
