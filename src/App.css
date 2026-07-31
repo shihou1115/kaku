@@ -1078,7 +1078,8 @@ button.toggled {
   position: absolute;
   right: 0;
   top: calc(100% + 4px);
-  z-index: 200;
+  /* CodeMirror の検索パネル(300)より上。メニューが編集画面の付属物の裏に回らないこと */
+  z-index: 400;
   width: 240px;
   background: var(--panel);
   border: 1px solid var(--border);
@@ -1392,6 +1393,15 @@ details summary {
 
 /* ===== モーダル ===== */
 
+/* 重なりの順序(下から)
+     5   空状態のオーバーレイ
+     300 CodeMirror の検索パネル(.cm-panels。**外部が決めている値**)
+     400 ポップオーバー(表示メニュー・項目メニュー)
+     1000 モーダル
+
+   モーダルは**必ず最前面**にする。確認ダイアログが何かの裏に隠れるのは事故のもとで、
+   ヘルプが検索パネルの下に潜る不具合も同じ原因だった(モーダルが100でCM6が300)。
+   CM6の値はこちらの都合で変えられないので、上に十分な間隔を空けて置く */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1399,7 +1409,7 @@ details summary {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 1000;
 }
 
 .modal {
@@ -1588,7 +1598,8 @@ button.link {
 
 .item-menu {
   position: fixed;
-  z-index: 200;
+  /* 同上。カーソル位置に出るので検索パネルと重なりうる */
+  z-index: 400;
   min-width: 190px;
   background: var(--panel);
   border: 1px solid var(--border);
