@@ -159,6 +159,13 @@ export type TemplateInfo = {
   kind: string;
 };
 
+/** AI相談の依頼テンプレート(M-03)。押すと依頼欄へ文面が入る */
+export type PromptTemplate = {
+  category: string;
+  title: string;
+  body: string;
+};
+
 export type AiSettings = {
   base_url: string;
   api_key: string | null;
@@ -215,6 +222,8 @@ export const api = {
   renderTemplate: (genre: string, kind: string, title: string) =>
     invoke<string>("render_template", { genre, kind, title }),
   openTemplatesDir: () => invoke<string>("open_templates_dir"),
+  listPrompts: () => invoke<PromptTemplate[]>("list_prompts"),
+  openPromptsDir: () => invoke<string>("open_prompts_dir"),
   findMentions: (text: string, patterns: string[]) =>
     invoke<RustMention[]>("find_mentions", { text, patterns }),
   getAiSettings: () => invoke<AiSettings>("get_ai_settings"),

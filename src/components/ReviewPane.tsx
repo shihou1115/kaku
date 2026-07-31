@@ -20,6 +20,7 @@ import {
   type ReviewAspect,
   type ReviewComment,
 } from "../api";
+import { useMaterials } from "./useMaterials";
 
 type Props = {
   /** 現在の本文。結果の鮮度判定に使う */
@@ -48,7 +49,8 @@ export function ReviewPane({
   onJump,
 }: Props) {
   const [aspects, setAspects] = useState<ReviewAspect[]>(ALL_ASPECTS);
-  const [manual, setManual] = useState<string[]>([]);
+  /** 渡す資料の選択。自動で当たった分も**外せる**(U-05 / §6.2) */
+  const materials = useMaterials(mentionedPaths);
   const [comments, setComments] = useState<ReviewComment[] | null>(null);
   const [overall, setOverall] = useState("");
   /** 実行時の本文。変わったら「古い結果」として扱う(04-design §6.4) */
@@ -75,12 +77,14 @@ export function ReviewPane({
     );
   }, []);
 
+  const { autoPaths, manualPaths } = materials;
+
   const run = useCallback(async () => {
     setBusy(true);
     onBusy("レビュー中");
     setError(null);
     try {
-      const r = await api.reviewAi(body, aspects, mentionedPaths, manual);
+      const r = await api.reviewAi(body, aspects, autoPaths, manualPaths);
       setComments(r.comments);
       setOverall(r.overall);
       setReviewedBody(body);
@@ -103,7 +107,7 @@ export function ReviewPane({
       setBusy(false);
       onBusy(null);
     }
-  }, [body, aspects, mentionedPaths, manual, onBusy]);
+  }, [body, aspects, autoPaths, manualPaths, onBusy]);
 
   const setVerdict = useCallback((index: number, v: Verdict) => {
     setVerdicts((prev) => {
@@ -154,38 +158,42 @@ export function ReviewPane({
 
         <details className="rv-materials">
           <summary>
-            渡す設定資料(自動{mentionedPaths.length}件
-            {manual.length > 0 && ` + 手動${manual.length}件`})
+            渡す設定資料(自動{autoPaths.length}件
+            {materials.excludedCount > 0 && `・${materials.excludedCount}件を外した`}
+            {manualPaths.length > 0 && ` + 手動${manualPaths.length}件`})
           </summary>
           <p className="hint">
-            本文に名前が出たエントリは自動で入ります。名前が出ない人物や、
+            本文に名前が出たエントリは自動で入ります。
+            <strong>要らないものは外せます</strong>。名前が出ない人物や、
             前の場面から引き継いだ設定は手動で足してください。
             <strong>資料が無いと「設定整合性」は判断できません</strong>。
           </p>
-          <div className="manual-list">
-            {codex.map((c) => (
-              <label key={c.path} className="check">
-                <input
-                  type="checkbox"
-                  checked={manual.includes(c.path)}
-                  onChange={(e) =>
-                    setManual((m) =>
-                      e.target.checked
-                        ? [...m, c.path]
-                        : m.filter((p) => p !== c.path),
-                    )
-                  }
-                />
-                {c.title}
-                {mentionedPaths.includes(c.path) && (
-                  <span className="rv-auto">自動</span>
-                )}
-              </label>
-            ))}
-            {codex.length === 0 && (
-              <p className="empty">設定がまだありません。</p>
-            )}
-          </div>
+          {codex.length === 0 ? (
+            <p className="empty">設定がまだありません。</p>
+          ) : (
+            <div className="manual-list">
+              {codex.map((c) => {
+                const isFound = mentionedPaths.includes(c.path);
+                return (
+                  <label key={c.path} className="check">
+                    <input
+                      type="checkbox"
+                      checked={
+                        isFound ? materials.isOn(c.path) : materials.isManual(c.path)
+                      }
+                      onChange={() =>
+                        isFound
+                          ? materials.toggleAuto(c.path)
+                          : materials.toggleManual(c.path)
+                      }
+                    />
+                    {c.title}
+                    {isFound && <span className="rv-auto">自動</span>}
+                  </label>
+                );
+              })}
+            </div>
+          )}
         </details>
 
         <div className="pf-head">
@@ -252,8 +260,16 @@ export function ReviewPane({
             (拒否されるのは「書かせる」依頼の方です)。
             <br />
             <br />
-            応答も校正より長くなります。<strong>コンテキスト長8Kでは足りません</strong>。
-            32K程度まで上げ、<strong>同時にLM Studioの並列数を1に下げてください</strong>。
+            応答も校正より長くなります。うまくいかないときは、
+            <strong>症状から当たってください</strong>。必要な設定は本文の長さとモデルで
+            変わるので、決まった数値はありません。
+            <br />
+            <br />
+            <strong>打ち切りの警告が出る・応答が返らない</strong>なら、
+            コンテキスト長を増やすか、1回に送る字数を減らしてみてください。
+            <br />
+            <strong>応答が遅い・時間切れになる</strong>なら、LM Studioの並列数を下げるか、
+            軽いモデルに替えてみてください(コンテキスト長は並列数の分だけVRAMを使います)。
             賢いモデルほど遅いので、応答は240秒まで待ちます。
           </p>
         )}

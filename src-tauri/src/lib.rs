@@ -10,6 +10,7 @@ pub mod extract;
 pub mod frontmatter;
 pub mod mentions;
 pub mod project;
+pub mod prompts;
 pub mod proofread;
 pub mod review;
 pub mod settings;
@@ -260,6 +261,25 @@ fn render_template(genre: String, kind: String, title: String) -> Result<String,
     templates::render(&genre, &kind, &title).map_err(|e| {
         format!("テンプレートを読めませんでした({genre}/{kind}): {e}")
     })
+}
+
+/// AI相談の依頼テンプレート(M-03)。押すと依頼欄へ入る文例の一覧
+#[tauri::command]
+fn list_prompts() -> Result<Vec<prompts::PromptTemplate>, String> {
+    prompts::ensure_defaults().map_err(|e| e.to_string())?;
+    prompts::list().map_err(|e| e.to_string())
+}
+
+/// 文例の置き場をエクスプローラで開く(自分の口癖に書き換えられる)
+#[tauri::command]
+fn open_prompts_dir(app: tauri::AppHandle) -> Result<String, String> {
+    use tauri_plugin_opener::OpenerExt;
+    prompts::ensure_defaults().map_err(|e| e.to_string())?;
+    let dir = prompts::prompts_dir();
+    app.opener()
+        .open_path(dir.to_string_lossy().to_string(), None::<&str>)
+        .map_err(|e| e.to_string())?;
+    Ok(dir.to_string_lossy().to_string())
 }
 
 /// テンプレート置き場をエクスプローラで開く(ユーザーが自由に編集・追加できる)
@@ -1010,6 +1030,8 @@ pub fn run() {
             list_templates,
             render_template,
             open_templates_dir,
+            list_prompts,
+            open_prompts_dir,
             find_mentions,
             check_notation,
             proofread_ai,

@@ -82,9 +82,15 @@ npm test
   - モデルによっては**形式を守らず散文で返す**(gpt-oss-20b)。それを「指摘なし」と
     誤報告しないための区別が入っている(`ParsedReview::structured` / `proofread::looks_structured`)
 
+- **M-03(アイデア出し)完了**(2026-07-31、実機確認済み): V1範囲は
+  「対話UI+方法論テンプレート起点+結果保存」。依頼の文例チップ(押すと依頼欄へ入るだけで
+  **送信はしない**)と、`ideas/` への相談の保存。文例の実体は設定フォルダのMarkdownで
+  ユーザーが書き換えられる。**専用ウィザードUIはV1.5のまま**(§5.6の実装結果)
+
 ### 次にやること: M3の残り
 
-M-03の3系統UI / M-08オンボーディング / FTS5検索(PoC#2)。
+M-08オンボーディング / FTS5検索(PoC#2)。
+M-03は**会話モード(§5.7)が未着手**。単発のままで足りるかはドッグフーディングで判断する。
 
 未着手の検討事項は [docs/05-roadmap.md](docs/05-roadmap.md) §5.5 に一覧(AI依頼テンプレート /
 会話コンテキスト / 前提変更の作業A〜E / FAQ必須項目 / 設定項目の集約)。いずれも方式まで検討済み。
@@ -100,8 +106,9 @@ M-03の3系統UI / M-08オンボーディング / FTS5検索(PoC#2)。
 | `src-tauri/src/proofread.rs` | 表記ゆれの機械照合(M-04-02)+ 誤字脱字のプロンプト・分割(M-04-01) |
 | `src-tauri/src/review.rs` | レビュー(M-05)。観点5分類・プロンプト・寛容パース・引用の実在照合 |
 | `src-tauri/src/context.rs` | AIへ渡す3系統の組み立て+システムプロンプト |
+| `src-tauri/src/prompts.rs` | AI相談の依頼テンプレート(M-03)。設定フォルダのMarkdownが実体 |
 | `src/editor/` | CodeMirror 6本体・ハイライト・言及検出(Rust実装と同じ規則) |
 | `src/components/` | ツリー・AIパネル・各種ダイアログ・フォルダー表示名の対応表 |
 
-テストは Rust 142件(`cargo test`)+ フロント15件(`npm test`)。
+テストは Rust 150件(`cargo test`)+ フロント23件(`npm test`)。
 実機(LM Studio)が要る2件は `#[ignore]`(`tests/poc7_length.rs` / `tests/review_moralizing.rs`)。

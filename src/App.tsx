@@ -823,6 +823,18 @@ export default function App() {
                     onCheckConnection={checkConnection}
                     onBusy={(l) => setAiBusy("chat", l)}
                     onShowReference={showReference}
+                    onSaved={async (path, err) => {
+                      if (err || !path) {
+                        setStatus(err ?? "保存できませんでした");
+                        return;
+                      }
+                      try {
+                        setProject(await api.refreshProject());
+                      } catch {
+                        /* 一覧の更新に失敗しても保存自体は済んでいる */
+                      }
+                      setStatus(`着想に残しました: ${path}`);
+                    }}
                   />
                 </div>
                 <div

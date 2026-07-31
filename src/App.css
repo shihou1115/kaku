@@ -513,6 +513,65 @@ button.tab.active {
   margin-left: auto;
 }
 
+/* ===== AI相談: 渡す資料の選択(U-05) ===== */
+
+.mat-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.mat-row .check {
+  padding: 0;
+}
+
+/* 外した資料は消さずに薄く見せる。戻せることが分かる */
+.chip.auto.off {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+/* ===== AI相談: 依頼の文例(M-03) ===== */
+
+.pt-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.pt-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.pt-category {
+  font-size: 10px;
+  color: var(--muted);
+  min-width: 4.5em;
+  flex: 0 0 auto;
+}
+
+button.pt-chip {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: rgba(56, 139, 253, 0.1);
+  border: 1px solid rgba(56, 139, 253, 0.3);
+  color: #1864ab;
+  text-align: left;
+}
+
+button.pt-chip:hover {
+  background: rgba(56, 139, 253, 0.2);
+}
+
+.pt-more {
+  align-self: flex-start;
+}
+
 /* ===== レビュータブ ===== */
 
 .review-pane {
