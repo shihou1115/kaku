@@ -14,6 +14,7 @@ pub mod prompts;
 pub mod proofread;
 pub mod review;
 pub mod sample;
+pub mod search;
 pub mod settings;
 pub mod templates;
 
@@ -317,6 +318,18 @@ fn open_templates_dir(app: tauri::AppHandle) -> Result<String, String> {
         .open_path(dir.to_string_lossy().to_string(), None::<&str>)
         .map_err(|e| e.to_string())?;
     Ok(dir.to_string_lossy().to_string())
+}
+
+// ===== 全文検索 =====
+
+/// プロジェクト全体を検索する(PoC#2で方式を確定)。
+///
+/// 索引は使い捨て(D-1)。**検索のたびに変更分だけ索引し直す**ので、
+/// ファイル監視や常駐処理は持たない。
+#[tauri::command]
+fn search_project(query: String, state: State<AppState>) -> Result<search::SearchResult, String> {
+    let root = root_of(&state)?;
+    search::search(&root, &query).map_err(to_msg)
 }
 
 // ===== 言及検出 =====
@@ -1059,6 +1072,7 @@ pub fn run() {
             list_prompts,
             open_prompts_dir,
             find_mentions,
+            search_project,
             check_notation,
             proofread_ai,
             review_ai,

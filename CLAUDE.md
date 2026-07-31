@@ -92,9 +92,14 @@ npm test
   あわせて **OSS公開の準備**(`LICENSE` = MIT、`README.md`)も完了(P-6 作業A、Q-5解決)。
   **未達は「画面付き手順」**(スクリーンショット)で、S-07へ持ち越し
 
-### 次にやること: M3の残り
+- **FTS5全文検索 実装完了**(2026-08-01、動作確認待ち): PoC#2合格。
+  trigramは**3文字以上しか索引できない**ため、2文字語はLIKEへ回す
+  ([docs/04-design.md](docs/04-design.md) §7.3)。索引は使い捨て・差分更新・**監視なし**
 
-FTS5検索(PoC#2)。これが済めばV1リリース判定。
+### 次にやること: V1リリース判定
+
+M3の実装項目(M-05 / M-03 / M-08 / FTS5検索)はすべて揃った。
+残るのは全文検索とM-08のドッグフーディング。
 M-03は**会話モード(§5.7)が未着手**。単発のままで足りるかはドッグフーディングで判断する。
 
 未着手の検討事項は [docs/05-roadmap.md](docs/05-roadmap.md) §5.5 に一覧(AI依頼テンプレート /
@@ -113,8 +118,9 @@ M-03は**会話モード(§5.7)が未着手**。単発のままで足りるか�
 | `src-tauri/src/context.rs` | AIへ渡す3系統の組み立て+システムプロンプト |
 | `src-tauri/src/prompts.rs` | AI相談の依頼テンプレート(M-03)。設定フォルダのMarkdownが実体 |
 | `src-tauri/src/sample.rs` | サンプルプロジェクト(M-08)。**わざと不備を仕込んである**(消さないこと) |
+| `src-tauri/src/search.rs` | 全文検索。FTS5 trigram + 3文字未満のLIKEフォールバック。索引は使い捨て |
 | `src/editor/` | CodeMirror 6本体・ハイライト・言及検出(Rust実装と同じ規則) |
 | `src/components/` | ツリー・AIパネル・各種ダイアログ・フォルダー表示名の対応表 |
 
-テストは Rust 157件(`cargo test`)+ フロント34件(`npm test`)。
+テストは Rust 173件(`cargo test`)+ フロント34件(`npm test`)。
 実機(LM Studio)が要る2件は `#[ignore]`(`tests/poc7_length.rs` / `tests/review_moralizing.rs`)。

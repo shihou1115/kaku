@@ -166,7 +166,7 @@ pub fn parse(category: &str, markdown: &str) -> Vec<PromptTemplate> {
     let mut title: Option<String> = None;
     let mut body = String::new();
 
-    let mut flush = |title: &mut Option<String>, body: &mut String, out: &mut Vec<PromptTemplate>| {
+    let flush = |title: &mut Option<String>, body: &mut String, out: &mut Vec<PromptTemplate>| {
         if let Some(t) = title.take() {
             let text = body.trim().to_string();
             if !text.is_empty() {

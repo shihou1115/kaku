@@ -54,6 +54,22 @@ export type ContextPreview = {
   total_chars: number;
 };
 
+/** 全文検索の1件(ファイル粒度。位置は保存しない=D-7) */
+export type SearchHit = {
+  path: string;
+  title: string;
+  snippet: string;
+  count: number;
+};
+
+export type SearchResult = {
+  hits: SearchHit[];
+  /** "fts" = trigram索引 / "like" = 3文字未満なので総当たり */
+  method: "fts" | "like";
+  reindexed: number;
+  elapsed_ms: number;
+};
+
 export type NotationHit = {
   candidate: string;
   suggestion: string;
@@ -226,6 +242,8 @@ export const api = {
   openTemplatesDir: () => invoke<string>("open_templates_dir"),
   listPrompts: () => invoke<PromptTemplate[]>("list_prompts"),
   openPromptsDir: () => invoke<string>("open_prompts_dir"),
+  searchProject: (query: string) =>
+    invoke<SearchResult>("search_project", { query }),
   findMentions: (text: string, patterns: string[]) =>
     invoke<RustMention[]>("find_mentions", { text, patterns }),
   getAiSettings: () => invoke<AiSettings>("get_ai_settings"),

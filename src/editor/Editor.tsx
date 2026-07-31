@@ -18,7 +18,13 @@ import {
   lineNumbers,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { search, searchKeymap, openSearchPanel } from "@codemirror/search";
+import {
+  search,
+  searchKeymap,
+  openSearchPanel,
+  closeSearchPanel,
+  searchPanelOpen,
+} from "@codemirror/search";
 import {
   highlightField,
   highlightTheme,
@@ -30,7 +36,8 @@ export type EditorHandle = {
   view: EditorView | null;
   /** ファイル切替。undo履歴も作り直す(前のファイルの undo が効くと事故になる) */
   load: (text: string) => void;
-  openSearch: () => void;
+  /** ファイル内検索パネルの開閉(同じ操作で閉じられるようトグルにしてある) */
+  toggleSearch: () => void;
   scrollTo: (pos: number) => void;
   /** 範囲を選択して表示する(校正の指摘へ移動する) */
   selectRange: (from: number, to: number) => void;
@@ -246,7 +253,17 @@ export function Editor({
         ],
       });
     };
-    handleRef.openSearch = () => openSearchPanel(view);
+    // ヘッダーの「検索」は**開閉のトグル**にする。
+    // 開くだけだと、閉じるのにパネル右上の × を狙う必要があり、
+    // 「同じボタンをもう一度押す」という自然な操作が効かない
+    handleRef.toggleSearch = () => {
+      if (searchPanelOpen(view.state)) {
+        closeSearchPanel(view);
+        view.focus();
+      } else {
+        openSearchPanel(view);
+      }
+    };
     handleRef.selectRange = (from: number, to: number) => {
       const len = view.state.doc.length;
       const a = Math.max(0, Math.min(from, len));

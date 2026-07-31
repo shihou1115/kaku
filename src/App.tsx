@@ -20,6 +20,7 @@ import {
 import { Editor, type EditorHandle } from "./editor/Editor";
 import { findMentions } from "./editor/mentions";
 import { FileTree } from "./components/FileTree";
+import { ProjectSearch } from "./components/ProjectSearch";
 import { AiPanel } from "./components/AiPanel";
 import { NewFileDialog } from "./components/NewFileDialog";
 import { ReferencePane } from "./components/ReferencePane";
@@ -121,7 +122,7 @@ export default function App() {
   const handleRef = useRef<EditorHandle>({
     view: null,
     load: () => {},
-    openSearch: () => {},
+    toggleSearch: () => {},
     scrollTo: () => {},
     selectRange: () => {},
     replaceRange: () => {},
@@ -423,8 +424,9 @@ export default function App() {
     }
   }, [flushSave]);
 
+  /** ファイルを開く。開いた本文を返す(検索から一致箇所へ飛ぶのに使う) */
   const openFile = useCallback(
-    async (path: string) => {
+    async (path: string): Promise<string | null> => {
       // 切り替え前に必ず保存する(ここが編集内容を失う最大の場面だった)
       await flushSave(true);
       try {
@@ -441,11 +443,29 @@ export default function App() {
         } catch {
           /* noop */
         }
+        return f.text;
       } catch (e) {
         setStatus(String(e));
+        return null;
       }
     },
     [flushSave],
+  );
+
+  /**
+   * 検索結果から開く。開いたうえで**最初の一致箇所へ飛ぶ**。
+   *
+   * 位置は索引に持たない(D-7)ので、開いた本文から都度探す。
+   * 索引と本文がずれていても、ここでずれた位置へ飛ぶことはない
+   */
+  const openFromSearch = useCallback(
+    async (path: string, needle: string) => {
+      const text = await openFile(path);
+      if (!text || !needle) return;
+      const at = text.indexOf(needle);
+      if (at >= 0) handleRef.current.selectRange(at, at + needle.length);
+    },
+    [openFile],
   );
 
   const createFile = useCallback(
@@ -753,7 +773,12 @@ export default function App() {
               />
             )}
           </div>
-          <button onClick={() => handleRef.current.openSearch()}>検索</button>
+          <button
+            onClick={() => handleRef.current.toggleSearch()}
+            title="開いているファイル内を検索(Ctrl+F)。もう一度押すと閉じます"
+          >
+            検索
+          </button>
           <button
             onClick={() => setHelpOpen(true)}
             title="使い方・AIの接続・知っておくこと"
@@ -776,6 +801,12 @@ export default function App() {
 
       <div className="main" style={{ gridTemplateColumns: gridTemplate }}>
         <aside className="pane left">
+          {/* ファイル内検索(Ctrl+F)とは別物。あちらは開いている原稿の中、
+              こちらは「どのファイルにあるか」を探す */}
+          <ProjectSearch
+            disabled={!project}
+            onOpen={(p, needle) => void openFromSearch(p, needle)}
+          />
           <FileTree
             tree={project?.tree ?? []}
             currentPath={currentPath}

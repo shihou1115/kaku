@@ -513,6 +513,122 @@ button.tab.active {
   margin-left: auto;
 }
 
+/* ===== プロジェクト全体の検索 ===== */
+
+.ps {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.ps-box {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+}
+
+.ps-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 11.5px;
+  padding: 3px 6px;
+}
+
+button.ps-clear {
+  padding: 1px 6px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.ps-msg {
+  padding: 0 8px 6px;
+  margin: 0;
+}
+
+/* 結果は左ペインの高さの半分までにして、下のツリーを潰さない */
+.ps-results {
+  max-height: 45vh;
+  overflow-y: auto;
+  padding: 0 6px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ps-meta {
+  margin: 0 2px 4px;
+  font-size: 10.5px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+button.ps-hit {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  text-align: left;
+  width: 100%;
+  padding: 5px 7px;
+  border: 1px solid transparent;
+  background: none;
+  border-radius: 4px;
+}
+
+button.ps-hit:hover {
+  background: #eef3f8;
+  border-color: var(--border);
+}
+
+.ps-hit-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+}
+
+.ps-hit-title {
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ps-hit-count {
+  font-size: 9.5px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #f1f3f5;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.ps-hit-snippet {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #495057;
+  /* 2行で打ち切る。一覧が縦に伸びると探しにくい */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ps-hit-path {
+  font-size: 9.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
 /* ===== AI相談: 渡す資料の選択(U-05) ===== */
 
 .mat-row {
