@@ -23,24 +23,23 @@ import {
 } from "../api";
 import { PromptDialog } from "./PromptDialog";
 import { useMaterials } from "./useMaterials";
+import { frontmatter, notePath } from "./saveNote";
 
 /** 常時見せる文例の数(カテゴリごと)。UI渋滞を避ける(§5.6) */
 const VISIBLE_PER_CATEGORY = 2;
 
-/** ファイル名に使えない文字を落とす */
-const safeFileName = (s: string) =>
-  s.replace(/[\\/:*?"<>|]/g, "_").slice(0, 40) || "相談";
-
-/** `2026-07-31-1435` の形。並べたときに時系列になる */
-function stamp(d: Date): string {
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}-${p(
-    d.getHours(),
-  )}${p(d.getMinutes())}`;
-}
+/** 送信した時点の材料。**あとから画面を触られても記録がずれない**ように固める */
+type LastRun = {
+  question: string;
+  /** どの文書について相談したか */
+  path: string | null;
+  context: ContextPreview;
+};
 
 type Props = {
   body: string;
+  /** いま開いている文書。相談の記録に「何について相談したか」を残す */
+  currentPath: string | null;
   mentionedPaths: string[];
   codex: CodexEntry[];
   disabled: boolean;
@@ -61,6 +60,7 @@ type Props = {
 
 export function AiPanel({
   body,
+  currentPath,
   mentionedPaths,
   codex,
   disabled,
@@ -91,8 +91,13 @@ export function AiPanel({
   const [showAllPrompts, setShowAllPrompts] = useState(false);
   /** 保存する相談の件名を聞く */
   const [saving, setSaving] = useState<string | null>(null);
-  /** 保存時の依頼と応答を固定する(保存中に書き換わっても取り違えない) */
-  const saved = useRef<{ question: string; answer: string } | null>(null);
+  /**
+   * 送信した時点の材料。
+   *
+   * 保存時に画面の値を読むと、送信後に依頼欄を直したり資料の選択を変えたりした場合に
+   * **実際に送ったものと違う記録が残る**。それでは資産にならないので送信時に固める
+   */
+  const lastRun = useRef<LastRun | null>(null);
 
   useEffect(() => {
     api.listPrompts().then(setPrompts).catch(() => {
@@ -146,16 +151,26 @@ export function AiPanel({
 
   const send = useCallback(async () => {
     if (!question.trim()) return;
-    let ctx = preview;
-    if (!ctx) {
-      try {
-        ctx = await api.buildContext(body, autoPaths, manualPaths);
-        setPreview(ctx);
-      } catch (e) {
-        setError(String(e));
-        return;
-      }
+
+    // **送信のたびに組み立て直す**。
+    //
+    // 以前は preview があればそれを使い回していたが、preview は本文や資料の選択が
+    // 変わっても無効化されない。そのため一度でも空の状態(ファイル未選択・codex未一致)で
+    // 「送信内容を確認」を押すと、**以後ずっと空のコンテキストを送り続ける**状態になっていた。
+    // 記録が「資料なし」になるだけでなく、AIにも設定資料が渡らない
+    // (2026-07-31 の指摘で発覚。レビュータブは毎回組み立て直すので同じ問題が無かった)。
+    //
+    // preview は「送る前に見るためのもの」であって、送る実体を保持する場所ではない。
+    let ctx: ContextPreview;
+    try {
+      ctx = await api.buildContext(body, autoPaths, manualPaths);
+      setPreview(ctx);
+    } catch (e) {
+      setError(String(e));
+      return;
     }
+    // 送信した内容をここで固める(以後、画面を触られても記録はずれない)
+    lastRun.current = { question, path: currentPath, context: ctx };
     setBusy(true);
     onBusy("応答中");
     setAnswer("");
@@ -181,7 +196,7 @@ export function AiPanel({
       setBusy(false);
       onBusy(null);
     }
-  }, [question, preview, body, autoPaths, manualPaths, onBusy]);
+  }, [question, body, currentPath, autoPaths, manualPaths, onBusy]);
 
   /**
    * この相談を `ideas/` へ残す(M-03の「結果保存」)。
@@ -192,26 +207,56 @@ export function AiPanel({
    */
   const saveIdea = useCallback(
     async (name: string) => {
-      const src = saved.current;
+      const run = lastRun.current;
       setSaving(null);
-      if (!src) return;
-      const path = `ideas/${stamp(new Date())}-${safeFileName(name)}.md`;
+      if (!run) return;
+      const now = new Date();
+      const path = notePath("ideas", name, now);
+
+      // 何について相談したかが分からない記録は、あとから読んでも使えない。
+      // **対象文書と渡した資料**を必ず残す(U-05の透明性を保存側にも通す)
+      // 実際に渡ったものだけを書く(選んだつもりでも読めなければ渡っていない)。
+      // 上限で落ちた分も黙って隠さない — 隠すと「全部渡したうえでの応答」として読める
+      const entries = run.context.entries;
+      const materialList = [
+        ...(entries.length > 0
+          ? entries.map(
+              (e) => `- ${e.title}(${e.source === "manual" ? "手動" : "自動"}) — ${e.path}`,
+            )
+          : ["- (なし)"]),
+        ...(run.context.dropped_entries > 0
+          ? [`- ※ 上限を超えたため ${run.context.dropped_entries}件は渡していません`]
+          : []),
+      ].join("\n");
+
       const md = [
-        "---",
-        `title: ${name}`,
-        `created: ${new Date().toISOString()}`,
-        `model: ${settings?.model ?? ""}`,
-        "---",
+        frontmatter({
+          title: name,
+          created: now.toISOString(),
+          model: settings?.model,
+          source: run.path ?? undefined,
+        }),
+        "## 対象",
+        "",
+        `- 文書: ${run.path ?? "(ファイルを開いていない)"}`,
+        `- 渡した本文: ${run.context.body.length}字${
+          run.context.body_truncated ? "(長いため末尾を切り捨て)" : ""
+        }`,
+        "",
+        "### 渡した設定資料",
+        "",
+        materialList,
         "",
         "## 依頼",
         "",
-        src.question,
+        run.question,
         "",
         "## 応答",
         "",
-        src.answer,
+        answer,
         "",
       ].join("\n");
+
       try {
         const created = await api.createFile(path, md);
         onSaved(created ? path : null, created ? undefined : "同名のファイルが既にあります");
@@ -219,7 +264,7 @@ export function AiPanel({
         onSaved(null, String(e));
       }
     },
-    [settings, onSaved],
+    [settings, answer, onSaved],
   );
 
   /** 本文で名前が当たったエントリ(外したものも一覧には残す) */
@@ -445,14 +490,15 @@ export function AiPanel({
             <h2>応答</h2>
             {/* チャットで完結させず資産化する(02 M-03)。
                 ただし残すかどうかはユーザーが決める */}
-            {!busy && answer.trim() && (
+            {!busy && answer.trim() && lastRun.current && (
               <button
                 className="mini"
-                onClick={() => {
-                  saved.current = { question, answer };
-                  setSaving(question.trim().slice(0, 20) || "相談");
-                }}
-                title="この依頼と応答を ideas/ にMarkdownで残します"
+                onClick={() =>
+                  setSaving(
+                    lastRun.current?.question.trim().slice(0, 20) || "相談",
+                  )
+                }
+                title="依頼と応答に加えて、対象文書と渡した設定資料も ideas/ に残します"
               >
                 この相談を残す
               </button>

@@ -349,6 +349,27 @@ mod tests {
     }
 
     #[test]
+    fn reads_titles_written_by_the_app() {
+        // AIの出力を ideas/ と reviews/ へ残すとき、件名は人が入力するので
+        // コロンや記号が混ざりうる(src/components/saveNote.ts)。
+        // **書く側は単一引用符で囲む**。ここが読めないと、残した資産の表示名が壊れる
+        let got = parse("title: '架純: 展開案'\n");
+        assert_eq!(got.title.as_deref(), Some("架純: 展開案"));
+
+        // 「#」から始まる件名。囲んでいればコメントとして切られない
+        assert_eq!(
+            parse("title: '#タグ風'\n").title.as_deref(),
+            Some("#タグ風")
+        );
+
+        // 二重引用符を含む件名。単一引用符で囲むので、囲みを外すだけで元に戻る
+        assert_eq!(
+            parse("title: '「\"引用\"」: メモ'\n").title.as_deref(),
+            Some("「\"引用\"」: メモ")
+        );
+    }
+
+    #[test]
     fn tolerates_broken_yaml() {
         // コロンが無い行・空行・入れ子があっても落ちない
         let fm = "title: 佐藤架純\nこれは壊れた行\n\nrelations:\n  - to: chr-yuji\n    rel: 幼馴染\n";

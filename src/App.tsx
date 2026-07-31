@@ -581,6 +581,23 @@ export default function App() {
     }
   }, []);
 
+  /** AIの出力を正本へ残したあと(相談=ideas / 講評=reviews で共通) */
+  const noteSaved = useCallback(
+    async (label: string, path: string | null, err?: string) => {
+      if (err || !path) {
+        setStatus(err ?? "保存できませんでした");
+        return;
+      }
+      try {
+        setProject(await api.refreshProject());
+      } catch {
+        /* 一覧の更新に失敗しても保存自体は済んでいる */
+      }
+      setStatus(`${label}に残しました: ${path}`);
+    },
+    [],
+  );
+
   /** 本文中の設定名を Ctrl+クリックしたとき */
   const activateMention = useCallback(
     (name: string) => {
@@ -813,6 +830,7 @@ export default function App() {
                 >
                   <AiPanel
                     body={text}
+                    currentPath={currentPath}
                     mentionedPaths={mentionedPaths}
                     codex={codex}
                     disabled={!project}
@@ -823,18 +841,7 @@ export default function App() {
                     onCheckConnection={checkConnection}
                     onBusy={(l) => setAiBusy("chat", l)}
                     onShowReference={showReference}
-                    onSaved={async (path, err) => {
-                      if (err || !path) {
-                        setStatus(err ?? "保存できませんでした");
-                        return;
-                      }
-                      try {
-                        setProject(await api.refreshProject());
-                      } catch {
-                        /* 一覧の更新に失敗しても保存自体は済んでいる */
-                      }
-                      setStatus(`着想に残しました: ${path}`);
-                    }}
+                    onSaved={(p, e) => void noteSaved("着想", p, e)}
                   />
                 </div>
                 <div
@@ -879,6 +886,7 @@ export default function App() {
                 >
                   <ReviewPane
                     body={text}
+                    currentPath={currentPath}
                     disabled={!currentPath}
                     codex={codex}
                     mentionedPaths={mentionedPaths}
@@ -886,6 +894,7 @@ export default function App() {
                     onJump={(from, to) =>
                       handleRef.current.selectRange(from, to)
                     }
+                    onSaved={(p, e) => void noteSaved("講評", p, e)}
                   />
                 </div>
                 <div

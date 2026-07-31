@@ -110,5 +110,5 @@ M-03は**会話モード(§5.7)が未着手**。単発のままで足りるか�
 | `src/editor/` | CodeMirror 6本体・ハイライト・言及検出(Rust実装と同じ規則) |
 | `src/components/` | ツリー・AIパネル・各種ダイアログ・フォルダー表示名の対応表 |
 
-テストは Rust 150件(`cargo test`)+ フロント23件(`npm test`)。
+テストは Rust 151件(`cargo test`)+ フロント34件(`npm test`)。
 実機(LM Studio)が要る2件は `#[ignore]`(`tests/poc7_length.rs` / `tests/review_moralizing.rs`)。

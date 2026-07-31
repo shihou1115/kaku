@@ -21,10 +21,14 @@ import {
   type ReviewComment,
 } from "../api";
 import { useMaterials } from "./useMaterials";
+import { PromptDialog } from "./PromptDialog";
+import { frontmatter, notePath } from "./saveNote";
 
 type Props = {
   /** 現在の本文。結果の鮮度判定に使う */
   body: string;
+  /** レビュー対象の文書。講評を残すときに「何を見たか」を書く */
+  currentPath: string | null;
   disabled: boolean;
   /** 設定資料の手動追加に使う(コンテキストの3系統目) */
   codex: CodexEntry[];
@@ -33,6 +37,8 @@ type Props = {
   /** 実行中であることをヘッダーへ伝える。終わったら null */
   onBusy: (label: string | null) => void;
   onJump: (from: number, to: number) => void;
+  /** 講評を reviews/ へ残したあと。ツリーの読み直しと通知に使う */
+  onSaved: (path: string | null, error?: string) => void;
 };
 
 /** 指摘ごとの採否。本文には触れず、見え方だけを変える */
@@ -42,11 +48,13 @@ const ALL_ASPECTS = REVIEW_ASPECTS.map((a) => a.key);
 
 export function ReviewPane({
   body,
+  currentPath,
   disabled,
   codex,
   mentionedPaths,
   onBusy,
   onJump,
+  onSaved,
 }: Props) {
   const [aspects, setAspects] = useState<ReviewAspect[]>(ALL_ASPECTS);
   /** 渡す資料の選択。自動で当たった分も**外せる**(U-05 / §6.2) */
@@ -56,6 +64,10 @@ export function ReviewPane({
   /** 実行時の本文。変わったら「古い結果」として扱う(04-design §6.4) */
   const [reviewedBody, setReviewedBody] = useState<string | null>(null);
   const [verdicts, setVerdicts] = useState<Record<number, Verdict>>({});
+  /** 講評として残すときの件名を聞く */
+  const [saving, setSaving] = useState<string | null>(null);
+  /** レビューした時点の対象。あとで別の文書を開かれても記録がずれない */
+  const [reviewedPath, setReviewedPath] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [meta, setMeta] = useState<{
@@ -88,6 +100,7 @@ export function ReviewPane({
       setComments(r.comments);
       setOverall(r.overall);
       setReviewedBody(body);
+      setReviewedPath(currentPath);
       setVerdicts({});
       setMeta({
         model: r.model,
@@ -107,7 +120,107 @@ export function ReviewPane({
       setBusy(false);
       onBusy(null);
     }
-  }, [body, aspects, autoPaths, manualPaths, onBusy]);
+  }, [body, currentPath, aspects, autoPaths, manualPaths, onBusy]);
+
+  /**
+   * 講評を `reviews/` へ残す(03-data-format §4.3「AIの出力も人間可読な資産として残す」)。
+   *
+   * **自動保存はしない**。全レビューを自動で置くとゴミが溜まる(未決-5)。
+   * 採否の印(対応済み/棄却)もそのまま書く。指摘は棄却したものも消さずに残す —
+   * 「何を採らなかったか」は後から見返す価値がある記録である。
+   */
+  const saveReview = useCallback(
+    async (name: string) => {
+      setSaving(null);
+      if (!comments && !overall) return;
+      const now = new Date();
+      const path = notePath("reviews", name, now);
+
+      const label: Record<Verdict, string> = {
+        done: " 【対応済み】",
+        dropped: " 【棄却】",
+      };
+      const lines: string[] = [];
+      for (const a of REVIEW_ASPECTS) {
+        const items = (comments ?? [])
+          .map((c, index) => ({ c, index }))
+          .filter((x) => x.c.aspect === a.key);
+        if (items.length === 0) continue;
+        lines.push(`### ${a.label}`, "");
+        for (const { c, index } of items) {
+          const v = verdicts[index];
+          lines.push(`- ${c.comment}${v ? label[v] : ""}`);
+          if (c.quote) {
+            lines.push(
+              `  - 引用: 「${c.quote}」${c.found ? "" : " ※本文に見つかりません"}`,
+            );
+          }
+          if (c.suggestion) lines.push(`  - 方向: ${c.suggestion}`);
+        }
+        lines.push("");
+      }
+
+      const materials = [
+        ...autoPaths.map((p) => ({ p, kind: "自動" })),
+        ...manualPaths.map((p) => ({ p, kind: "手動" })),
+      ].map(({ p, kind }) => {
+        const c = codex.find((x) => x.path === p);
+        return `- ${c?.title ?? p}(${kind}) — ${p}`;
+      });
+
+      const md = [
+        frontmatter({
+          title: name,
+          created: now.toISOString(),
+          model: meta?.model,
+          source: reviewedPath ?? undefined,
+          aspects: aspects
+            .map((k) => REVIEW_ASPECTS.find((a) => a.key === k)?.label ?? k)
+            .join("、"),
+        }),
+        "## 対象",
+        "",
+        `- 文書: ${reviewedPath ?? "(ファイルを開いていない)"}`,
+        `- 観点: ${aspects
+          .map((k) => REVIEW_ASPECTS.find((a) => a.key === k)?.label ?? k)
+          .join("、")}`,
+        "",
+        "### 渡した設定資料",
+        "",
+        ...(materials.length > 0 ? materials : ["- (なし)"]),
+        "",
+        // 打ち切り・拒否・形式違反があったなら必ず書く。
+        // 警告を落とすと「全部見たうえでの講評」として読めてしまう
+        ...(meta?.warning ? ["> ⚠ " + meta.warning, ""] : []),
+        "## 全体講評",
+        "",
+        overall || "(なし)",
+        "",
+        `## 指摘(${comments?.length ?? 0}件)`,
+        "",
+        ...(lines.length > 0 ? lines : ["(なし)", ""]),
+      ].join("\n");
+
+      try {
+        const created = await api.createFile(path, md);
+        onSaved(created ? path : null, created ? undefined : "同名のファイルが既にあります");
+      } catch (e) {
+        onSaved(null, String(e));
+      }
+    },
+    [
+      comments,
+      overall,
+      verdicts,
+      aspects,
+      meta,
+      reviewedPath,
+      autoPaths,
+      manualPaths,
+      codex,
+      onSaved,
+    ],
+  );
 
   const setVerdict = useCallback((index: number, v: Verdict) => {
     setVerdicts((prev) => {
@@ -213,6 +326,22 @@ export function ReviewPane({
                   : `${comments.length}件`}
             </span>
           )}
+          {/* 講評を資産として残す(03 §4.3)。**自動保存はしない**(未決-5) */}
+          {!busy && (comments?.length || overall) ? (
+            <button
+              className="mini"
+              onClick={() =>
+                setSaving(
+                  reviewedPath
+                    ? (reviewedPath.split("/").pop() ?? "").replace(/\.md$/, "")
+                    : "レビュー",
+                )
+              }
+              title="全体講評と指摘を reviews/ にMarkdownで残します"
+            >
+              講評に残す
+            </button>
+          ) : null}
         </div>
 
         {meta && (
@@ -401,6 +530,16 @@ export function ReviewPane({
             "指摘は挙がりませんでした。観点を絞りすぎていないか、本文が短すぎないか確かめてください。"
           )}
         </p>
+      )}
+
+      {saving !== null && (
+        <PromptDialog
+          title="講評に残す"
+          label="件名(ファイル名になります)"
+          initial={saving}
+          onSubmit={(v) => void saveReview(v)}
+          onCancel={() => setSaving(null)}
+        />
       )}
     </div>
   );
