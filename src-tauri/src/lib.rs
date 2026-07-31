@@ -13,6 +13,7 @@ pub mod project;
 pub mod prompts;
 pub mod proofread;
 pub mod review;
+pub mod sample;
 pub mod settings;
 pub mod templates;
 
@@ -134,6 +135,30 @@ fn open_project(path: String, state: State<AppState>) -> Result<OpenedProject, S
         name,
         tree,
         codex,
+    })
+}
+
+/// サンプルプロジェクトを作って開く(M-08)。
+///
+/// 空のプロジェクトでは何ができるアプリなのか分からないので、
+/// **触りながら学べる素材**を用意する。既存ファイルは上書きしない。
+#[tauri::command]
+fn create_sample_project(path: String, state: State<AppState>) -> Result<OpenedProject, String> {
+    let root = PathBuf::from(&path);
+    if !root.is_dir() {
+        return Err(format!("フォルダが見つかりません: {path}"));
+    }
+    sample::create(&root).map_err(to_msg)?;
+    let name = root
+        .file_name()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| path.clone());
+    *state.root.lock().map_err(|_| "状態の更新に失敗")? = Some(root.clone());
+    Ok(OpenedProject {
+        root: root.to_string_lossy().to_string(),
+        name,
+        tree: project::scan(&root).map_err(to_msg)?,
+        codex: project::load_codex(&root).map_err(to_msg)?,
     })
 }
 
@@ -1016,6 +1041,7 @@ pub fn run() {
         .manage(state)
         .invoke_handler(tauri::generate_handler![
             open_project,
+            create_sample_project,
             refresh_project,
             read_file,
             save_file,

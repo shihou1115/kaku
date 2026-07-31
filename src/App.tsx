@@ -31,6 +31,7 @@ import { ViewMenu, type ViewSettings } from "./components/ViewMenu";
 import { folderLabel } from "./components/folderLabels";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { PromptDialog } from "./components/PromptDialog";
+import { HelpDialog } from "./components/HelpDialog";
 import "./App.css";
 
 /** テンプレートを使わない場合の中身 */
@@ -135,6 +136,7 @@ export default function App() {
   const [highlightEnabled, setHighlightEnabled] = useState(true);
   const [view, setView] = useState<ViewSettings>(storedView);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [newFileDir, setNewFileDir] = useState<string | null>(null);
   /** 項目メニュー */
   const [menu, setMenu] = useState<{ node: TreeNode; x: number; y: number } | null>(
@@ -387,6 +389,35 @@ export default function App() {
       setRefPath(null);
       setRefText("");
       setStatus(`「${p.name}」を開きました`);
+    } catch (e) {
+      setStatus(String(e));
+    }
+  }, [flushSave]);
+
+  /**
+   * サンプルを作って開く(M-08)。
+   *
+   * 空のプロジェクトでは何ができるアプリなのか分からない。
+   * **AI未接続でも試せる**素材(ハイライトと表記ゆれ検出)を入れてある
+   */
+  const openSample = useCallback(async () => {
+    await flushSave(true);
+    const picked = await openDialog({
+      directory: true,
+      title: "サンプルを作るフォルダを選ぶ(空のフォルダを推奨)",
+    });
+    if (typeof picked !== "string") return;
+    try {
+      const p = await api.createSampleProject(picked);
+      setProject(p);
+      setCurrentPath(null);
+      setText("");
+      setSavedText("");
+      setRefPath(null);
+      setRefText("");
+      setStatus(
+        "サンプルを作りました。左の「はじめに」から試してみてください",
+      );
     } catch (e) {
       setStatus(String(e));
     }
@@ -724,6 +755,13 @@ export default function App() {
           </div>
           <button onClick={() => handleRef.current.openSearch()}>検索</button>
           <button
+            onClick={() => setHelpOpen(true)}
+            title="使い方・AIの接続・知っておくこと"
+            aria-label="ヘルプ"
+          >
+            ?
+          </button>
+          <button
             className={rightOpen ? "toggled" : ""}
             onClick={() => setRightOpen((v) => !v)}
             title="右ペインの表示切替(Ctrl+\)"
@@ -762,9 +800,23 @@ export default function App() {
                   <br />
                   データはすべて普通のMarkdownファイルなので、他のエディタからも編集できます。
                 </p>
-                <button className="primary" onClick={openProject}>
-                  フォルダを選ぶ
-                </button>
+                <div className="empty-actions">
+                  <button className="primary" onClick={openProject}>
+                    フォルダを選ぶ
+                  </button>
+                  {/* 空状態がチュートリアルを兼ねる(U-08)。
+                      何ができるアプリなのかは、触らないと分からない */}
+                  <button onClick={() => void openSample()}>
+                    サンプルを試す
+                  </button>
+                </div>
+                <p className="empty-note">
+                  はじめてなら「サンプルを試す」から。
+                  <strong>AIに接続していなくても</strong>
+                  ハイライトと表記ゆれの検出は動きます。
+                  <br />
+                  使い方は右上の「?」にまとめてあります。
+                </p>
               </div>
             </div>
           )}
@@ -959,6 +1011,8 @@ export default function App() {
           onCancel={() => setPrompt(null)}
         />
       )}
+
+      {helpOpen && <HelpDialog onClose={() => setHelpOpen(false)} />}
 
       {newFileDir !== null && (
         <NewFileDialog

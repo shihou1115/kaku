@@ -182,6 +182,8 @@ export type ChatEvent =
 
 export const api = {
   openProject: (path: string) => invoke<OpenedProject>("open_project", { path }),
+  createSampleProject: (path: string) =>
+    invoke<OpenedProject>("create_sample_project", { path }),
   refreshProject: () => invoke<OpenedProject>("refresh_project"),
   readFile: (path: string) => invoke<FileContent>("read_file", { path }),
   saveFile: (path: string, text: string) =>
