@@ -1,0 +1,391 @@
+/**
+ * 右ペインの「レビュー」タブ(M-05)。**AIの4役割で最後の1つ**。
+ *
+ * 校正(ProofreadPane)と同じ作りにしてある。違うのは次の3点:
+ *
+ *  1. **観点を選んでから実行する**。観点は5分類で固定(02-requirements.md M-05)
+ *  2. 引用付きコメントに加えて**全体講評**が出る
+ *  3. **置換ボタンを持たない**。レビューの指摘は文字列の差し替えでは直らないし、
+ *     AIは本文を書かない(06-decision-log.md §2-1)。ここでできるのは
+ *     「その箇所へ移動する」ことと「採否を記録する」ことだけ
+ *
+ * 非破壊(U-06): 指摘は消さずに畳む。棄却しても本文には一切触れない。
+ */
+
+import { useCallback, useMemo, useState } from "react";
+import {
+  api,
+  REVIEW_ASPECTS,
+  type CodexEntry,
+  type ReviewAspect,
+  type ReviewComment,
+} from "../api";
+
+type Props = {
+  /** 現在の本文。結果の鮮度判定に使う */
+  body: string;
+  disabled: boolean;
+  /** 設定資料の手動追加に使う(コンテキストの3系統目) */
+  codex: CodexEntry[];
+  /** 本文に名前が出たエントリ(2系統目) */
+  mentionedPaths: string[];
+  /** 実行中であることをヘッダーへ伝える。終わったら null */
+  onBusy: (label: string | null) => void;
+  onJump: (from: number, to: number) => void;
+};
+
+/** 指摘ごとの採否。本文には触れず、見え方だけを変える */
+type Verdict = "done" | "dropped";
+
+const ALL_ASPECTS = REVIEW_ASPECTS.map((a) => a.key);
+
+export function ReviewPane({
+  body,
+  disabled,
+  codex,
+  mentionedPaths,
+  onBusy,
+  onJump,
+}: Props) {
+  const [aspects, setAspects] = useState<ReviewAspect[]>(ALL_ASPECTS);
+  const [manual, setManual] = useState<string[]>([]);
+  const [comments, setComments] = useState<ReviewComment[] | null>(null);
+  const [overall, setOverall] = useState("");
+  /** 実行時の本文。変わったら「古い結果」として扱う(04-design §6.4) */
+  const [reviewedBody, setReviewedBody] = useState<string | null>(null);
+  const [verdicts, setVerdicts] = useState<Record<number, Verdict>>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [meta, setMeta] = useState<{
+    model: string;
+    path: string;
+    chunks: number;
+    elapsedMs: number;
+    tokensPerSec: number | null;
+    unchecked: number;
+    materials: string[];
+    refused: boolean;
+    unparsed: boolean;
+    warning: string | null;
+  } | null>(null);
+
+  const toggleAspect = useCallback((key: ReviewAspect) => {
+    setAspects((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
+    );
+  }, []);
+
+  const run = useCallback(async () => {
+    setBusy(true);
+    onBusy("レビュー中");
+    setError(null);
+    try {
+      const r = await api.reviewAi(body, aspects, mentionedPaths, manual);
+      setComments(r.comments);
+      setOverall(r.overall);
+      setReviewedBody(body);
+      setVerdicts({});
+      setMeta({
+        model: r.model,
+        path: r.path,
+        chunks: r.chunks,
+        elapsedMs: r.elapsed_ms,
+        tokensPerSec: r.tokens_per_sec,
+        unchecked: r.unchecked_chars,
+        materials: r.materials,
+        refused: r.refused,
+        unparsed: r.unparsed,
+        warning: r.warning,
+      });
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+      onBusy(null);
+    }
+  }, [body, aspects, mentionedPaths, manual, onBusy]);
+
+  const setVerdict = useCallback((index: number, v: Verdict) => {
+    setVerdicts((prev) => {
+      const next = { ...prev };
+      if (next[index] === v) delete next[index];
+      else next[index] = v;
+      return next;
+    });
+  }, []);
+
+  const stale = reviewedBody !== null && reviewedBody !== body;
+
+  /** 観点ごとにまとめる。並びは定義順(選択チップと同じ順に見える) */
+  const grouped = useMemo(() => {
+    if (!comments) return [];
+    return REVIEW_ASPECTS.map((a) => ({
+      ...a,
+      items: comments
+        .map((c, index) => ({ c, index }))
+        .filter((x) => x.c.aspect === a.key),
+    })).filter((g) => g.items.length > 0);
+  }, [comments]);
+
+  const droppedCount = Object.values(verdicts).filter(
+    (v) => v === "dropped",
+  ).length;
+  const openCount = comments ? comments.length - droppedCount : 0;
+
+  return (
+    <div className="review-pane">
+      <section className="pf-section">
+        <h3 className="pf-section-title">
+          観点<span className="pf-tag ai">AI・トークンを使います</span>
+        </h3>
+        <div className="rv-aspects">
+          {REVIEW_ASPECTS.map((a) => (
+            <button
+              key={a.key}
+              className={aspects.includes(a.key) ? "rv-aspect on" : "rv-aspect"}
+              onClick={() => toggleAspect(a.key)}
+              disabled={busy}
+              title={a.hint}
+            >
+              {a.label}
+            </button>
+          ))}
+        </div>
+
+        <details className="rv-materials">
+          <summary>
+            渡す設定資料(自動{mentionedPaths.length}件
+            {manual.length > 0 && ` + 手動${manual.length}件`})
+          </summary>
+          <p className="hint">
+            本文に名前が出たエントリは自動で入ります。名前が出ない人物や、
+            前の場面から引き継いだ設定は手動で足してください。
+            <strong>資料が無いと「設定整合性」は判断できません</strong>。
+          </p>
+          <div className="manual-list">
+            {codex.map((c) => (
+              <label key={c.path} className="check">
+                <input
+                  type="checkbox"
+                  checked={manual.includes(c.path)}
+                  onChange={(e) =>
+                    setManual((m) =>
+                      e.target.checked
+                        ? [...m, c.path]
+                        : m.filter((p) => p !== c.path),
+                    )
+                  }
+                />
+                {c.title}
+                {mentionedPaths.includes(c.path) && (
+                  <span className="rv-auto">自動</span>
+                )}
+              </label>
+            ))}
+            {codex.length === 0 && (
+              <p className="empty">設定がまだありません。</p>
+            )}
+          </div>
+        </details>
+
+        <div className="pf-head">
+          <button
+            className="primary"
+            onClick={() => void run()}
+            disabled={disabled || busy || aspects.length === 0}
+          >
+            {busy ? "レビュー中…" : "この本文をレビュー"}
+          </button>
+          {comments && !stale && (
+            <span className="pf-count">
+              {comments.length === 0
+                ? "指摘なし"
+                : droppedCount > 0
+                  ? `${openCount}/${comments.length}件`
+                  : `${comments.length}件`}
+            </span>
+          )}
+        </div>
+
+        {meta && (
+          <p className="pf-meta">
+            {meta.model} /{" "}
+            {meta.path === "schema" ? "構造化出力" : "寛容パース"}
+            {meta.chunks > 1 && ` / ${meta.chunks}分割`}
+            {` / ${(meta.elapsedMs / 1000).toFixed(1)}秒`}
+            {meta.tokensPerSec !== null &&
+              ` (${meta.tokensPerSec.toFixed(0)} tok/s)`}
+            {meta.materials.length > 0 && (
+              <>
+                <br />
+                渡した資料: {meta.materials.join("、")}
+              </>
+            )}
+            {meta.unchecked > 0 && (
+              <>
+                <br />
+                本文が長いため末尾{meta.unchecked}字は見ていません。分けて実行してください。
+              </>
+            )}
+          </p>
+        )}
+        {meta?.warning && <p className="pf-stale">{meta.warning}</p>}
+        {stale && (
+          <p className="pf-stale">
+            本文が変わりました。結果が古い可能性があります。
+          </p>
+        )}
+        {error && <p className="error">{error}</p>}
+
+        {comments === null && !error && (
+          <p className="hint pf-hint">
+            編集者として読んでもらい、<strong>引用つきの指摘と全体講評</strong>を受け取ります。
+            観点は上の5つで固定です(増やしません)。絞るほど速く終わります。
+            <br />
+            <br />
+            <strong>本文は書き換えません</strong>。できるのは指摘箇所へ移動することと、
+            採否を記録することだけです。どう直すかは執筆者が決めます。
+            <br />
+            <br />
+            レビューは校正よりモデルの能力を要求します。指摘が的外れなら、
+            推論能力の高いモデルに替えてください。検閲の有無はレビューにはあまり効きません
+            (拒否されるのは「書かせる」依頼の方です)。
+            <br />
+            <br />
+            応答も校正より長くなります。<strong>コンテキスト長8Kでは足りません</strong>。
+            32K程度まで上げ、<strong>同時にLM Studioの並列数を1に下げてください</strong>。
+            賢いモデルほど遅いので、応答は240秒まで待ちます。
+          </p>
+        )}
+      </section>
+
+      {overall && (
+        <section className="pf-section">
+          <h3 className="pf-section-title">
+            {meta?.unparsed ? "モデルの生の応答" : "全体講評"}
+            {meta?.unparsed && (
+              <span className="pf-tag raw">形式を読み取れませんでした</span>
+            )}
+          </h3>
+          {/* 読み取れなかった応答は「講評」として見せない。
+              引用の照合を通っていないものを、通ったものと同じ顔で並べないため */}
+          <p className={meta?.unparsed ? "rv-overall raw" : "rv-overall"}>
+            {overall}
+          </p>
+        </section>
+      )}
+
+      {comments && comments.length > 0 && (
+        <section className="pf-section rv-comments">
+          <div className="ex-actions">
+            {droppedCount > 0 && (
+              <>
+                <span className="pf-count">{droppedCount}件を棄却中</span>
+                {/* 棄却は取り消せること。消していないので戻せる(U-06) */}
+                <button className="mini" onClick={() => setVerdicts({})}>
+                  棄却を戻す
+                </button>
+              </>
+            )}
+            <button
+              className="mini danger"
+              onClick={() =>
+                setVerdicts(
+                  Object.fromEntries(
+                    comments.map((_, i) => [i, "dropped" as Verdict]),
+                  ),
+                )
+              }
+              title="すべての指摘を棄却する(本文には触れません)"
+            >
+              すべて棄却
+            </button>
+          </div>
+
+          {grouped.map((g) => (
+            <div className="rv-group" key={g.key}>
+              <h4 className="rv-group-title">
+                {g.label}
+                <span className="rv-group-count">{g.items.length}</span>
+              </h4>
+              {g.items.map(({ c, index }) => {
+                const verdict = verdicts[index];
+                return (
+                  <div
+                    className={`pf-item rv-item${verdict ? ` ${verdict}` : ""}`}
+                    key={index}
+                  >
+                    {c.quote && (
+                      <blockquote className="rv-quote">{c.quote}</blockquote>
+                    )}
+                    <p className="rv-comment">{c.comment}</p>
+                    {c.suggestion && (
+                      <p className="rv-suggestion">→ {c.suggestion}</p>
+                    )}
+                    <div className="pf-occurrences">
+                      {c.found ? (
+                        <button
+                          className="mini"
+                          disabled={stale}
+                          onClick={() => onJump(c.start_utf16!, c.end_utf16!)}
+                        >
+                          移動
+                        </button>
+                      ) : c.quote ? (
+                        <span className="pf-notfound">
+                          引用が本文に見つかりません(AIの取り違えの可能性)
+                        </span>
+                      ) : (
+                        <span className="rv-noquote">範囲全体への指摘</span>
+                      )}
+                      <button
+                        className={verdict === "done" ? "mini toggled" : "mini"}
+                        onClick={() => setVerdict(index, "done")}
+                        title="対応した(記録するだけで本文は変わりません)"
+                      >
+                        対応済み
+                      </button>
+                      <button
+                        className={
+                          verdict === "dropped" ? "mini toggled" : "mini"
+                        }
+                        onClick={() => setVerdict(index, "dropped")}
+                        title="この指摘は採らない"
+                      >
+                        棄却
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </section>
+      )}
+
+      {comments?.length === 0 && !stale && (
+        <p className="hint pf-hint">
+          {meta?.refused ? (
+            <>
+              モデルが応答を返しませんでした。
+              <strong>「指摘なし」ではありません</strong>。題材によっては検閲で
+              拒否されることがあります。非検閲モデルに切り替えてお試しください。
+            </>
+          ) : meta?.unparsed ? (
+            <>
+              応答は返りましたが、指定した形式で読み取れませんでした。
+              <strong>「指摘なし」ではありません</strong>。上に出しているのは生の応答です。
+            </>
+          ) : meta?.warning ? (
+            <>
+              指摘は挙がりませんでしたが、
+              <strong>上の警告のとおり見落としの可能性があります</strong>。
+            </>
+          ) : (
+            "指摘は挙がりませんでした。観点を絞りすぎていないか、本文が短すぎないか確かめてください。"
+          )}
+        </p>
+      )}
+    </div>
+  );
+}

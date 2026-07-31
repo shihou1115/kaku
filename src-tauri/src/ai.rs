@@ -64,6 +64,15 @@ impl ChatOutcome {
         self.finish_reason.as_deref() == Some("length")
             || (self.content.trim().is_empty() && self.finish_reason.is_some())
     }
+
+    /// 打ち切りではなく、正常終了したのに1文字も返らなかったか。
+    ///
+    /// **検閲による拒否はこの形で現れる**(エラーにならない。docs/04-design.md §8.1)。
+    /// 打ち切り(コンテキスト不足)とは対処が違う — 前者はモデルを替える、
+    /// 後者はコンテキスト長を増やす — ので、区別して伝える必要がある。
+    pub fn refused(&self) -> bool {
+        self.content.trim().is_empty() && self.finish_reason.as_deref() != Some("length")
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, Deserialize, Serialize)]
@@ -86,11 +95,16 @@ struct ModelInfo {
 
 /// 応答を待つ上限(秒)。
 ///
-/// ローカルLLMは初回のモデルロードに時間がかかる(uggg の実測にならい 180 秒)。
-/// 校正のように出力トークン数が多い用途では、遅いモデルだとこれでも足りない。
-/// その場合は「設定を見直せ」と伝える方が、待ち続けるより親切
+/// ローカルLLMは初回のモデルロードに時間がかかる(uggg 由来の初期値は 180 秒だった)。
+/// 校正やレビューのように出力トークン数が多い用途では、遅いモデルだとこれでも足りない。
+/// 待ち続けるよりは「設定を見直せ」と伝える方が親切なので、上限は必ず設ける
 /// (docs/04-design.md §7.2)。
-pub const TIMEOUT_SECS: u64 = 180;
+///
+/// **2026-07-31 に 180 → 240 秒へ延長**(M-05のドッグフーディング)。
+/// レビューの質を上げようとすると推論能力の高い=遅いモデルを選ぶことになり、
+/// 180秒では打ち切られることが多かった。校正と違い、レビューは1回の結果が成果物なので
+/// 「待てば得られるものを時間切れで捨てる」損失が大きい。
+pub const TIMEOUT_SECS: u64 = 240;
 
 pub fn client() -> reqwest::Client {
     // 接続自体は localhost なら即時なので connect は短くてよい。
@@ -292,6 +306,23 @@ mod tests {
             parse_sse_line(r#"data: {"choices":[{"delta":{"role":"assistant"}}]}"#),
             SseEvent::Ignore
         );
+    }
+
+    #[test]
+    fn distinguishes_truncation_from_refusal() {
+        let make = |content: &str, reason: Option<&str>| ChatOutcome {
+            content: content.to_string(),
+            usage: None,
+            finish_reason: reason.map(|s| s.to_string()),
+        };
+        // コンテキスト不足で切れた
+        assert!(make("途中まで", Some("length")).truncated());
+        assert!(!make("途中まで", Some("length")).refused());
+        // 正常終了なのに1文字も返らない = 検閲の疑い(§8.1)
+        assert!(make("", Some("stop")).refused());
+        // 空応答は打ち切り判定にも当たるが、対処が違うので呼び出し側で先に length を見る
+        assert!(!make("普通の応答", Some("stop")).refused());
+        assert!(!make("普通の応答", Some("stop")).truncated());
     }
 
     #[test]

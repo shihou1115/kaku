@@ -85,6 +85,54 @@ export type AiProofreadResult = {
   warning: string | null;
 };
 
+/** レビューの観点。**5分類で固定**(02-requirements.md M-05)。増やさない */
+export type ReviewAspect =
+  | "style"
+  | "structure"
+  | "character"
+  | "consistency"
+  | "reader";
+
+export const REVIEW_ASPECTS: { key: ReviewAspect; label: string; hint: string }[] =
+  [
+    { key: "style", label: "文章品質", hint: "文体・冗長・読みやすさ" },
+    { key: "structure", label: "構成・テンポ", hint: "場面の要否・順序・配分" },
+    { key: "character", label: "キャラクター", hint: "一貫性・動機・口調" },
+    { key: "consistency", label: "設定整合性", hint: "設定資料との矛盾" },
+    { key: "reader", label: "読者視点", hint: "分かりにくさ・引き" },
+  ];
+
+export type ReviewComment = {
+  aspect: ReviewAspect;
+  quote: string;
+  comment: string;
+  /** 直す方向。書き直した本文ではない */
+  suggestion: string;
+  found: boolean;
+  start_utf16: number | null;
+  end_utf16: number | null;
+};
+
+export type AiReviewResult = {
+  comments: ReviewComment[];
+  overall: string;
+  aspects: ReviewAspect[];
+  /** 一緒に渡した設定資料の名前(U-05) */
+  materials: string[];
+  unchecked_chars: number;
+  path: "schema" | "fallback";
+  model: string;
+  chunks: number;
+  elapsed_ms: number;
+  tokens_per_sec: number | null;
+  /** 1文字も返らなかった。検閲による拒否の疑い */
+  refused: boolean;
+  /** 応答を指定形式として読み取れなかった。**「指摘なし」ではない**。
+   *  このとき overall は生の応答で、引用の照合ができていない */
+  unparsed: boolean;
+  warning: string | null;
+};
+
 export type Candidate = {
   name: string;
   kind: string;
@@ -143,6 +191,18 @@ export const api = {
     invoke<string[]>("create_codex_entries", { candidates }),
   proofreadAi: (text: string) =>
     invoke<AiProofreadResult>("proofread_ai", { text }),
+  reviewAi: (
+    text: string,
+    aspects: ReviewAspect[],
+    mentionedPaths: string[],
+    manualPaths: string[],
+  ) =>
+    invoke<AiReviewResult>("review_ai", {
+      text,
+      aspects,
+      mentionedPaths,
+      manualPaths,
+    }),
   countFiles: (path: string) => invoke<number>("count_files", { path }),
   trashEntry: (path: string) => invoke<string>("trash_entry", { path }),
   renameEntry: (from: string, to: string) =>

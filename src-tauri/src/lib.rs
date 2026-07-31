@@ -11,6 +11,7 @@ pub mod frontmatter;
 pub mod mentions;
 pub mod project;
 pub mod proofread;
+pub mod review;
 pub mod settings;
 pub mod templates;
 
@@ -355,6 +356,8 @@ async fn proofread_ai(
     let mut failures = 0usize;
     // 応答が打ち切られた塊の数。「指摘なし」と取り違えると誤報告になる
     let mut truncated = 0usize;
+    // 応答は返ったが形式として読み取れなかった塊。これも「誤りなし」ではない
+    let mut unparsed = 0usize;
 
     for chunk in &chunks {
         let messages = vec![
@@ -412,6 +415,7 @@ async fn proofread_ai(
         };
 
         let mut issues = proofread::parse_ai_issues(&raw);
+        let mut structured = proofread::looks_structured(&raw);
         // 構造化出力が通ったのに中身が取れない場合は経路Bで測り直す。
         // ただし**打ち切られていた場合は再試行しない**。原因はコンテキスト長の
         // 不足であって出力形式ではないため、投げ直しても同じ結果になり時間を捨てるだけ
@@ -424,7 +428,12 @@ async fn proofread_ai(
                     used_fallback = true;
                     issues = retried;
                 }
+                structured = structured || proofread::looks_structured(&out.content);
             }
+        }
+        // 応答は返ったのに形式を守っていない塊。**「誤りなし」ではない**
+        if !structured && !chunk_truncated && !raw.trim().is_empty() {
+            unparsed += 1;
         }
         if used_fallback {
             path = "fallback";
@@ -452,6 +461,12 @@ async fn proofread_ai(
              見落としがある可能性が高いので、LM Studio のコンテキスト長を増やすか、\
              短い範囲に区切って確認してください"
         ))
+    } else if unparsed > 0 {
+        Some(format!(
+            "{unparsed}箇所で、応答を指定した形式として読み取れませんでした\
+             (モデルが形式を守っていません)。**「誤りなし」ではありません**。\
+             別のモデルをお試しください"
+        ))
     } else if failures > 0 {
         Some(format!(
             "{failures}箇所の検査に失敗しました。結果は一部のみです"
@@ -471,6 +486,250 @@ async fn proofread_ai(
         chunks: chunks.len(),
         elapsed_ms,
         tokens_per_sec,
+        warning,
+    })
+}
+
+// ===== レビュー =====
+
+#[derive(Serialize)]
+struct AiReviewResult {
+    comments: Vec<review::ReviewComment>,
+    /// 全体講評。引用に紐づかない講評はここに出る
+    overall: String,
+    /// 実際に見た観点(キー)
+    aspects: Vec<String>,
+    /// 一緒に渡した設定資料の名前(U-05: 何を渡したかを見せる)
+    materials: Vec<String>,
+    /// 本文が長くて末尾を切り捨てた場合の未検査文字数(0なら全文を見た)
+    unchecked_chars: usize,
+    /// "schema" = 構造化出力が通った / "fallback" = 寛容パースで拾った
+    path: String,
+    model: String,
+    chunks: usize,
+    elapsed_ms: u64,
+    tokens_per_sec: Option<f64>,
+    /// 1文字も返らなかった塊がある。**検閲による拒否の疑い**(04-design §8.1)
+    refused: bool,
+    /// 応答を指定した形式として読み取れなかった。**「指摘なし」ではない**。
+    /// このとき overall には生の応答が入っており、引用の照合はできていない
+    unparsed: bool,
+    warning: Option<String>,
+}
+
+/// シーン/章のレビュー(M-05)。
+///
+/// 校正(proofread_ai)と同じ骨格: 分割ループ / 経路A→B / 打ち切り検出 /
+/// 一部が失敗しても取れた分は返す。**「指摘なし」と誤報告しないこと**が最重要。
+///
+/// レビュー固有の扱いとして、**1文字も返らない応答**(検閲の疑い)を
+/// 打ち切りと区別して伝える(§8.1)。
+#[tauri::command]
+async fn review_ai(
+    text: String,
+    aspects: Vec<String>,
+    mentioned_paths: Vec<String>,
+    manual_paths: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<AiReviewResult, String> {
+    let s = state.ai.lock().map_err(|_| "状態の取得に失敗")?.clone();
+    if s.model.trim().is_empty() {
+        return Err("モデルが未設定です。AI相談タブの設定で接続してください".to_string());
+    }
+    if text.trim().is_empty() {
+        return Err("本文がありません".to_string());
+    }
+    let root = root_of(&state)?;
+    let codex = project::load_codex(&root).map_err(to_msg)?;
+
+    // コンテキストは3系統だけ(docs/04-design.md §6.2)。組み立ては ask_ai と同じ経路を使う
+    let reader = |p: &str| project::read_text(&root, p).ok();
+    let ctx = context::build(&text, &codex, &reader, &mentioned_paths, &manual_paths);
+    let materials: Vec<(String, String)> = ctx
+        .entries
+        .iter()
+        .map(|e| (e.title.clone(), e.text.clone()))
+        .collect();
+    let material_names: Vec<String> = ctx.entries.iter().map(|e| e.title.clone()).collect();
+
+    let picked = review::selected_aspects(&aspects);
+    let used_aspects: Vec<String> = picked.iter().map(|a| a.key.to_string()).collect();
+
+    // 長文は分割する。所要時間は実行回数でほぼ決まるので、分割字数は設定に従う(§7.2)
+    let all_chunks = proofread::split_for_check_with(&text, s.check_chunk_chars);
+    let total_chunks = all_chunks.len();
+    let chunks: Vec<String> = all_chunks.into_iter().take(proofread::MAX_CHUNKS).collect();
+    let unchecked_chars = if total_chunks > chunks.len() {
+        text.chars().count() - chunks.iter().map(|c| c.chars().count()).sum::<usize>()
+    } else {
+        0
+    };
+
+    let started = std::time::Instant::now();
+    let mut path = "schema";
+    let mut collected: Vec<review::ReviewComment> = Vec::new();
+    let mut overalls: Vec<String> = Vec::new();
+    let mut completion_tokens = 0u64;
+    let mut failures = 0usize;
+    // 応答が打ち切られた塊。「指摘なし」と取り違えると誤報告になる
+    let mut truncated = 0usize;
+    // 1文字も返らなかった塊。検閲による拒否でこの形になる
+    let mut refused = 0usize;
+    // 応答は返ったが指定した形で読み取れなかった塊。これも「指摘なし」ではない
+    let mut unparsed = 0usize;
+
+    for chunk in &chunks {
+        let messages = vec![
+            ChatMessage {
+                role: "system".into(),
+                content: review::SYSTEM_PROMPT.to_string(),
+            },
+            ChatMessage {
+                role: "user".into(),
+                content: review::build_prompt(chunk, &picked, &materials),
+            },
+        ];
+
+        let mut used_fallback = false;
+        let mut chunk_truncated = false;
+        // 温度は校正(0.1)より少し高くする。校正は正解が1つだが、
+        // レビューは読み方に幅があり、固めすぎると当たり障りのない指摘に寄る
+        //
+        // 経路A: 構造化出力。失敗したら経路B(スキーマ無し+寛容パース)へ落とす
+        let raw = match ai::chat(
+            &s.base_url,
+            &s.api_key,
+            &s.model,
+            &messages,
+            0.3,
+            Some(review::review_schema()),
+        )
+        .await
+        {
+            Ok(out) => {
+                completion_tokens += out.usage.map(|u| u.completion_tokens).unwrap_or(0);
+                if out.finish_reason.as_deref() == Some("length") {
+                    truncated += 1;
+                    chunk_truncated = true;
+                } else if out.refused() {
+                    refused += 1;
+                }
+                out.content
+            }
+            Err(_) => {
+                used_fallback = true;
+                match ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.3, None).await {
+                    Ok(out) => {
+                        completion_tokens += out.usage.map(|u| u.completion_tokens).unwrap_or(0);
+                        if out.finish_reason.as_deref() == Some("length") {
+                            truncated += 1;
+                            chunk_truncated = true;
+                        } else if out.refused() {
+                            refused += 1;
+                        }
+                        out.content
+                    }
+                    Err(_) => {
+                        // 一部が落ちても、取れた分は返す(全部やり直させない)
+                        failures += 1;
+                        continue;
+                    }
+                }
+            }
+        };
+
+        let mut parsed = review::parse(&raw);
+        let mut shown_raw = raw;
+        // 指定した形で読み取れない場合は経路Bで測り直す。
+        // ただし**打ち切られていた場合は再試行しない**(原因は出力形式ではなく
+        // コンテキスト不足なので、投げ直しても同じ結果になり時間を捨てるだけ)
+        if !parsed.structured && !used_fallback && !chunk_truncated {
+            if let Ok(out) = ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.3, None).await
+            {
+                completion_tokens += out.usage.map(|u| u.completion_tokens).unwrap_or(0);
+                let retried = review::parse(&out.content);
+                if retried.structured {
+                    used_fallback = true;
+                    parsed = retried;
+                    shown_raw = out.content;
+                }
+            }
+        }
+
+        // 形式を守らない応答(散文・英語・箇条書き等)を捨てない。
+        //
+        // **捨てると「指摘なし」と区別が付かなくなる**。中身はあるのに読めていない
+        // だけなので、生の応答をそのまま講評として見せ、照合できていないことを警告する。
+        // これはレビューで最悪の誤報告(問題ありませんでした)を防ぐための処置であり、
+        // 経路B(プレーンテキスト+寛容パース)の最後の受け皿にあたる(§6.3)
+        if !parsed.structured && !shown_raw.trim().is_empty() {
+            unparsed += 1;
+            parsed.overall = review::clip_raw(&shown_raw);
+        }
+
+        if used_fallback {
+            path = "fallback";
+        }
+        overalls.push(parsed.overall);
+        collected.extend(parsed.comments);
+    }
+
+    if failures == chunks.len() && !chunks.is_empty() {
+        return Err("AIへの問い合わせに失敗しました。接続設定を確認してください".to_string());
+    }
+
+    let elapsed = started.elapsed();
+    let elapsed_ms = elapsed.as_millis() as u64;
+    let tokens_per_sec = if completion_tokens > 0 && elapsed.as_secs_f64() > 0.0 {
+        Some(completion_tokens as f64 / elapsed.as_secs_f64())
+    } else {
+        None
+    };
+
+    // 打ち切り・拒否は「指摘なし」と必ず区別して伝える。
+    // レビューで「問題ありません」と誤解させるのは校正と同じく最悪の誤報告になる
+    let warning = if truncated > 0 {
+        Some(format!(
+            "{truncated}箇所で応答が途中で打ち切られました(モデルのコンテキスト長が不足しています)。\
+             見落としがある可能性が高いので、LM Studio のコンテキスト長を増やすか、\
+             1回に送る字数を小さくしてください"
+        ))
+    } else if refused > 0 {
+        Some(format!(
+            "{refused}箇所でモデルが応答を返しませんでした。題材によっては検閲で拒否されることがあります。\
+             非検閲モデルに切り替えてお試しください"
+        ))
+    } else if unparsed > 0 {
+        Some(format!(
+            "{unparsed}箇所で、応答を指定した形式として読み取れませんでした(モデルが形式を守っていません)。\
+             **「指摘なし」ではありません**。読み取れなかった応答はそのまま下に出していますが、\
+             引用が本文に実在するかの照合ができていないので、内容は鵜呑みにしないでください。\
+             別のモデルをお試しください"
+        ))
+    } else if failures > 0 {
+        Some(format!(
+            "{failures}箇所のレビューに失敗しました。結果は一部のみです"
+        ))
+    } else {
+        None
+    };
+
+    // 位置は本文全体に対して引き直す(塊ごとのずれを持ち込まない)
+    let comments = review::resolve(&text, review::dedupe(collected));
+
+    Ok(AiReviewResult {
+        comments,
+        overall: review::merge_overall(&overalls),
+        aspects: used_aspects,
+        materials: material_names,
+        unchecked_chars,
+        path: path.to_string(),
+        model: s.model,
+        chunks: chunks.len(),
+        elapsed_ms,
+        tokens_per_sec,
+        refused: refused > 0,
+        unparsed: unparsed > 0,
         warning,
     })
 }
@@ -754,6 +1013,7 @@ pub fn run() {
             find_mentions,
             check_notation,
             proofread_ai,
+            review_ai,
             extract_entities,
             create_codex_entries,
             get_ai_settings,

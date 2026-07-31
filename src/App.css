@@ -195,17 +195,20 @@ body.resizing {
 
 .tabs {
   display: flex;
+  /* タブが5つあるので、ペインを狭めたときは折り返して全部見えるようにする */
+  flex-wrap: wrap;
   border-bottom: 1px solid var(--border);
   flex: 0 0 auto;
 }
 
 button.tab {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 52px;
   border: none;
   border-radius: 0;
   border-bottom: 2px solid transparent;
-  padding: 7px 8px;
-  font-size: 12px;
+  padding: 7px 4px;
+  font-size: 11.5px;
   color: var(--muted);
   background: none;
 }
@@ -508,6 +511,146 @@ button.tab.active {
 
 .pf-all {
   margin-left: auto;
+}
+
+/* ===== レビュータブ ===== */
+
+.review-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 10px;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.rv-aspects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+button.rv-aspect {
+  font-size: 11px;
+  padding: 2px 9px;
+  border-radius: 10px;
+  color: var(--muted);
+}
+
+/* 選んだ観点だけを実行する。押した状態が一目で分かること */
+button.rv-aspect.on {
+  background: rgba(56, 139, 253, 0.14);
+  border-color: rgba(56, 139, 253, 0.4);
+  color: #1864ab;
+  font-weight: 600;
+}
+
+.rv-materials > summary {
+  font-size: 11px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.rv-auto {
+  font-size: 9.5px;
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #e7f5ff;
+  border: 1px solid #a5d8ff;
+  color: #1864ab;
+}
+
+.rv-overall {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  background: #f8f9fa;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 8px 10px;
+}
+
+/* 読み取れなかった生の応答。**講評と同じ顔で並べない**
+   (引用の照合を通っていないため、確度が違う) */
+.rv-overall.raw {
+  background: #fff9db;
+  border-color: #ffec99;
+  color: #6b5a13;
+  word-break: break-word;
+}
+
+.pf-tag.raw {
+  background: #fff9db;
+  border: 1px solid #ffec99;
+  color: #8c6d1f;
+}
+
+.rv-comments {
+  gap: 10px;
+}
+
+.rv-group-title {
+  margin: 0 0 5px;
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.rv-group-count {
+  font-size: 10px;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: #f1f3f5;
+  border: 1px solid var(--border);
+}
+
+.rv-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* 採否は見え方だけを変える。**本文には一切触れない**(U-06) */
+.rv-item.done {
+  opacity: 0.65;
+  border-color: #96f2d7;
+}
+
+.rv-item.dropped {
+  opacity: 0.4;
+}
+
+.rv-quote {
+  margin: 0 0 6px;
+  padding: 3px 0 3px 8px;
+  border-left: 3px solid var(--border);
+  font-size: 12px;
+  line-height: 1.7;
+  color: #495057;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.rv-comment {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.rv-suggestion {
+  margin: 4px 0 6px;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--accent);
+}
+
+.rv-noquote {
+  font-size: 11px;
+  color: var(--muted);
 }
 
 /* ===== 設定抽出タブ ===== */

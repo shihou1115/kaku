@@ -467,6 +467,26 @@ pub fn parse_ai_issues(raw: &str) -> Vec<AiIssue> {
         .collect()
 }
 
+/// 応答が「指定した形」として読み取れたか。
+///
+/// **`false` と「誤りなし」は違う。** 前者はモデルが形式を守らなかった状態
+/// (散文で講評を返す等)で、中身の有無は分からない。これを「誤字なし」と
+/// 報告するのが校正で最悪の失敗なので、呼び出し側が区別できるようにする
+/// (M-05の実装で同じ穴が見つかったため、こちらにも入れた)。
+pub fn looks_structured(raw: &str) -> bool {
+    let blob = crate::ai::extract_json_blob(raw);
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(blob) else {
+        return false;
+    };
+    value
+        .get("issues")
+        .or_else(|| value.get("items"))
+        .or_else(|| value.get("results"))
+        .and_then(|v| v.as_array())
+        .or_else(|| value.as_array())
+        .is_some()
+}
+
 /// 引用が本文に実在するかを照合し、位置を埋める。
 ///
 /// 見つからない指摘は幻覚の疑いが強いので `found=false` にして後ろへ回す
@@ -661,6 +681,17 @@ mod tests {
         assert!(parse_ai_issues("すみません、見つかりませんでした").is_empty());
         assert!(parse_ai_issues("").is_empty());
         assert!(parse_ai_issues("{\"issues\":").is_empty());
+    }
+
+    #[test]
+    fn prose_response_is_not_mistaken_for_no_typos() {
+        // 形式を守らない応答を「誤りなし」と報告しないための区別
+        assert!(!looks_structured("The writing can be improved by tightening the prose."));
+        assert!(!looks_structured(""));
+        assert!(!looks_structured(r#"{"summary":"問題ありません"}"#));
+        // 空の一覧は「読み取れたうえで誤りなし」なので true
+        assert!(looks_structured(r#"{"issues":[]}"#));
+        assert!(looks_structured("```json\n{\"issues\":[]}\n```"));
     }
 
     #[test]

@@ -24,6 +24,7 @@ import { AiPanel } from "./components/AiPanel";
 import { NewFileDialog } from "./components/NewFileDialog";
 import { ReferencePane } from "./components/ReferencePane";
 import { ProofreadPane } from "./components/ProofreadPane";
+import { ReviewPane } from "./components/ReviewPane";
 import { ExtractPane } from "./components/ExtractPane";
 import { ItemMenu, type MenuAction } from "./components/ItemMenu";
 import { ViewMenu, type ViewSettings } from "./components/ViewMenu";
@@ -113,7 +114,7 @@ function Splitter({ onDrag }: { onDrag: (dx: number) => void }) {
   );
 }
 
-type RightTab = "ai" | "ref" | "proof" | "extract";
+type RightTab = "ai" | "ref" | "proof" | "review" | "extract";
 
 export default function App() {
   const handleRef = useRef<EditorHandle>({
@@ -790,6 +791,12 @@ export default function App() {
                   校正
                 </button>
                 <button
+                  className={rightTab === "review" ? "tab active" : "tab"}
+                  onClick={() => setRightTab("review")}
+                >
+                  レビュー
+                </button>
+                <button
                   className={rightTab === "extract" ? "tab active" : "tab"}
                   onClick={() => setRightTab("extract")}
                 >
@@ -852,6 +859,21 @@ export default function App() {
                         setStatus(String(e));
                       }
                     }}
+                  />
+                </div>
+                <div
+                  className="tab-pane"
+                  style={{ display: rightTab === "review" ? "block" : "none" }}
+                >
+                  <ReviewPane
+                    body={text}
+                    disabled={!currentPath}
+                    codex={codex}
+                    mentionedPaths={mentionedPaths}
+                    onBusy={(l) => setAiBusy("review", l)}
+                    onJump={(from, to) =>
+                      handleRef.current.selectRange(from, to)
+                    }
                   />
                 </div>
                 <div

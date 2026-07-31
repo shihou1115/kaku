@@ -73,18 +73,18 @@ npm test
 - **M1 完了**(2026-07-26): MVP実装+ドッグフーディング通過。指摘7件はすべて解消済み([docs/05-roadmap.md](docs/05-roadmap.md) §5.4)
 - **M2 完了**(2026-07-31): M-04(表記ゆれ+誤字脱字)、M-09(設定自動抽出+名寄せ)、PoC#3・#7。
   校正のV1既定は「ローカル可」で確定
-### 次にやること: M3 の **M-05(レビュー)**
+- **M-05(レビュー)完了**(2026-07-31): 実装+ドッグフーディング通過。これで**AIの4役割がすべて実装された**。
+  観点5分類・引用つきコメント+全体講評・引用の実在照合・打ち切りと拒否の区別・採否UI。
+  実装結果と検証記録は [docs/05-roadmap.md](docs/05-roadmap.md) §5.13
+  - **レビューは検閲ありモデルでも成立する**(実機確認済み)。効くのはモデルの推論能力の方
+  - **コンテキスト長8Kでは足りない**(32K+並列数1が要る)。質を求めるほど遅くなるため、
+    応答待ちの上限は240秒(`ai::TIMEOUT_SECS`)
+  - モデルによっては**形式を守らず散文で返す**(gpt-oss-20b)。それを「指摘なし」と
+    誤報告しないための区別が入っている(`ParsedReview::structured` / `proofread::looks_structured`)
 
-AIの4役割で唯一の未実装であり、「編集者」というプロダクトの中核。
-**着手手順・参照先・写すべき前例は [docs/05-roadmap.md](docs/05-roadmap.md) §5.13 にまとめてある。まずそこを読む。**
+### 次にやること: M3の残り
 
-要点だけ先に:
-- **校正(M-04-01)の実装がそのまま雛形になる**。`proofread.rs` と `proofread_ai` を写す
-- **打ち切り検出**と**引用の実在照合**を忘れない。レビューで「指摘なし」と誤報告するのは最悪の失敗
-- 観点は**5分類で固定済み**。増やさない
-- 検証項目: **拒否ではなく「説教が混入する」失敗形**(docs/04-design.md §8.1)
-
-M3の残り(M-03の3系統UI / M-08オンボーディング / FTS5検索)はM-05の後。
+M-03の3系統UI / M-08オンボーディング / FTS5検索(PoC#2)。
 
 未着手の検討事項は [docs/05-roadmap.md](docs/05-roadmap.md) §5.5 に一覧(AI依頼テンプレート /
 会話コンテキスト / 前提変更の作業A〜E / FAQ必須項目 / 設定項目の集約)。いずれも方式まで検討済み。
@@ -96,9 +96,12 @@ M3の残り(M-03の3系統UI / M-08オンボーディング / FTS5検索)はM-05
 | `src-tauri/src/project.rs` | プロジェクトの読み書き・保存前バックアップ・パス検証 |
 | `src-tauri/src/frontmatter.rs` | 寛容パース。**再シリアライズしない**ので未知フィールドは壊れない |
 | `src-tauri/src/mentions.rs` | aho-corasickの言及検出。UTF-16位置換算あり |
-| `src-tauri/src/ai.rs` | OpenAI互換の薄いクライアント(send/stream/models) |
+| `src-tauri/src/ai.rs` | OpenAI互換の薄いクライアント(send/stream/models)。打ち切りと拒否の判定 |
+| `src-tauri/src/proofread.rs` | 表記ゆれの機械照合(M-04-02)+ 誤字脱字のプロンプト・分割(M-04-01) |
+| `src-tauri/src/review.rs` | レビュー(M-05)。観点5分類・プロンプト・寛容パース・引用の実在照合 |
 | `src-tauri/src/context.rs` | AIへ渡す3系統の組み立て+システムプロンプト |
 | `src/editor/` | CodeMirror 6本体・ハイライト・言及検出(Rust実装と同じ規則) |
 | `src/components/` | ツリー・AIパネル・各種ダイアログ・フォルダー表示名の対応表 |
 
-テストは Rust 45件(`cargo test`)+ フロント15件(`npm test`)。
+テストは Rust 142件(`cargo test`)+ フロント15件(`npm test`)。
+実機(LM Studio)が要る2件は `#[ignore]`(`tests/poc7_length.rs` / `tests/review_moralizing.rs`)。
