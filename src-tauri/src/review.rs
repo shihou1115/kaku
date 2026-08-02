@@ -18,7 +18,7 @@
 
 use serde::Serialize;
 
-use crate::mentions::Utf16Map;
+use crate::mentions::{locate_quote, Utf16Map};
 
 /// レビューの観点。**5分類で固定**(02-requirements.md M-05、06-decision-log.md §3)。
 ///
@@ -151,10 +151,6 @@ pub fn clip_raw(raw: &str) -> String {
     let head: String = t.chars().take(MAX_RAW_CHARS).collect();
     format!("{head}\n\n(応答が長いため以下略)")
 }
-
-/// 引用の照合で許す最小の長さ(文字)。
-/// これより短い断片で本文を探すと、無関係な箇所に当たって位置がでたらめになる。
-const MIN_QUOTE_CHARS: usize = 8;
 
 /// システムプロンプト。**説教を混ぜさせないことが最大の目的**(docs/04-design.md §8.1)。
 ///
@@ -381,49 +377,6 @@ pub fn dedupe(comments: Vec<ReviewComment>) -> Vec<ReviewComment> {
     out
 }
 
-/// 引用を本文の位置へ対応づける。
-///
-/// **完全一致 → 前後の約物を落として再検索 → 先頭からの部分一致**まで
-/// (docs/04-design.md §6.4「完全一致→部分一致に留める」)。
-/// あいまい一致・段落インデックス・失効管理は撤回済みなので作らない。
-fn locate(body: &str, quote: &str) -> Option<(usize, usize)> {
-    if quote.is_empty() {
-        return None;
-    }
-    if let Some(p) = body.find(quote) {
-        return Some((p, p + quote.len()));
-    }
-
-    // 引用の前後に鉤括弧や句読点を足す癖があるので、そこだけ剥がして探し直す。
-    // これは剥がした後も**完全一致**なので、短い引用でも安全に使える
-    let trimmed = quote.trim().trim_matches(|c: char| {
-        c.is_whitespace() || matches!(c, '「' | '」' | '『' | '』' | '"' | '\'' | '…' | '。' | '、' | '　')
-    });
-    if trimmed.chars().count() < 2 {
-        return None;
-    }
-    if trimmed != quote {
-        if let Some(p) = body.find(trimmed) {
-            return Some((p, p + trimmed.len()));
-        }
-    }
-
-    // ここから先は部分一致になる。短い断片では別の箇所に当たるので長さで足切りする
-    if trimmed.chars().count() < MIN_QUOTE_CHARS {
-        return None;
-    }
-    // 長い引用は末尾だけ言い換えられることがある。一致する先頭部分だけを採る
-    let chars: Vec<char> = trimmed.chars().collect();
-    let mut take = chars.len();
-    while take > MIN_QUOTE_CHARS {
-        take -= 1;
-        let prefix: String = chars[..take].iter().collect();
-        if let Some(p) = body.find(&prefix) {
-            return Some((p, p + prefix.len()));
-        }
-    }
-    None
-}
 
 /// 引用が本文に実在するかを照合し、位置を埋める(**幻覚を機械で落とす**)。
 ///
@@ -434,7 +387,7 @@ fn locate(body: &str, quote: &str) -> Option<(usize, usize)> {
 pub fn resolve(body: &str, mut comments: Vec<ReviewComment>) -> Vec<ReviewComment> {
     let to_utf16 = Utf16Map::new(body);
     for c in comments.iter_mut() {
-        if let Some((start, end)) = locate(body, &c.quote) {
+        if let Some((start, end)) = locate_quote(body, &c.quote) {
             c.found = true;
             c.start_utf16 = Some(to_utf16.at(start));
             c.end_utf16 = Some(to_utf16.at(end));

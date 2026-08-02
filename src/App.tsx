@@ -34,6 +34,7 @@ import { folderLabel } from "./components/folderLabels";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { PromptDialog } from "./components/PromptDialog";
 import { HelpDialog } from "./components/HelpDialog";
+import { SplitDialog } from "./components/SplitDialog";
 import "./App.css";
 
 /** テンプレートを使わない場合の中身 */
@@ -141,6 +142,8 @@ export default function App() {
   const [view, setView] = useState<ViewSettings>(storedView);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  /** シーン分割の対象。開いている間だけ提案を出す */
+  const [splitTarget, setSplitTarget] = useState<TreeNode | null>(null);
   const [newFileDir, setNewFileDir] = useState<string | null>(null);
   /** 項目メニュー */
   const [menu, setMenu] = useState<{ node: TreeNode; x: number; y: number } | null>(
@@ -523,6 +526,9 @@ export default function App() {
         case "newFolder":
         case "rename":
           setPrompt({ mode: action, node });
+          return;
+        case "split":
+          setSplitTarget(node);
           return;
         case "reveal":
           try {
@@ -1053,6 +1059,36 @@ export default function App() {
       )}
 
       {helpOpen && <HelpDialog onClose={() => setHelpOpen(false)} />}
+
+      {splitTarget && (
+        <SplitDialog
+          path={splitTarget.path}
+          title={splitTarget.title || splitTarget.name.replace(/\.md$/, "")}
+          onBusy={(l) => setAiBusy("split", l)}
+          onClose={() => setSplitTarget(null)}
+          onDone={async (created, err) => {
+            if (err || !created) {
+              setStatus(err ?? "分割できませんでした");
+              return;
+            }
+            // 元ファイルを開いていたら閉じる(ゴミ箱へ移っている)
+            if (currentPath === splitTarget.path) {
+              setCurrentPath(null);
+              setText("");
+              setSavedText("");
+              handleRef.current.load("");
+            }
+            try {
+              setProject(await api.refreshProject());
+            } catch {
+              /* 一覧の更新に失敗しても分割自体は済んでいる */
+            }
+            setStatus(
+              `${created.length - 1}個に分けました(元は ${created[created.length - 1]} へ)`,
+            );
+          }}
+        />
+      )}
 
       {newFileDir !== null && (
         <NewFileDialog

@@ -101,6 +101,25 @@ export type AiProofreadResult = {
   warning: string | null;
 };
 
+/** シーンの切れ目の候補。**位置は保存せず、適用時に引用から引き直す**(D-7) */
+export type SplitPoint = {
+  quote: string;
+  title: string;
+  found: boolean;
+  at_utf16: number | null;
+  before: string;
+  after: string;
+  chars: number;
+};
+
+export type SplitSuggestion = {
+  points: SplitPoint[];
+  total_chars: number;
+  model: string;
+  elapsed_ms: number;
+  warning: string | null;
+};
+
 /** レビューの観点。**5分類で固定**(02-requirements.md M-05)。増やさない */
 export type ReviewAspect =
   | "style"
@@ -216,6 +235,14 @@ export const api = {
     invoke<string[]>("create_codex_entries", { candidates }),
   proofreadAi: (text: string) =>
     invoke<AiProofreadResult>("proofread_ai", { text }),
+  suggestSceneSplit: (path: string) =>
+    invoke<SplitSuggestion>("suggest_scene_split", { path }),
+  /** 採用した切れ目で実際に分割する。元ファイルはゴミ箱へ移る */
+  applySceneSplit: (
+    path: string,
+    firstTitle: string,
+    points: { quote: string; title: string }[],
+  ) => invoke<string[]>("apply_scene_split", { path, firstTitle, points }),
   reviewAi: (
     text: string,
     aspects: ReviewAspect[],

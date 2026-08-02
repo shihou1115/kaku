@@ -14,6 +14,7 @@ export type MenuAction =
   | "rename"
   | "duplicate"
   | "reveal"
+  | "split"
   | "trash";
 
 type Props = {
@@ -27,6 +28,7 @@ type Props = {
 const FILE_ITEMS: { action: MenuAction; label: string }[] = [
   { action: "rename", label: "名前を変更…" },
   { action: "duplicate", label: "複製" },
+  { action: "split", label: "シーンに分割…" },
   { action: "reveal", label: "エクスプローラーで表示" },
   { action: "trash", label: "削除…" },
 ];

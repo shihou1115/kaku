@@ -16,6 +16,7 @@ pub mod review;
 pub mod sample;
 pub mod search;
 pub mod settings;
+pub mod split;
 pub mod templates;
 
 use std::path::PathBuf;
@@ -548,6 +549,93 @@ async fn proofread_ai(
     })
 }
 
+// ===== シーンの自動分割 =====
+
+#[derive(Serialize)]
+struct SplitSuggestion {
+    points: Vec<split::SplitPoint>,
+    /// 分割前の本文の字数(プレビューで規模を見せる)
+    total_chars: usize,
+    model: String,
+    elapsed_ms: u64,
+    warning: Option<String>,
+}
+
+/// 場面の切れ目を提案する(P-8 / §5.9-D)。**提案するだけで切らない。**
+#[tauri::command]
+async fn suggest_scene_split(
+    path: String,
+    state: State<'_, AppState>,
+) -> Result<SplitSuggestion, String> {
+    let s = state.ai.lock().map_err(|_| "状態の取得に失敗")?.clone();
+    if s.model.trim().is_empty() {
+        return Err("モデルが未設定です。AI相談タブの設定で接続してください".to_string());
+    }
+    let root = root_of(&state)?;
+    let source = project::read_text(&root, &path).map_err(to_msg)?;
+    let (_, body) = frontmatter::split(&source);
+    if body.chars().count() < split::MIN_SEGMENT_CHARS * 2 {
+        return Err(format!(
+            "本文が短すぎます。分けるには最低でも{}字ほど必要です",
+            split::MIN_SEGMENT_CHARS * 2
+        ));
+    }
+
+    let messages = vec![
+        ChatMessage {
+            role: "system".into(),
+            content: split::SYSTEM_PROMPT.to_string(),
+        },
+        ChatMessage {
+            role: "user".into(),
+            content: split::build_prompt(body),
+        },
+    ];
+
+    let started = std::time::Instant::now();
+    // 分割は**全体を通して読まないと切れ目が分からない**ので、分割送信はしない。
+    // 長すぎてコンテキストに入らない場合は打ち切りとして正直に伝える
+    let out = ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.2, None)
+        .await
+        .map_err(|e| e)?;
+
+    let warning = if out.finish_reason.as_deref() == Some("length") {
+        Some(
+            "応答が途中で打ち切られました。本文が長すぎてモデルが最後まで読めていない可能性があります"
+                .to_string(),
+        )
+    } else if out.refused() {
+        Some("モデルが応答を返しませんでした。別のモデルをお試しください".to_string())
+    } else {
+        None
+    };
+
+    let points = split::verify(body, split::parse(&out.content));
+    Ok(SplitSuggestion {
+        points,
+        total_chars: body.chars().count(),
+        model: s.model,
+        elapsed_ms: started.elapsed().as_millis() as u64,
+        warning,
+    })
+}
+
+/// 採用された切れ目で実際に分割する(中身は split::apply)。
+///
+/// **元ファイルはゴミ箱へ退避する**(削除と同じ流儀)。消さないので戻せる。
+/// 位置は保存しておらず、**適用時に引用から引き直す**ので、提案を見てから
+/// 本文が変わっていた場合はずれた位置で切らずに失敗する。
+#[tauri::command]
+fn apply_scene_split(
+    path: String,
+    first_title: String,
+    points: Vec<split::AcceptedPoint>,
+    state: State<AppState>,
+) -> Result<Vec<String>, String> {
+    let root = root_of(&state)?;
+    split::apply(&root, &path, &first_title, &points)
+}
+
 // ===== レビュー =====
 
 #[derive(Serialize)]
@@ -1076,6 +1164,8 @@ pub fn run() {
             check_notation,
             proofread_ai,
             review_ai,
+            suggest_scene_split,
+            apply_scene_split,
             extract_entities,
             create_codex_entries,
             get_ai_settings,

@@ -287,6 +287,39 @@ fn non_empty(value: &str) -> Option<String> {
     }
 }
 
+/// フロントマターの `title:` 行だけを外科的に書き換える。
+///
+/// **再シリアライズしない**(03-data-format §4.1)。他の行はバイト単位で温存し、
+/// 未知フィールドを壊さない。`title` が無ければ開始の `---` 直後へ挿入する。
+///
+/// フロントマターごと無い場合は、本文の前に付ける。
+pub fn set_title(source: &str, title: &str) -> String {
+    let (fm, body) = split(source);
+    let Some(fm) = fm else {
+        return format!("---\ntitle: {title}\n---\n\n{source}");
+    };
+    let mut out = String::from("---\n");
+    let mut done = false;
+    for line in fm.split_inclusive('\n') {
+        let bare = line.trim_end_matches(['\n', '\r']);
+        if !done && bare.trim_start().starts_with("title:") {
+            out.push_str(&format!("title: {title}\n"));
+            done = true;
+            continue;
+        }
+        out.push_str(line);
+    }
+    if !done {
+        out = format!("---\ntitle: {title}\n{}", &out["---\n".len()..]);
+    }
+    if !out.ends_with('\n') {
+        out.push('\n');
+    }
+    out.push_str("---\n");
+    out.push_str(body);
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -346,6 +379,32 @@ mod tests {
         let got = parse(fm);
         assert_eq!(got.title.as_deref(), Some("佐藤架純"));
         assert_eq!(got.aliases, vec!["架純"]);
+    }
+
+    #[test]
+    fn set_title_replaces_only_that_line() {
+        // シーン分割で使う。**未知フィールドを壊さないこと**が要点
+        let src = "---\ntype: scene\ntitle: 元の見出し\npov: 架純\nprogression:\n  - at: 三章\n---\n本文\n";
+        let got = set_title(src, "新しい見出し");
+        assert!(got.contains("title: 新しい見出し"));
+        assert!(!got.contains("元の見出し"));
+        assert!(got.contains("pov: 架純"), "他の行が消えた: {got}");
+        assert!(got.contains("  - at: 三章"), "入れ子が消えた: {got}");
+        assert!(got.ends_with("本文\n"));
+    }
+
+    #[test]
+    fn set_title_inserts_when_absent() {
+        let got = set_title("---\ntype: scene\n---\n本文\n", "見出し");
+        assert!(got.starts_with("---\ntitle: 見出し\ntype: scene\n---\n"));
+        assert!(got.ends_with("本文\n"));
+    }
+
+    #[test]
+    fn set_title_handles_missing_frontmatter() {
+        let got = set_title("　本文だけがある。\n", "見出し");
+        assert_eq!(parse_source(&got).title.as_deref(), Some("見出し"));
+        assert!(got.contains("　本文だけがある。"));
     }
 
     #[test]

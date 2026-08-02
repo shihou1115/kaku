@@ -90,6 +90,58 @@ impl Utf16Map {
     }
 }
 
+/// 引用の照合で許す最小の長さ(文字)。
+/// これより短い断片で本文を探すと、無関係な箇所に当たって位置がでたらめになる。
+const MIN_QUOTE_CHARS: usize = 8;
+
+/// LLMが返した引用を、本文の位置(バイト範囲)へ対応づける。
+///
+/// **完全一致 → 前後の約物を落として再検索 → 先頭からの部分一致**まで
+/// (docs/04-design.md §6.4「完全一致→部分一致に留める」)。
+/// あいまい一致・段落インデックス・失効管理は撤回済みなので作らない。
+///
+/// レビュー(引用つき指摘)・シーン分割(切れ目の一文)など**複数の機能で必要になった**
+/// ため、ここへ出した。位置は保存せず、必要になるたびに引き直す(D-7)。
+pub fn locate_quote(body: &str, quote: &str) -> Option<(usize, usize)> {
+    if quote.is_empty() {
+        return None;
+    }
+    if let Some(p) = body.find(quote) {
+        return Some((p, p + quote.len()));
+    }
+
+    // 引用の前後に鉤括弧や句読点を足す癖があるので、そこだけ剥がして探し直す。
+    // これは剥がした後も**完全一致**なので、短い引用でも安全に使える
+    let trimmed = quote.trim().trim_matches(|c: char| {
+        c.is_whitespace()
+            || matches!(c, '「' | '」' | '『' | '』' | '"' | '\'' | '…' | '。' | '、' | '　')
+    });
+    if trimmed.chars().count() < 2 {
+        return None;
+    }
+    if trimmed != quote {
+        if let Some(p) = body.find(trimmed) {
+            return Some((p, p + trimmed.len()));
+        }
+    }
+
+    // ここから先は部分一致になる。短い断片では別の箇所に当たるので長さで足切りする
+    if trimmed.chars().count() < MIN_QUOTE_CHARS {
+        return None;
+    }
+    // 長い引用は末尾だけ言い換えられることがある。一致する先頭部分だけを採る
+    let chars: Vec<char> = trimmed.chars().collect();
+    let mut take = chars.len();
+    while take > MIN_QUOTE_CHARS {
+        take -= 1;
+        let prefix: String = chars[..take].iter().collect();
+        if let Some(p) = body.find(&prefix) {
+            return Some((p, p + prefix.len()));
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

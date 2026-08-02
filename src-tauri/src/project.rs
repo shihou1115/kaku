@@ -581,10 +581,18 @@ mod tests {
     use super::*;
     use std::fs;
 
+    /// テスト用の作業フォルダ。
+    ///
+    /// **時刻だけでは一意にならない。** テストは並列に走るので、時計の分解能によっては
+    /// 2つのテストが同じ名前を引いて互いのファイルを壊す(実際に踏んだ)。
+    /// 連番を混ぜて確実に分ける。
     fn tmp() -> PathBuf {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        static SEQ: AtomicUsize = AtomicUsize::new(0);
         let base = std::env::temp_dir().join(format!(
-            "kaku-test-{}-{}",
+            "kaku-test-{}-{}-{}",
             std::process::id(),
+            SEQ.fetch_add(1, Ordering::Relaxed),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
