@@ -29,6 +29,7 @@ import { ReviewPane } from "./components/ReviewPane";
 import { ExtractPane } from "./components/ExtractPane";
 import { ItemMenu, type MenuAction } from "./components/ItemMenu";
 import { ViewMenu, type ViewSettings } from "./components/ViewMenu";
+import { applyTheme, watchDeviceTheme } from "./theme";
 import { folderLabel } from "./components/folderLabels";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { PromptDialog } from "./components/PromptDialog";
@@ -54,6 +55,8 @@ const DEFAULT_VIEW: ViewSettings = {
   showLineNumbers: true,
   showRuler: false,
   wrapColumns: null,
+  // 既定はライト(§5.15)。初回起動でデバイス設定に追従はしない
+  theme: "light",
 };
 
 function storedView(): ViewSettings {
@@ -268,6 +271,12 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(LS.view, JSON.stringify(view));
   }, [view]);
+
+  // 配色を当てる。「デバイス設定」を選んでいる間だけOSの切替に追従する
+  useEffect(() => {
+    applyTheme(view.theme);
+    return watchDeviceTheme(view.theme, () => {});
+  }, [view.theme]);
 
   /** codexの正式名+別名をまとめたハイライト対象 */
   const patterns = useMemo(

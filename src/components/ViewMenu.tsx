@@ -5,13 +5,22 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import type { ThemeChoice } from "../theme";
 
 export type ViewSettings = {
   showLineNumbers: boolean;
   showRuler: boolean;
   /** 折り返し字数(全角換算)。null は右端で折り返す */
   wrapColumns: number | null;
+  /** 配色。既定はライト(§5.15) */
+  theme: ThemeChoice;
 };
+
+const THEMES: { key: ThemeChoice; label: string }[] = [
+  { key: "light", label: "ライト" },
+  { key: "dark", label: "ダーク" },
+  { key: "device", label: "デバイス設定" },
+];
 
 type Props = {
   value: ViewSettings;
@@ -54,6 +63,23 @@ export function ViewMenu({ value, onChange, onClose }: Props) {
 
   return (
     <div className="view-menu" ref={ref}>
+      <div className="field">
+        配色
+        <div className="theme-choice">
+          {THEMES.map((t) => (
+            <button
+              key={t.key}
+              className={value.theme === t.key ? "toggled" : ""}
+              onClick={() => onChange({ ...value, theme: t.key })}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="view-sep" />
+
       <label className="check">
         <input
           type="checkbox"

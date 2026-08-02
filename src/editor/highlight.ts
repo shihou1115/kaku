@@ -75,8 +75,8 @@ export const highlightField = StateField.define<HighlightState>({
 
 export const highlightTheme = EditorView.baseTheme({
   ".cm-mention": {
-    backgroundColor: "rgba(56, 139, 253, 0.16)",
-    borderBottom: "2px solid rgba(56, 139, 253, 0.6)",
+    backgroundColor: "rgba(var(--info-rgb), 0.16)",
+    borderBottom: "2px solid rgba(var(--info-rgb), 0.6)",
     borderRadius: "2px",
   },
 });

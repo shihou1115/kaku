@@ -63,21 +63,34 @@ type Props = {
 };
 
 const editorTheme = EditorView.theme({
-  "&": { height: "100%", fontSize: "16px" },
+  // 面と文字はテーマ変数から取る。CM6 の既定は明色固定なので、
+  // ここを指定しないとダークにしたとき**本文だけ白いまま**になる
+  "&": {
+    height: "100%",
+    fontSize: "16px",
+    backgroundColor: "var(--panel)",
+    color: "var(--text)",
+  },
+  // 選択とカーソルも同様。CM6 の既定は明色前提で、暗い面では見えない/浮く
+  ".cm-selectionBackground": { backgroundColor: "var(--cm-sel)" },
+  "&.cm-focused .cm-selectionBackground": {
+    backgroundColor: "var(--cm-sel-focus)",
+  },
+  ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--text)" },
   ".cm-content": {
     fontFamily:
       '"Yu Gothic", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif',
     lineHeight: "1.9",
     padding: "18px 24px",
-    caretColor: "#0b7285",
+    caretColor: "var(--accent)",
     boxSizing: "border-box",
   },
   ".cm-scroller": { overflow: "auto" },
   "&.cm-focused": { outline: "none" },
 
   // 検索パネル。既定は小さすぎて押しづらいので、アプリの他のボタンと同じ寸法に揃える
-  ".cm-panels": { fontSize: "13px", backgroundColor: "#fbfcfd" },
-  ".cm-panels.cm-panels-top": { borderBottom: "1px solid #d9dde3" },
+  ".cm-panels": { fontSize: "13px", backgroundColor: "var(--surface-raised)" },
+  ".cm-panels.cm-panels-top": { borderBottom: "1px solid var(--border)" },
   ".cm-panel.cm-search": {
     padding: "8px 40px 8px 10px",
     display: "flex",
@@ -95,12 +108,12 @@ const editorTheme = EditorView.theme({
     flex: "1 1 180px",
     minWidth: "120px",
     maxWidth: "320px",
-    border: "1px solid #d9dde3",
+    border: "1px solid var(--border)",
     borderRadius: "4px",
-    backgroundColor: "#fff",
+    backgroundColor: "var(--panel)",
   },
   ".cm-panel.cm-search .cm-textfield:focus": {
-    outline: "2px solid rgba(11, 114, 133, 0.35)",
+    outline: "2px solid var(--rule-tick-end)",
     outlineOffset: "-1px",
   },
   ".cm-panel.cm-search .cm-button": {
@@ -108,15 +121,15 @@ const editorTheme = EditorView.theme({
     fontFamily: "inherit",
     padding: "5px 12px",
     margin: "0",
-    border: "1px solid #d9dde3",
+    border: "1px solid var(--border)",
     borderRadius: "4px",
-    backgroundColor: "#fff",
+    backgroundColor: "var(--panel)",
     backgroundImage: "none",
-    color: "#1f2328",
+    color: "var(--text)",
     cursor: "pointer",
   },
-  ".cm-panel.cm-search .cm-button:hover": { backgroundColor: "#eef1f4" },
-  ".cm-panel.cm-search .cm-button:active": { backgroundColor: "#e2e6ea" },
+  ".cm-panel.cm-search .cm-button:hover": { backgroundColor: "var(--hover)" },
+  ".cm-panel.cm-search .cm-button:active": { backgroundColor: "var(--border)" },
   ".cm-panel.cm-search label": {
     fontSize: "12px",
     display: "inline-flex",
@@ -140,24 +153,24 @@ const editorTheme = EditorView.theme({
     border: "1px solid transparent",
     borderRadius: "4px",
     backgroundColor: "transparent",
-    color: "#656d76",
+    color: "var(--muted)",
     cursor: "pointer",
   },
   ".cm-panel.cm-search [name=close]:hover": {
-    backgroundColor: "#eef1f4",
-    color: "#1f2328",
+    backgroundColor: "var(--hover)",
+    color: "var(--text)",
   },
   ".cm-gutters": {
     backgroundColor: "transparent",
-    borderRight: "1px solid #e6e9ed",
-    color: "#a9b1ba",
+    borderRight: "1px solid var(--border)",
+    color: "var(--text-disabled)",
   },
   ".cm-lineNumbers .cm-gutterElement": {
     padding: "0 6px 0 10px",
     fontSize: "11px",
     fontFamily: "Consolas, monospace",
   },
-  ".cm-activeLineGutter": { backgroundColor: "transparent", color: "#0b7285" },
+  ".cm-activeLineGutter": { backgroundColor: "transparent", color: "var(--accent)" },
 });
 
 export function Editor({

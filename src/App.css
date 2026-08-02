@@ -78,8 +78,85 @@
   --shadow-color-strong: rgba(0, 0, 0, 0.2);
   --backdrop: rgba(31, 35, 40, 0.35);
 
+  /* CodeMirror の選択範囲。light の値は CM6 の既定と同じにして見た目を変えない */
+  --cm-sel: #d9d9d9;
+  --cm-sel-focus: #d7d4f0;
+
   font-family: "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
   color: var(--text);
+}
+
+/* ===== ダーク =====
+ *
+ * **暗くするだけでは足りない。** 上の意味づけ(ok/warn/danger/info/note/ai/person)が
+ * 区別できなくなったら失敗である。色相は保ったまま、
+ * 文字は明るく・面は暗く沈めて、彩度を落として目に刺さらないようにする。
+ *
+ * 「デバイス設定依存」もJS側で解決して data-theme=dark に落ちてくるので、
+ * ここに書けば両方に効く(定義を二重に持たない)。
+ */
+:root[data-theme="dark"] {
+  --bg: #14171a;
+  --panel: #1c2126;
+  --border: #333b44;
+  --text: #e3e6e9;
+  --text-2: #b4bcc4;
+  --muted: #939ca6;
+  --text-disabled: #5e6871;
+  --accent: #3bb3cc;
+  --on-accent: #08171b;
+
+  --surface-raised: #232930;
+  --surface-sunken: #171b1f;
+  --surface-alt: #12161a;
+  --chip-bg: #272e36;
+  --hover: #2c343d;
+  --hover-accent: #23303d;
+  --selected: #14454f;
+  --selected-soft: #1a333a;
+
+  --ok-fg: #5ddaae;
+  --ok-bg: #0f2f27;
+  --ok-border: #1d5a4a;
+
+  --warn-fg: #f5b263;
+  --warn-bg: #382713;
+  --warn-border: #6b4a20;
+
+  --danger-fg: #ff8a8a;
+  --danger-fg-active: #ffabab;
+  --danger-bg: #46201f;
+  --danger-bg-soft: #331a19;
+  --danger-border: #7a3a38;
+
+  --info-fg: #6fb9f5;
+  --info-bg: #142c44;
+  --info-border: #2a5378;
+  /* 半透明はそのまま。暗い面の上でも同じ「自動供給」の意味で読める */
+  --info-rgb: 56, 139, 253;
+
+  --note-fg: #e3c766;
+  --note-fg-strong: #f0d77a;
+  --note-bg: #342f16;
+  --note-border: #625726;
+
+  --ai-fg: #a992f5;
+  --ai-bg: #262040;
+  --ai-border: #493d73;
+
+  --person-fg: #f090b3;
+  --person-bg: #3a1e2a;
+  --person-border: #723a52;
+
+  --rule-tick: #39424b;
+  --rule-tick-major: #5a656f;
+  --rule-tick-end: rgba(59, 179, 204, 0.45);
+  --shadow-color: rgba(0, 0, 0, 0.5);
+  --shadow-color-strong: rgba(0, 0, 0, 0.6);
+  --backdrop: rgba(0, 0, 0, 0.55);
+
+  --cm-sel: #33405a;
+  --cm-sel-focus: #3f4f6e;
 }
 
 * {
@@ -1162,6 +1239,18 @@ button.toggled {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* 配色の3択。並べて押せる形にする(選択の全体像が一目で見えるように) */
+.theme-choice {
+  display: flex;
+  gap: 4px;
+}
+
+.theme-choice button {
+  flex: 1;
+  font-size: 11px;
+  padding: 3px 6px;
 }
 
 .view-sep {
