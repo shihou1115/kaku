@@ -1,10 +1,83 @@
+/* ===== 配色 =====
+ *
+ * **このアプリの色は装飾ではなく意味を持つ。** 校正の確度、打ち切りの警告、
+ * 資料が自動供給か手動か、読み取れなかった生の応答 — どれも色で読ませている。
+ * 値を直接書かず、**意味の名前**を使うこと。名前が付いていれば、テーマを足すときに
+ * 「この意味の色をどうするか」を一箇所で決められる(docs/05-roadmap.md §5.15)。
+ *
+ * 新しい色を足したくなったら、まず既存の意味に当てはまらないか考える。
+ * 意味が増えていないのに色だけ増えると、読み手が区別を学べなくなる。
+ */
 :root {
-  --bg: #f6f7f9;
-  --panel: #ffffff;
+  /* --- 面と文字 --- */
+  --bg: #f6f7f9; /* ウィンドウの地 */
+  --panel: #ffffff; /* ペイン・カード・入力欄 */
   --border: #d9dde3;
   --text: #1f2328;
-  --muted: #656d76;
-  --accent: #0b7285;
+  --text-2: #495057; /* 引用・スニペットなど、本文より一段弱い文字 */
+  --muted: #656d76; /* 補助情報・ラベル */
+  --text-disabled: #a9b1ba;
+  --accent: #0b7285; /* 主操作・見出し */
+  --on-accent: #ffffff; /* アクセント面の上に載る文字 */
+
+  --surface-raised: #fbfcfd; /* わずかに浮いた面(開いた折りたたみ) */
+  --surface-sunken: #f7f9fa; /* わずかに沈んだ面(講評・コード) */
+  --surface-alt: #f4f6f8; /* 読み取り専用の本文表示 */
+  --chip-bg: #f1f3f5; /* 中立のチップ・カウンタ */
+  --hover: #eef1f4; /* ホバー・押下 */
+  --hover-accent: #eef3f8; /* 一覧項目のホバー(選択できるもの) */
+  --selected: #d7ecf3; /* 選択中の行 */
+  --selected-soft: #e7f1f4; /* トグルがオンのボタン */
+
+  /* --- 意味を持つ色 ---
+     ok      = 機械照合で確定している / 接続OK
+     warn    = 打ち切り・古い結果・未保存 …「鵜呑みにするな」
+     danger  = エラー / 確度が高い指摘 / 破壊的操作
+     info    = AIへ自動で渡るもの / 実行中
+     note    = 読み取れなかった生の応答 / 既存への追加 …「別枠で見よ」
+     ai      = AIを使う(トークンを消費する)ことの印
+     person  = 種別が人物 */
+  --ok-fg: #087f5b;
+  --ok-bg: #e6fcf5;
+  --ok-border: #96f2d7;
+
+  --warn-fg: #a8500a;
+  --warn-bg: #fff4e6;
+  --warn-border: #ffd8a8;
+
+  --danger-fg: #c92a2a;
+  --danger-fg-active: #b02525;
+  --danger-bg: #ffe3e3;
+  --danger-bg-soft: #fff5f5;
+  --danger-border: #ffc9c9;
+
+  --info-fg: #1864ab;
+  --info-bg: #e7f5ff;
+  --info-border: #a5d8ff;
+  /* 半透明のチップに使う。面の明るさに追従するので明暗どちらでも成立する */
+  --info-rgb: 56, 139, 253;
+
+  --note-fg: #8c6d1f;
+  --note-fg-strong: #6b5a13;
+  --note-bg: #fff9db;
+  --note-border: #ffec99;
+
+  --ai-fg: #5f3dc4;
+  --ai-bg: #f3f0ff;
+  --ai-border: #d0bfff;
+
+  --person-fg: #a61e4d;
+  --person-bg: #fff0f6;
+  --person-border: #fcc2d7;
+
+  /* --- その他 --- */
+  --rule-tick: #c3cad2;
+  --rule-tick-major: #97a1ab;
+  --rule-tick-end: rgba(11, 114, 133, 0.35);
+  --shadow-color: rgba(0, 0, 0, 0.18);
+  --shadow-color-strong: rgba(0, 0, 0, 0.2);
+  --backdrop: rgba(31, 35, 40, 0.35);
+
   font-family: "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
   color: var(--text);
 }
@@ -82,27 +155,27 @@ body,
 }
 
 .ai-status.ok {
-  color: #087f5b;
-  background: #e6fcf5;
-  border-color: #96f2d7;
+  color: var(--ok-fg);
+  background: var(--ok-bg);
+  border-color: var(--ok-border);
 }
 
 .ai-status.warn {
-  color: #a8500a;
-  background: #fff4e6;
-  border-color: #ffd8a8;
+  color: var(--warn-fg);
+  background: var(--warn-bg);
+  border-color: var(--warn-border);
 }
 
 .ai-status.error {
-  color: #c92a2a;
-  background: #fff5f5;
-  border-color: #ffc9c9;
+  color: var(--danger-fg);
+  background: var(--danger-bg-soft);
+  border-color: var(--danger-border);
 }
 
 .ai-status.busy {
-  color: #1864ab;
-  background: #e7f5ff;
-  border-color: #a5d8ff;
+  color: var(--info-fg);
+  background: var(--info-bg);
+  border-color: var(--info-border);
 }
 
 /* 実行中は点滅させ、動いていることを一目で分かるようにする */
@@ -274,7 +347,7 @@ button.tab.active {
   overflow: auto;
   margin: 8px 10px 10px;
   padding: 8px 8px 8px 0;
-  background: #f4f6f8;
+  background: var(--surface-alt);
   border-radius: 4px;
   font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", sans-serif;
   font-size: 12.5px;
@@ -290,7 +363,7 @@ button.tab.active {
 .ref-ln {
   flex: 0 0 34px;
   text-align: right;
-  color: #a9b1ba;
+  color: var(--text-disabled);
   font-family: Consolas, monospace;
   font-size: 10.5px;
   line-height: 1.9;
@@ -309,7 +382,7 @@ button.tab.active {
 }
 
 .ref-hint kbd {
-  background: #eef1f4;
+  background: var(--hover);
   border: 1px solid var(--border);
   border-radius: 3px;
   padding: 0 4px;
@@ -356,15 +429,15 @@ button.tab.active {
 }
 
 .pf-tag.local {
-  background: #e6fcf5;
-  border: 1px solid #96f2d7;
-  color: #087f5b;
+  background: var(--ok-bg);
+  border: 1px solid var(--ok-border);
+  color: var(--ok-fg);
 }
 
 .pf-tag.ai {
-  background: #f3f0ff;
-  border: 1px solid #d0bfff;
-  color: #5f3dc4;
+  background: var(--ai-bg);
+  border: 1px solid var(--ai-border);
+  color: var(--ai-fg);
 }
 
 .pf-chunk {
@@ -389,13 +462,13 @@ button.tab.active {
 
 .pf-notfound {
   font-size: 11px;
-  color: #a8500a;
+  color: var(--warn-fg);
 }
 
 .pf-badge.kind {
-  background: #f3f0ff;
-  border: 1px solid #d0bfff;
-  color: #5f3dc4;
+  background: var(--ai-bg);
+  border: 1px solid var(--ai-border);
+  color: var(--ai-fg);
 }
 
 .pf-head {
@@ -414,9 +487,9 @@ button.tab.active {
   margin: 0;
   font-size: 11px;
   line-height: 1.6;
-  color: #a8500a;
-  background: #fff4e6;
-  border: 1px solid #ffd8a8;
+  color: var(--warn-fg);
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
   border-radius: 4px;
   padding: 6px 8px;
 }
@@ -438,7 +511,7 @@ button.tab.active {
   border: 1px solid var(--border);
   border-radius: 5px;
   padding: 8px;
-  background: #fff;
+  background: var(--panel);
 }
 
 .pf-title {
@@ -457,20 +530,20 @@ button.tab.active {
 }
 
 .pf-badge.high {
-  background: #ffe3e3;
-  border: 1px solid #ffc9c9;
-  color: #c92a2a;
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  color: var(--danger-fg);
 }
 
 .pf-badge.medium {
-  background: #fff4e6;
-  border: 1px solid #ffd8a8;
-  color: #a8500a;
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
+  color: var(--warn-fg);
 }
 
 .pf-candidate {
   font-weight: 600;
-  color: #c92a2a;
+  color: var(--danger-fg);
 }
 
 .pf-arrow {
@@ -579,7 +652,7 @@ button.ps-hit {
 }
 
 button.ps-hit:hover {
-  background: #eef3f8;
+  background: var(--hover-accent);
   border-color: var(--border);
 }
 
@@ -602,7 +675,7 @@ button.ps-hit:hover {
   font-size: 9.5px;
   padding: 0 5px;
   border-radius: 9px;
-  background: #f1f3f5;
+  background: var(--chip-bg);
   border: 1px solid var(--border);
   color: var(--muted);
   flex: 0 0 auto;
@@ -612,7 +685,7 @@ button.ps-hit:hover {
 .ps-hit-snippet {
   font-size: 11px;
   line-height: 1.6;
-  color: #495057;
+  color: var(--text-2);
   /* 2行で打ち切る。一覧が縦に伸びると探しにくい */
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -674,14 +747,14 @@ button.pt-chip {
   font-size: 11px;
   padding: 1px 8px;
   border-radius: 10px;
-  background: rgba(56, 139, 253, 0.1);
-  border: 1px solid rgba(56, 139, 253, 0.3);
-  color: #1864ab;
+  background: rgba(var(--info-rgb), 0.1);
+  border: 1px solid rgba(var(--info-rgb), 0.3);
+  color: var(--info-fg);
   text-align: left;
 }
 
 button.pt-chip:hover {
-  background: rgba(56, 139, 253, 0.2);
+  background: rgba(var(--info-rgb), 0.2);
 }
 
 .pt-more {
@@ -714,9 +787,9 @@ button.rv-aspect {
 
 /* 選んだ観点だけを実行する。押した状態が一目で分かること */
 button.rv-aspect.on {
-  background: rgba(56, 139, 253, 0.14);
-  border-color: rgba(56, 139, 253, 0.4);
-  color: #1864ab;
+  background: rgba(var(--info-rgb), 0.14);
+  border-color: rgba(var(--info-rgb), 0.4);
+  color: var(--info-fg);
   font-weight: 600;
 }
 
@@ -731,9 +804,9 @@ button.rv-aspect.on {
   margin-left: 4px;
   padding: 0 5px;
   border-radius: 9px;
-  background: #e7f5ff;
-  border: 1px solid #a5d8ff;
-  color: #1864ab;
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
+  color: var(--info-fg);
 }
 
 .rv-overall {
@@ -741,7 +814,7 @@ button.rv-aspect.on {
   font-size: 12px;
   line-height: 1.8;
   white-space: pre-wrap;
-  background: #f8f9fa;
+  background: var(--surface-sunken);
   border: 1px solid var(--border);
   border-radius: 5px;
   padding: 8px 10px;
@@ -750,16 +823,16 @@ button.rv-aspect.on {
 /* 読み取れなかった生の応答。**講評と同じ顔で並べない**
    (引用の照合を通っていないため、確度が違う) */
 .rv-overall.raw {
-  background: #fff9db;
-  border-color: #ffec99;
-  color: #6b5a13;
+  background: var(--note-bg);
+  border-color: var(--note-border);
+  color: var(--note-fg-strong);
   word-break: break-word;
 }
 
 .pf-tag.raw {
-  background: #fff9db;
-  border: 1px solid #ffec99;
-  color: #8c6d1f;
+  background: var(--note-bg);
+  border: 1px solid var(--note-border);
+  color: var(--note-fg);
 }
 
 .rv-comments {
@@ -779,7 +852,7 @@ button.rv-aspect.on {
   font-size: 10px;
   padding: 0 6px;
   border-radius: 9px;
-  background: #f1f3f5;
+  background: var(--chip-bg);
   border: 1px solid var(--border);
 }
 
@@ -792,7 +865,7 @@ button.rv-aspect.on {
 /* 採否は見え方だけを変える。**本文には一切触れない**(U-06) */
 .rv-item.done {
   opacity: 0.65;
-  border-color: #96f2d7;
+  border-color: var(--ok-border);
 }
 
 .rv-item.dropped {
@@ -805,7 +878,7 @@ button.rv-aspect.on {
   border-left: 3px solid var(--border);
   font-size: 12px;
   line-height: 1.7;
-  color: #495057;
+  color: var(--text-2);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -846,7 +919,7 @@ button.rv-aspect.on {
 }
 
 .ex-actions .danger {
-  color: #c92a2a;
+  color: var(--danger-fg);
   margin-left: auto;
 }
 
@@ -870,7 +943,7 @@ button.rv-aspect.on {
 }
 
 .ex-main:hover {
-  background: #f7f9fa;
+  background: var(--surface-sunken);
 }
 
 /* ===== 名寄せ: 別名 ===== */
@@ -893,18 +966,18 @@ button.ex-alias {
   font-size: 11px;
   padding: 1px 8px;
   border-radius: 10px;
-  background: rgba(56, 139, 253, 0.12);
-  border: 1px solid rgba(56, 139, 253, 0.35);
-  color: #1864ab;
+  background: rgba(var(--info-rgb), 0.12);
+  border: 1px solid rgba(var(--info-rgb), 0.35);
+  color: var(--info-fg);
 }
 
 button.ex-alias:hover {
-  background: rgba(56, 139, 253, 0.22);
+  background: rgba(var(--info-rgb), 0.22);
 }
 
 /* 外した別名は取り消し線で示す(消さないので戻せることが分かる) */
 button.ex-alias.off {
-  background: #f1f3f5;
+  background: var(--chip-bg);
   border-color: var(--border);
   color: var(--muted);
   text-decoration: line-through;
@@ -914,9 +987,9 @@ button.ex-alias.off {
   font-size: 10px;
   padding: 1px 6px;
   border-radius: 9px;
-  background: #fff9db;
-  border: 1px solid #ffec99;
-  color: #8c6d1f;
+  background: var(--note-bg);
+  border: 1px solid var(--note-border);
+  color: var(--note-fg);
   flex: 0 0 auto;
 }
 
@@ -940,28 +1013,28 @@ button.ex-alias.off {
   font-size: 10px;
   padding: 1px 6px;
   border-radius: 9px;
-  background: #eef1f4;
+  background: var(--hover);
   border: 1px solid var(--border);
   color: var(--muted);
   flex: 0 0 auto;
 }
 
 .ex-kind.character {
-  background: #fff0f6;
-  border-color: #fcc2d7;
-  color: #a61e4d;
+  background: var(--person-bg);
+  border-color: var(--person-border);
+  color: var(--person-fg);
 }
 
 .ex-kind.location {
-  background: #e6fcf5;
-  border-color: #96f2d7;
-  color: #087f5b;
+  background: var(--ok-bg);
+  border-color: var(--ok-border);
+  color: var(--ok-fg);
 }
 
 .ex-kind.item {
-  background: #fff9db;
-  border-color: #ffec99;
-  color: #8c6d1f;
+  background: var(--note-bg);
+  border-color: var(--note-border);
+  color: var(--note-fg);
 }
 
 .ex-count {
@@ -983,20 +1056,20 @@ button.ex-alias.off {
   padding: 1px 8px;
   border-radius: 10px;
   color: var(--muted);
-  background: #eef1f4;
+  background: var(--hover);
   border: 1px solid var(--border);
   flex: 0 0 auto;
 }
 
 .savechip.dirty {
-  color: #a8500a;
-  background: #fff4e6;
-  border-color: #ffd8a8;
+  color: var(--warn-fg);
+  background: var(--warn-bg);
+  border-color: var(--warn-border);
   font-weight: 600;
 }
 
 button.toggled {
-  background: #e7f1f4;
+  background: var(--selected-soft);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -1029,7 +1102,7 @@ button.toggled {
   height: 18px;
   flex: 0 0 auto;
   border-bottom: 1px solid var(--border);
-  background: #fbfcfd;
+  background: var(--surface-raised);
   overflow: hidden;
   position: relative;
 }
@@ -1044,17 +1117,17 @@ button.toggled {
   bottom: 0;
   width: 1px;
   height: 5px;
-  background: #c3cad2;
+  background: var(--rule-tick);
 }
 
 .ruler .tick.major {
   height: 9px;
-  background: #97a1ab;
+  background: var(--rule-tick-major);
 }
 
 .ruler .tick.end {
   height: 100%;
-  background: rgba(11, 114, 133, 0.35);
+  background: var(--rule-tick-end);
 }
 
 .ruler .tick em {
@@ -1084,7 +1157,7 @@ button.toggled {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 8px 24px var(--shadow-color);
   padding: 10px;
   display: flex;
   flex-direction: column;
@@ -1121,11 +1194,11 @@ button.toggled {
 }
 
 .tree-row:hover {
-  background: #eef1f4;
+  background: var(--hover);
 }
 
 .tree-row.file.active {
-  background: #d7ecf3;
+  background: var(--selected);
   font-weight: 600;
 }
 
@@ -1226,7 +1299,7 @@ button.toggled {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background: #f4f6f8;
+  background: var(--surface-alt);
   border-radius: 4px;
   padding: 8px;
 }
@@ -1251,13 +1324,13 @@ button.toggled {
   border-radius: 10px;
   margin-right: 4px;
   margin-bottom: 4px;
-  background: rgba(56, 139, 253, 0.14);
-  border: 1px solid rgba(56, 139, 253, 0.4);
+  background: rgba(var(--info-rgb), 0.14);
+  border: 1px solid rgba(var(--info-rgb), 0.4);
   cursor: pointer;
 }
 
 .chip:hover {
-  background: rgba(56, 139, 253, 0.26);
+  background: rgba(var(--info-rgb), 0.26);
 }
 
 .manual-list {
@@ -1276,7 +1349,7 @@ button.toggled {
 .preview {
   font-size: 11px;
   color: var(--muted);
-  background: #f4f6f8;
+  background: var(--surface-alt);
   border-radius: 4px;
   padding: 6px;
 }
@@ -1297,7 +1370,7 @@ button.toggled {
   white-space: pre-wrap;
   overflow-y: auto;
   max-height: 420px;
-  background: #f4f6f8;
+  background: var(--surface-alt);
   border-radius: 4px;
   padding: 8px;
 }
@@ -1308,8 +1381,8 @@ button.toggled {
 
 .error {
   font-size: 11px;
-  color: #c92a2a;
-  background: #fff5f5;
+  color: var(--danger-fg);
+  background: var(--danger-bg-soft);
   border-radius: 4px;
   padding: 6px;
   margin: 0;
@@ -1331,12 +1404,12 @@ button {
   padding: 4px 10px;
   border: 1px solid var(--border);
   border-radius: 4px;
-  background: #fff;
+  background: var(--panel);
   cursor: pointer;
 }
 
 button:hover:not(:disabled) {
-  background: #eef1f4;
+  background: var(--hover);
 }
 
 button:disabled {
@@ -1346,7 +1419,7 @@ button:disabled {
 
 button.primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   border-color: var(--accent);
 }
 
@@ -1364,7 +1437,7 @@ textarea {
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 4px 6px;
-  background: #fff;
+  background: var(--panel);
 }
 
 textarea {
@@ -1405,7 +1478,7 @@ details summary {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(31, 35, 40, 0.35);
+  background: var(--backdrop);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1416,7 +1489,7 @@ details summary {
   background: var(--panel);
   border-radius: 8px;
   border: 1px solid var(--border);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 12px 40px var(--shadow-color-strong);
   padding: 18px;
   width: 420px;
   max-width: 92vw;
@@ -1469,7 +1542,7 @@ details summary {
 }
 
 .help-body > details[open] {
-  background: #fbfcfd;
+  background: var(--surface-raised);
 }
 
 .help-body > details > summary {
@@ -1516,7 +1589,7 @@ details summary {
 .help-tree {
   font-size: 11px;
   line-height: 1.7;
-  background: #f6f8fa;
+  background: var(--surface-sunken);
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 8px 10px;
@@ -1525,14 +1598,14 @@ details summary {
 }
 
 .help-body code {
-  background: #f1f3f5;
+  background: var(--chip-bg);
   border-radius: 3px;
   padding: 0 4px;
   font-size: 11px;
 }
 
 .help-body kbd {
-  background: #eef1f4;
+  background: var(--hover);
   border: 1px solid var(--border);
   border-radius: 3px;
   padding: 0 4px;
@@ -1604,7 +1677,7 @@ button.link {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 8px 24px var(--shadow-color);
   padding: 4px;
   display: flex;
   flex-direction: column;
@@ -1620,18 +1693,18 @@ button.link {
 }
 
 .item-menu button:hover {
-  background: #eef1f4;
+  background: var(--hover);
 }
 
 .item-menu button.danger {
-  color: #c92a2a;
+  color: var(--danger-fg);
   border-top: 1px solid var(--border);
   border-radius: 0 0 4px 4px;
   margin-top: 2px;
 }
 
 .item-menu button.danger:hover {
-  background: #fff5f5;
+  background: var(--danger-bg-soft);
 }
 
 .menu-btn {
@@ -1651,13 +1724,13 @@ button.link {
 }
 
 button.danger-btn {
-  background: #c92a2a;
-  color: #fff;
-  border-color: #c92a2a;
+  background: var(--danger-fg);
+  color: var(--on-accent);
+  border-color: var(--danger-fg);
 }
 
 button.danger-btn:hover:not(:disabled) {
-  background: #b02525;
+  background: var(--danger-fg-active);
 }
 
 button.link:hover {
