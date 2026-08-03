@@ -288,6 +288,10 @@ export function Editor({
       view.focus();
     };
     handleRef.replaceRange = (from: number, to: number, text: string) => {
+      // 読み取り専用なら**プログラムからも**変えない。
+      // EditorState.readOnly が止めるのは人の入力だけで、dispatch は素通りする。
+      // 校正の「置換」はここを通るので、ゴミ箱の中身が書き換わる経路になっていた
+      if (view.state.readOnly) return;
       const len = view.state.doc.length;
       const a = Math.max(0, Math.min(from, len));
       const b = Math.max(a, Math.min(to, len));

@@ -1286,6 +1286,14 @@ button.toggled {
   background: var(--hover);
 }
 
+/* 読み取り専用(ゴミ箱の中)。保存チップと同じ位置に出し、押せないことを見た目で示す */
+.savechip.readonly {
+  color: var(--muted);
+  background: var(--chip-bg);
+  border: 1px solid var(--border);
+  cursor: default;
+}
+
 /* ゴミ箱は作業対象ではないので、一段引いて見せる(存在は分かるが目立たない) */
 .tree-row.dir.trash {
   color: var(--muted);

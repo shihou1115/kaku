@@ -30,7 +30,7 @@ import { ExtractPane } from "./components/ExtractPane";
 import { ItemMenu, type MenuAction } from "./components/ItemMenu";
 import { ViewMenu, type ViewSettings } from "./components/ViewMenu";
 import { applyTheme, watchDeviceTheme } from "./theme";
-import { folderLabel } from "./components/folderLabels";
+import { folderLabel, isTrashPath } from "./components/folderLabels";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { PromptDialog } from "./components/PromptDialog";
 import { HelpDialog } from "./components/HelpDialog";
@@ -276,6 +276,15 @@ export default function App() {
           ? { kind: "ok" as const, text: "接続OK" }
           : { kind: "warn" as const, text: "未確認" };
 
+  /**
+   * ゴミ箱の中を開いているか。**アプリからは読み取り専用**にする。
+   *
+   * 退避しておいたものが書き換わると、取っておいた意味が消える。
+   * 書き込み自体は Rust 側(project::is_app_area)でも塞いであるが、
+   * **編集できてしまう画面を見せてから保存で断る**のは最悪の体験なので、
+   * 入口から編集させない。
+   */
+  const inTrash = currentPath !== null && isTrashPath(currentPath);
   const dirty = text !== savedText;
   const codex: CodexEntry[] = project?.codex ?? [];
 
@@ -757,13 +766,22 @@ export default function App() {
           {currentPath && (
             <>
               <span className="path">{currentPath}</span>
-              <button
-                className={`savechip${dirty ? " dirty" : ""}`}
-                onClick={saveNow}
-                title="クリックで保存(Ctrl+S)。入力が止まると自動でも保存します"
-              >
-                {dirty ? "未保存" : "保存済み"}
-              </button>
+              {inTrash ? (
+                <span
+                  className="savechip readonly"
+                  title="ゴミ箱の中のファイルです。アプリからは編集できません(エクスプローラーから元に戻せます)"
+                >
+                  読み取り専用
+                </span>
+              ) : (
+                <button
+                  className={`savechip${dirty ? " dirty" : ""}`}
+                  onClick={saveNow}
+                  title="クリックで保存(Ctrl+S)。入力が止まると自動でも保存します"
+                >
+                  {dirty ? "未保存" : "保存済み"}
+                </button>
+              )}
             </>
           )}
         </div>
@@ -889,7 +907,7 @@ export default function App() {
           <Editor
               patterns={patterns}
               highlightEnabled={highlightEnabled}
-              readOnly={!currentPath}
+              readOnly={!currentPath || inTrash}
               showLineNumbers={view.showLineNumbers}
               showRuler={view.showRuler}
               wrapColumns={view.wrapColumns}

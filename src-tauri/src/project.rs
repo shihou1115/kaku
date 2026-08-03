@@ -275,7 +275,27 @@ fn decode(bytes: &[u8], label: &str) -> Result<String, ProjectError> {
 /// 保存する。**保存前に1世代のバックアップを取る**(M-01 / MVP要素5)。
 ///
 /// 履歴管理はしない。同じファイルの前回内容だけを `.app/backups/` に残す。
+/// アプリ専用領域(`.app/`)を指しているか。
+///
+/// ここはバックアップ・ゴミ箱・ログ・索引の置き場で、**アプリが書き込むのは
+/// それぞれの専用処理からだけ**である。原稿の保存経路がここへ届いてはいけない。
+/// 特にゴミ箱は「消さずに取っておいたもの」なので、上書きされると退避の意味が消える。
+pub fn is_app_area(relative: &str) -> bool {
+    let p = relative.replace('\\', "/");
+    p == APP_DIR || p.starts_with(&format!("{APP_DIR}/"))
+}
+
+fn reject_app_area(relative: &str) -> Result<(), ProjectError> {
+    if is_app_area(relative) {
+        return Err(ProjectError::OutsideProject(format!(
+            "{relative}(アプリ専用領域には書き込めません)"
+        )));
+    }
+    Ok(())
+}
+
 pub fn write_text(root: &Path, relative: &str, content: &str) -> Result<(), ProjectError> {
+    reject_app_area(relative)?;
     let path = resolve(root, relative)?;
     if path.exists() {
         backup(root, relative, &path)?;
@@ -299,6 +319,7 @@ fn backup(root: &Path, relative: &str, path: &Path) -> Result<(), ProjectError> 
 
 /// 新規ファイルを作る。既存なら何もしない(上書き事故の防止)。
 pub fn create_file(root: &Path, relative: &str, content: &str) -> Result<bool, ProjectError> {
+    reject_app_area(relative)?;
     let path = resolve(root, relative)?;
     if path.exists() {
         return Ok(false);
@@ -828,6 +849,42 @@ mod tests {
             got,
             "[a](五十嵐悠二.md) [b](../locations/悠二.md) [c](https://example.com/悠二.md) [d](#見出し)"
         );
+    }
+
+    #[test]
+    fn app_area_is_never_written_through_the_normal_paths() {
+        // ゴミ箱の中身が上書きされると、退避しておいた意味が消える。
+        // **保存経路そのものを塞ぐ**(UIだけで防ぐと、別の呼び出しから抜ける)
+        let root = tmp();
+        init(&root).unwrap();
+        create_file(&root, "manuscript/01.md", "元の中身").unwrap();
+        let trashed = trash(&root, "manuscript/01.md").unwrap();
+
+        // 退避先の相対パスを組み立て直して書き込みを試みる
+        let rel = std::path::Path::new(&trashed)
+            .strip_prefix(&root)
+            .unwrap()
+            .to_string_lossy()
+            .replace('\\', "/");
+        assert!(is_app_area(&rel), "テストの前提が崩れている: {rel}");
+
+        assert!(write_text(&root, &rel, "書き換え").is_err());
+        assert!(create_file(&root, ".app/trash/新しい.md", "x").is_err());
+        assert!(write_text(&root, ".app/settings.json", "{}").is_err());
+
+        // 中身は無傷
+        assert_eq!(fs::read_to_string(&trashed).unwrap(), "元の中身");
+        // 通常の場所は今までどおり書ける
+        assert!(write_text(&root, "manuscript/02.md", "新規").is_ok());
+    }
+
+    #[test]
+    fn app_area_check_does_not_catch_lookalikes() {
+        assert!(is_app_area(".app"));
+        assert!(is_app_area(".app/trash/x.md"));
+        assert!(!is_app_area("manuscript/.app.md"));
+        assert!(!is_app_area(".application/x.md"));
+        assert!(!is_app_area("codex/notes/.appendix.md"));
     }
 
     #[test]
