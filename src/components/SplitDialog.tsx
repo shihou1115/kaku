@@ -11,7 +11,7 @@
  * - 元のファイルがどうなるかを**押す前に**書く(ゴミ箱へ移る)
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type SplitPoint } from "../api";
 
 type Props = {
@@ -39,9 +39,26 @@ export function SplitDialog({ path, title, onBusy, onDone, onClose }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * 親から来るコールバックは**呼ぶだけで依存に入れない**。
+   *
+   * `onBusy` は App がインラインで渡すので再描画のたびに別の関数になる。
+   * これを `suggest` の依存に入れると、
+   * 「suggest が onBusy を呼ぶ → App が再描画 → onBusy が別物になる →
+   *  suggest が作り直される → useEffect が再発火 → また suggest」
+   * という**無限ループ**になり、LM Studio へリクエストを撃ち続ける
+   * (2026-08-03 に実際に踏んだ)。ref に逃がして identity を固定する。
+   */
+  const cb = useRef({ onBusy, onDone });
+  cb.current = { onBusy, onDone };
+  /** 実行中の多重発火よけ。押しっぱなしでも1本しか投げない */
+  const inflight = useRef(false);
+
   const suggest = useCallback(async () => {
+    if (inflight.current) return;
+    inflight.current = true;
     setBusy(true);
-    onBusy("分割の検討中");
+    cb.current.onBusy("分割の検討中");
     setError(null);
     try {
       const r = await api.suggestSceneSplit(path);
@@ -57,11 +74,14 @@ export function SplitDialog({ path, title, onBusy, onDone, onClose }: Props) {
     } catch (e) {
       setError(String(e));
     } finally {
+      inflight.current = false;
       setBusy(false);
-      onBusy(null);
+      cb.current.onBusy(null);
     }
-  }, [path, onBusy]);
+    // 依存は path だけ。親のコールバックは ref 経由なので identity が揺れない
+  }, [path]);
 
+  // 開いたときに1回だけ提案する(path が変われば作り直される)
   useEffect(() => {
     void suggest();
   }, [suggest]);
@@ -71,6 +91,8 @@ export function SplitDialog({ path, title, onBusy, onDone, onClose }: Props) {
     .filter(({ p, i }) => p.found && chosen.has(i));
 
   const apply = useCallback(async () => {
+    if (inflight.current) return;
+    inflight.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -82,14 +104,16 @@ export function SplitDialog({ path, title, onBusy, onDone, onClose }: Props) {
           title: (titles[i] ?? p.title).trim() || `場面${i + 2}`,
         })),
       );
-      onDone(created);
+      inflight.current = false;
+      cb.current.onDone(created);
       onClose();
     } catch (e) {
       // 本文が変わっていた等。**ずれた位置で切らずに失敗する**のが正しい
+      inflight.current = false;
       setError(String(e));
       setBusy(false);
     }
-  }, [path, firstTitle, title, accepted, titles, onDone, onClose]);
+  }, [path, firstTitle, title, accepted, titles, onClose]);
 
   return (
     <div className="modal-backdrop" onClick={onClose}>

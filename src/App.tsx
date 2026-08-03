@@ -215,6 +215,26 @@ export default function App() {
     });
   }, []);
 
+  /**
+   * 実行中表示のコールバック。**毎回作り直さない**。
+   *
+   * インラインの矢印関数で渡すと、再描画のたびに別の関数になる。
+   * 受け取った側がそれを useEffect の依存に含めていると
+   * 「呼ぶ → 親が再描画 → 別物になる → 依存が変わる → また呼ぶ」の無限ループになり、
+   * AIへリクエストを撃ち続ける(2026-08-03 にシーン分割で実際に起きた)。
+   * 渡す側で identity を固定しておけば、この形の事故は起きない。
+   */
+  const busy = useMemo(
+    () => ({
+      chat: (l: string | null) => setAiBusy("chat", l),
+      proof: (l: string | null) => setAiBusy("proof", l),
+      review: (l: string | null) => setAiBusy("review", l),
+      extract: (l: string | null) => setAiBusy("extract", l),
+      split: (l: string | null) => setAiBusy("split", l),
+    }),
+    [setAiBusy],
+  );
+
   const checkConnection = useCallback(async () => {
     setAiConn("unknown");
     setConnDetail("確認中…");
@@ -937,7 +957,7 @@ export default function App() {
                     models={models}
                     connDetail={connDetail}
                     onCheckConnection={checkConnection}
-                    onBusy={(l) => setAiBusy("chat", l)}
+                    onBusy={busy.chat}
                     onShowReference={showReference}
                     onSaved={(p, e) => void noteSaved("着想", p, e)}
                   />
@@ -963,7 +983,7 @@ export default function App() {
                   <ExtractPane
                     body={text}
                     disabled={!currentPath}
-                    onBusy={(l) => setAiBusy("extract", l)}
+                    onBusy={busy.extract}
                     onCreated={async (paths) => {
                       try {
                         setProject(await api.refreshProject());
@@ -988,7 +1008,7 @@ export default function App() {
                     disabled={!currentPath}
                     codex={codex}
                     mentionedPaths={mentionedPaths}
-                    onBusy={(l) => setAiBusy("review", l)}
+                    onBusy={busy.review}
                     onJump={(from, to) =>
                       handleRef.current.selectRange(from, to)
                     }
@@ -1004,7 +1024,7 @@ export default function App() {
                     disabled={!currentPath}
                     settings={aiSettings}
                     onPatchSettings={patchAiSettings}
-                    onBusy={(l) => setAiBusy("proof", l)}
+                    onBusy={busy.proof}
                     onJump={(from, to) =>
                       handleRef.current.selectRange(from, to)
                     }
@@ -1064,7 +1084,7 @@ export default function App() {
         <SplitDialog
           path={splitTarget.path}
           title={splitTarget.title || splitTarget.name.replace(/\.md$/, "")}
-          onBusy={(l) => setAiBusy("split", l)}
+          onBusy={busy.split}
           onClose={() => setSplitTarget(null)}
           onDone={async (created, err) => {
             if (err || !created) {
