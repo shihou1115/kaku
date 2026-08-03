@@ -1,8 +1,8 @@
 /** 左ペイン: manuscript/ と codex/ のファイルツリー(MVP要素2)。 */
 
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import type { TreeNode } from "../api";
-import { folderLabel, isRelabeled } from "./folderLabels";
+import { folderLabel, isRelabeled, isTrashPath } from "./folderLabels";
 
 type Props = {
   tree: TreeNode[];
@@ -27,9 +27,19 @@ function Node({
   node: TreeNode;
   depth: number;
 } & Omit<Props, "tree">) {
-  const [open, setOpen] = useState(depth < 1);
+  // ゴミ箱は作業する場所ではないので、既定では畳んでおく
+  const trash = isTrashPath(node.path);
+  const [open, setOpen] = useState(depth < 1 && !trash);
 
-  const menuButton = (
+  /**
+   * ゴミ箱の中では項目メニューを出さない。
+   *
+   * いま並んでいるのは改名・複製・削除・分割で、**どれも退避済みのものに対して
+   * 意味が無いか、有害**である(ゴミ箱の中をさらにゴミ箱へ移す等)。
+   * 戻す操作を実装するまでは、押せないようにしておくほうが安全。
+   * 右クリックも既定のメニューごと抑える。
+   */
+  const menuButton = trash ? null : (
     <button
       className="mini menu-btn"
       title="メニュー"
@@ -43,32 +53,38 @@ function Node({
     </button>
   );
 
+  const onContextMenu = (e: MouseEvent) => {
+    e.preventDefault();
+    if (trash) return;
+    onMenu(node, e.clientX, e.clientY);
+  };
+
   if (node.is_dir) {
     return (
       <div>
         <div
-          className="tree-row dir"
+          className={`tree-row dir${trash ? " trash" : ""}`}
           style={{ paddingLeft: 6 + depth * 12 }}
           onClick={() => setOpen((v) => !v)}
-          onContextMenu={(e) => {
-            e.preventDefault();
-            onMenu(node, e.clientX, e.clientY);
-          }}
+          onContextMenu={onContextMenu}
           // 表示名を変えた場合でも、ディスク上の名前は隠さない
           title={isRelabeled(node.path) ? `${node.path}/` : undefined}
         >
           <span className="twisty">{open ? "▾" : "▸"}</span>
           <span className="name">{folderLabel(node.path, node.name)}</span>
-          <button
-            className="mini"
-            title="このフォルダーに新規ファイル"
-            onClick={(e) => {
-              e.stopPropagation();
-              onCreate(node.path);
-            }}
-          >
-            +
-          </button>
+          {/* ゴミ箱の中に新しく作る意味は無いので導線を出さない */}
+          {!trash && (
+            <button
+              className="mini"
+              title="このフォルダーに新規ファイル"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCreate(node.path);
+              }}
+            >
+              +
+            </button>
+          )}
           {menuButton}
         </div>
         {open &&
@@ -94,10 +110,7 @@ function Node({
       className={`tree-row file${active ? " active" : ""}`}
       style={{ paddingLeft: 18 + depth * 12 }}
       onClick={() => onOpen(node.path)}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        onMenu(node, e.clientX, e.clientY);
-      }}
+      onContextMenu={onContextMenu}
       title={node.path}
     >
       <span className="name">{node.title || node.name}</span>

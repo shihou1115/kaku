@@ -23,7 +23,19 @@ const LABELS: Record<string, string> = {
   ideas: "着想",
   reviews: "講評",
   exports: "出力",
+  ".app/trash": "ゴミ箱",
 };
+
+/**
+ * ゴミ箱の中か。
+ *
+ * ここは**作業する場所ではない**ので、扱いを分ける:
+ * 既定で畳んでおき、新規作成の導線は出さない。
+ * ただし中は見せる — 戻す前に中身を確かめられないと、結局エクスプローラーを開くことになる。
+ */
+export function isTrashPath(path: string): boolean {
+  return path === ".app/trash" || path.startsWith(".app/trash/");
+}
 
 /**
  * フォルダーの表示名を返す。対応表に無ければ実体名をそのまま返す。

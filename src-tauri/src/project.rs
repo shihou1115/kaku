@@ -122,9 +122,30 @@ fn write_new(path: &Path, content: &str) -> Result<(), ProjectError> {
     Ok(())
 }
 
+/// ゴミ箱の場所。削除した項目はここへ退避する
+pub const TRASH_DIR: &str = ".app/trash";
+
 /// ツリーを走査する。`.app/` と隠しフォルダは対象外(人間が触る領域だけを見せる)。
+///
+/// **ただしゴミ箱だけは末尾に出す。** 削除は消さずにここへ移す方式なので、
+/// 見えないと「戻せる」ことが伝わらず、エクスプローラーを開くしか手段がなくなる。
+/// 中身が無いときは出さない(空の箱を常に置いても場所を取るだけ)。
 pub fn scan(root: &Path) -> Result<Vec<TreeNode>, ProjectError> {
-    scan_dir(root, root)
+    let mut tree = scan_dir(root, root)?;
+    let trash = root.join(".app").join("trash");
+    if trash.is_dir() {
+        let children = scan_dir(root, &trash)?;
+        if !children.is_empty() {
+            tree.push(TreeNode {
+                path: TRASH_DIR.to_string(),
+                name: "trash".to_string(),
+                is_dir: true,
+                title: None,
+                children,
+            });
+        }
+    }
+    Ok(tree)
 }
 
 fn scan_dir(root: &Path, dir: &Path) -> Result<Vec<TreeNode>, ProjectError> {
@@ -806,6 +827,54 @@ mod tests {
         assert_eq!(
             got,
             "[a](五十嵐悠二.md) [b](../locations/悠二.md) [c](https://example.com/悠二.md) [d](#見出し)"
+        );
+    }
+
+    #[test]
+    fn trash_appears_in_the_tree_only_when_it_has_something() {
+        let root = tmp();
+        init(&root).unwrap();
+
+        // 空のうちは出さない(空の箱を常に置いても場所を取るだけ)
+        assert!(
+            scan(&root).unwrap().iter().all(|n| n.path != TRASH_DIR),
+            "空のゴミ箱が出ている"
+        );
+
+        create_file(&root, "manuscript/01.md", "---\ntitle: 出会い\n---\n本文\n").unwrap();
+        trash(&root, "manuscript/01.md").unwrap();
+
+        let tree = scan(&root).unwrap();
+        let node = tree.last().expect("ツリーが空");
+        assert_eq!(node.path, TRASH_DIR, "ゴミ箱が末尾に無い");
+        assert!(node.is_dir);
+        assert!(!node.children.is_empty(), "中身が見えない");
+
+        // 退避した中身までたどれること(戻す前に確認できる)
+        fn find(nodes: &[TreeNode], name: &str) -> bool {
+            nodes
+                .iter()
+                .any(|n| n.name == name || find(&n.children, name))
+        }
+        assert!(find(&node.children, "01.md"), "退避したファイルが見えない");
+    }
+
+    #[test]
+    fn app_dir_other_than_trash_stays_hidden() {
+        let root = tmp();
+        init(&root).unwrap();
+        create_file(&root, "manuscript/01.md", "本文").unwrap();
+        // バックアップが作られる状況を作る
+        write_text(&root, "manuscript/01.md", "書き換え").unwrap();
+        trash(&root, "manuscript/01.md").unwrap();
+
+        let tree = scan(&root).unwrap();
+        // 出るのはゴミ箱だけ。backups や logs は人間の編集対象ではない
+        assert!(tree.iter().all(|n| !n.path.starts_with(".app/backups")));
+        assert!(tree.iter().all(|n| !n.path.starts_with(".app/logs")));
+        assert_eq!(
+            tree.iter().filter(|n| n.path.starts_with(".app")).count(),
+            1
         );
     }
 

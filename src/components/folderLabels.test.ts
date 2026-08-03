@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { folderDisplayPath, folderLabel, isRelabeled } from "./folderLabels";
+import {
+  folderDisplayPath,
+  folderLabel,
+  isRelabeled,
+  isTrashPath,
+} from "./folderLabels";
 
 describe("folderLabel", () => {
   it("既定フォルダーを日本語で表示する", () => {
@@ -42,5 +47,22 @@ describe("folderDisplayPath", () => {
   it("空文字や余分な区切りで壊れない", () => {
     expect(folderDisplayPath("")).toBe("");
     expect(folderDisplayPath("codex//characters")).toBe("設定 / 人物");
+  });
+});
+
+describe("ゴミ箱", () => {
+  it("表示名は「ゴミ箱」", () => {
+    expect(folderLabel(".app/trash", "trash")).toBe("ゴミ箱");
+    expect(isRelabeled(".app/trash")).toBe(true);
+  });
+
+  it("ゴミ箱の中かどうかを判定する", () => {
+    expect(isTrashPath(".app/trash")).toBe(true);
+    expect(isTrashPath(".app/trash/2026-08-04_120000/manuscript/01.md")).toBe(true);
+    // 作業領域は対象外。名前が似ているだけのものを巻き込まない
+    expect(isTrashPath("manuscript/01.md")).toBe(false);
+    expect(isTrashPath(".app/backups")).toBe(false);
+    expect(isTrashPath("trash")).toBe(false);
+    expect(isTrashPath(".app/trashcan")).toBe(false);
   });
 });

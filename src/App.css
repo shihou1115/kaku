@@ -1286,6 +1286,14 @@ button.toggled {
   background: var(--hover);
 }
 
+/* ゴミ箱は作業対象ではないので、一段引いて見せる(存在は分かるが目立たない) */
+.tree-row.dir.trash {
+  color: var(--muted);
+  margin-top: 6px;
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+}
+
 .tree-row.file.active {
   background: var(--selected);
   font-weight: 600;
