@@ -1,0 +1,49 @@
+# クリーンな環境でビルドとテストが通ることを確かめる。
+#
+# 開発機には依存が揃っているため「他人が動かせるか」を自分では検証できない。
+# ここは**その代わり**であり、毎回まっさらなWindowsで README の手順を踏み直す。
+# 落ちたら「手元では動くが他人の環境では動かない」が起きている。
+#
+# Windows のみ。コードはクロスプラットフォームを壊さない範囲で書いているが、
+# 動作確認をしたことがあるのは Windows だけで、通ったことのない環境を
+# 「通っている」と表示させないため(README「必要なもの」と揃える)。
+
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # README に書いてある検証済みバージョンに合わせる
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # lock ファイルどおりに入れる(install ではなく ci)
+      - run: npm ci
+
+      - run: npm run build
+
+      - run: npm test
+
+      # 実機のLLMが要る2件は #[ignore] なのでここでは走らない
+      - run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      # リリースプロファイルでの通過も見る。バンドル(msi/nsis)は作らない
+      - run: npm run tauri build -- --no-bundle

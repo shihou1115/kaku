@@ -1930,7 +1930,7 @@ dependencies = [
 
 [[package]]
 name = "kaku"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "aho-corasick",
  "dirs 5.0.1",

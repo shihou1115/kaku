@@ -406,7 +406,7 @@ pub fn build_prompt(body: &str, names: &[String]) -> String {
 /// 応答から指摘を取り出す(経路A/B共通の寛容パース)。
 ///
 /// スキーマ強制が効かないモデルでも拾えるよう、次を受け入れる:
-///  - ```json で囲まれたもの
+///  - <code>```json</code> で囲まれたもの
 ///  - {"issues":[...]} / {"items":[...]} / 素の配列
 ///  - kind や reason の欠落
 pub fn parse_ai_issues(raw: &str) -> Vec<AiIssue> {
