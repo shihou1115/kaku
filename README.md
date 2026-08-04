@@ -58,6 +58,15 @@ npm install
 npm run tauri dev
 ```
 
+### インストーラを作る
+
+```bash
+npm run tauri build
+```
+
+`src-tauri/target/release/bundle/` に msi と exe(NSIS)ができます。
+**コード署名はしていない**ので、実行時に SmartScreen の警告が出ます。
+
 ### テスト
 
 ```bash
