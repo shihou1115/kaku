@@ -13,6 +13,7 @@ pub mod project;
 pub mod prompts;
 pub mod proofread;
 pub mod review;
+pub mod ruby;
 pub mod sample;
 pub mod search;
 pub mod settings;
@@ -356,7 +357,9 @@ fn check_notation(
     let root = root_of(&state)?;
     let codex = project::load_codex(&root).map_err(to_msg)?;
     let names: Vec<String> = codex.iter().flat_map(|c| c.patterns()).collect();
-    Ok(proofread::check_notation(&text, &names))
+    // ルビの読みは語の候補から外す。カタカナのルビが登録名と1文字違いだと
+    // 誤検出する(`｜白鏡《ハクキョウ》`)。**位置は変わらない**ので指摘先はずれない
+    Ok(proofread::check_notation(&ruby::mask(&text), &names))
 }
 
 #[derive(Serialize)]

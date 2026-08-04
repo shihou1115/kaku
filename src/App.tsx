@@ -28,12 +28,19 @@ import { ProofreadPane } from "./components/ProofreadPane";
 import { ReviewPane } from "./components/ReviewPane";
 import { ExtractPane } from "./components/ExtractPane";
 import { ItemMenu, type MenuAction } from "./components/ItemMenu";
+import { PopupMenu } from "./components/PopupMenu";
 import { ViewMenu, type ViewSettings } from "./components/ViewMenu";
 import { applyTheme, watchDeviceTheme } from "./theme";
 import { folderLabel, isTrashPath } from "./components/folderLabels";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { PromptDialog } from "./components/PromptDialog";
 import { HelpDialog } from "./components/HelpDialog";
+import { RubyPreview } from "./components/RubyPreview";
+import {
+  canWrap as canWrapRuby,
+  strip as stripRuby,
+  wrap as wrapRuby,
+} from "./ruby";
 import { SplitDialog } from "./components/SplitDialog";
 import "./App.css";
 
@@ -130,6 +137,7 @@ export default function App() {
     scrollTo: () => {},
     selectRange: () => {},
     replaceRange: () => {},
+    getSelection: () => null,
   });
 
   const [project, setProject] = useState<OpenedProject | null>(null);
@@ -142,6 +150,15 @@ export default function App() {
   const [view, setView] = useState<ViewSettings>(storedView);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  /** 本文で選択して右クリックしたときのメニュー位置 */
+  const [selMenu, setSelMenu] = useState<{ x: number; y: number } | null>(null);
+  /** ルビの入力補助。読みを聞いている間、対象の範囲を保持する */
+  const [rubyTarget, setRubyTarget] = useState<{
+    from: number;
+    to: number;
+    base: string;
+  } | null>(null);
   /** シーン分割の対象。開いている間だけ提案を出す */
   const [splitTarget, setSplitTarget] = useState<TreeNode | null>(null);
   const [newFileDir, setNewFileDir] = useState<string | null>(null);
@@ -752,7 +769,29 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [saveNow]);
 
-  const charCount = text.replace(/\s/g, "").length;
+  // 記法込みで数えると投稿サイトの字数と合わない(ルビは読者が読む字数には入らない)
+  const charCount = stripRuby(text).replace(/\s/g, "").length;
+
+  /**
+   * 選択した語にルビを振る(入力補助)。
+   *
+   * 選択が無ければ何もできないので、その旨だけ伝える。
+   * 読みは入力してもらってから、選択範囲を `｜漢字《かんじ》` に置き換える。
+   */
+  const startRuby = useCallback(() => {
+    if (!currentPath || inTrash) return;
+    const sel = handleRef.current.getSelection();
+    if (!sel) {
+      setStatus("ルビを振る語を本文で選んでください");
+      return;
+    }
+    // **既にあるルビと重なっていたら振らせない。** 重ねると記法が入れ子になって壊れる
+    if (!canWrapRuby(text, sel.from, sel.to)) {
+      setStatus("すでにルビが振られている箇所には重ねられません");
+      return;
+    }
+    setRubyTarget({ from: sel.from, to: sel.to, base: sel.text });
+  }, [currentPath, inTrash, text]);
 
   const gridTemplate = rightOpen
     ? `${leftW}px 6px 1fr 6px ${rightW}px`
@@ -831,6 +870,20 @@ export default function App() {
             title="開いているファイル内を検索(Ctrl+F)。もう一度押すと閉じます"
           >
             検索
+          </button>
+          <button
+            onClick={startRuby}
+            disabled={!currentPath || inTrash}
+            title="選んだ語にルビを振る(｜漢字《かんじ》)"
+          >
+            ルビ
+          </button>
+          <button
+            onClick={() => setPreviewOpen(true)}
+            disabled={!currentPath}
+            title="ルビの見え方を確認する"
+          >
+            プレビュー
           </button>
           <button
             onClick={() => setHelpOpen(true)}
@@ -914,6 +967,16 @@ export default function App() {
               onChange={setText}
               onSaveRequest={saveNow}
             onMentionActivate={activateMention}
+            onSelectionMenu={(x, y) => {
+              // 振れない場所では**メニューを出さない**。
+              // 出してから断るのは、押せる操作が押せなかったのと同じで紛らわしい
+              const sel = handleRef.current.getSelection();
+              if (sel && !canWrapRuby(text, sel.from, sel.to)) {
+                setStatus("すでにルビが振られている箇所には重ねられません");
+                return;
+              }
+              setSelMenu({ x, y });
+            }}
             handleRef={handleRef.current}
           />
         </section>
@@ -1057,6 +1120,17 @@ export default function App() {
         )}
       </div>
 
+      {/* 本文を選んで右クリック。ヘッダーまで戻らずにルビを振れるようにする */}
+      {selMenu && (
+        <PopupMenu
+          x={selMenu.x}
+          y={selMenu.y}
+          items={[{ key: "ruby", label: "ルビを挿入する…" }]}
+          onPick={() => startRuby()}
+          onClose={() => setSelMenu(null)}
+        />
+      )}
+
       {menu && (
         <ItemMenu
           x={menu.x}
@@ -1097,6 +1171,32 @@ export default function App() {
       )}
 
       {helpOpen && <HelpDialog onClose={() => setHelpOpen(false)} />}
+
+      {previewOpen && (
+        <RubyPreview
+          title={currentPath ?? ""}
+          text={text}
+          onClose={() => setPreviewOpen(false)}
+        />
+      )}
+
+      {rubyTarget && (
+        <PromptDialog
+          title="ルビを振る"
+          label={`「${rubyTarget.base}」の読み`}
+          initial=""
+          onSubmit={(reading) => {
+            const t = rubyTarget;
+            setRubyTarget(null);
+            handleRef.current.replaceRange(
+              t.from,
+              t.to,
+              wrapRuby(t.base, reading),
+            );
+          }}
+          onCancel={() => setRubyTarget(null)}
+        />
+      )}
 
       {splitTarget && (
         <SplitDialog

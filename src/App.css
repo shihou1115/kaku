@@ -209,6 +209,9 @@ body,
   align-items: center;
   gap: 8px;
   flex: 0 0 auto;
+  /* 項目が増えたので、窓を狭めたときは折り返して全部押せるようにする */
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 /* ===== AIの状態表示(ヘッダー) ===== */
@@ -1722,6 +1725,43 @@ details summary {
   gap: 6px;
   flex-wrap: wrap;
   margin-top: 6px;
+}
+
+/* ===== プレビュー(ルビの確認) ===== */
+
+.preview-modal {
+  width: 640px;
+  max-height: 84vh;
+  padding: 0;
+  gap: 0;
+}
+
+.preview-meta {
+  padding: 10px 18px 0;
+}
+
+.preview-body {
+  overflow-y: auto;
+  padding: 12px 18px 18px;
+  font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", sans-serif;
+  font-size: 16px;
+  /* ルビが乗るぶん行間を広く取る。詰まると読めない */
+  line-height: 2.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 既定の rt は親の50%で、日本語だと確認用途には小さすぎる。
+   ここは「投稿前に読めるか見る」ための画面なので、読める大きさを優先する */
+.preview-body rt {
+  font-size: 0.6em;
+  color: var(--muted);
+  /* ルビが親文字より目立たないようにする */
+  font-weight: 400;
+}
+
+.preview-hint {
+  padding: 0 18px 16px;
 }
 
 /* ===== シーンの分割 ===== */

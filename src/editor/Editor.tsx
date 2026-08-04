@@ -43,6 +43,8 @@ export type EditorHandle = {
   selectRange: (from: number, to: number) => void;
   /** 範囲を置き換える(校正の置換。ユーザー操作でのみ呼ぶ) */
   replaceRange: (from: number, to: number, text: string) => void;
+  /** いま選択されている範囲。何も選んでいなければ null(ルビの入力補助で使う) */
+  getSelection: () => { from: number; to: number; text: string } | null;
 };
 
 type Props = {
@@ -59,6 +61,8 @@ type Props = {
   onSaveRequest: () => void;
   /** ハイライトされた語を Ctrl/Cmd+クリックしたとき(参照ペインで開く) */
   onMentionActivate: (name: string) => void;
+  /** 選択した状態で右クリックされた（ルビの挿入など） */
+  onSelectionMenu: (x: number, y: number) => void;
   handleRef: EditorHandle;
 };
 
@@ -183,6 +187,7 @@ export function Editor({
   onChange,
   onSaveRequest,
   onMentionActivate,
+  onSelectionMenu,
   handleRef,
 }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -191,8 +196,13 @@ export function Editor({
   const readOnlyComp = useRef(new Compartment());
   const lineNumComp = useRef(new Compartment());
   const extensionsRef = useRef<Extension[]>([]);
-  const cbRef = useRef({ onChange, onSaveRequest, onMentionActivate });
-  cbRef.current = { onChange, onSaveRequest, onMentionActivate };
+  const cbRef = useRef({
+    onChange,
+    onSaveRequest,
+    onMentionActivate,
+    onSelectionMenu,
+  });
+  cbRef.current = { onChange, onSaveRequest, onMentionActivate, onSelectionMenu };
 
   /** 全角1文字の送り幅(px)と、本文左端までのオフセット(ガター+余白) */
   const [metrics, setMetrics] = useState({ charW: 0, offsetLeft: 0, innerW: 0 });
@@ -233,6 +243,19 @@ export function Editor({
           if (!el?.textContent) return false;
           e.preventDefault();
           cbRef.current.onMentionActivate(el.textContent);
+          return true;
+        },
+        /**
+         * 選択したうえでの右クリックにだけメニューを出す。
+         *
+         * 選択が無いときは**何もしない**(既定の動作に任せる)。
+         * 読み取り専用のときも出さない — 挿入できないものを見せない。
+         */
+        contextmenu(e, view) {
+          const { from, to } = view.state.selection.main;
+          if (from === to || view.state.readOnly) return false;
+          e.preventDefault();
+          cbRef.current.onSelectionMenu(e.clientX, e.clientY);
           return true;
         },
       }),
@@ -277,6 +300,11 @@ export function Editor({
         openSearchPanel(view);
       }
     };
+    handleRef.getSelection = () => {
+      const { from, to } = view.state.selection.main;
+      if (from === to) return null;
+      return { from, to, text: view.state.doc.sliceString(from, to) };
+    };
     handleRef.selectRange = (from: number, to: number) => {
       const len = view.state.doc.length;
       const a = Math.max(0, Math.min(from, len));
@@ -299,6 +327,9 @@ export function Editor({
         changes: { from: a, to: b, insert: text },
         selection: { anchor: a + text.length },
       });
+      // ダイアログ経由(ルビの挿入)で来ると本文からフォーカスが外れている。
+      // 戻さないと、書き手はいちいち本文をクリックし直すことになる
+      view.focus();
     };
     handleRef.scrollTo = (pos: number) => {
       const clamped = Math.max(0, Math.min(pos, view.state.doc.length));
