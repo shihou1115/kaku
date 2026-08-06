@@ -35,6 +35,7 @@ import { folderLabel, isTrashPath } from "./components/folderLabels";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { PromptDialog } from "./components/PromptDialog";
 import { HelpDialog } from "./components/HelpDialog";
+import { SettingsDialog } from "./components/SettingsDialog";
 import { RubyPreview } from "./components/RubyPreview";
 import {
   canWrap as canWrapRuby,
@@ -57,6 +58,8 @@ const LS = {
   rightOpen: "kaku.rightOpen",
   rightTab: "kaku.rightTab",
   view: "kaku.view",
+  /** 設定名の強調。表示の設定と同じ置き場所にする(§5.11 の集約で保存対象へ入れた) */
+  highlight: "kaku.highlight",
 };
 
 const DEFAULT_VIEW: ViewSettings = {
@@ -146,9 +149,13 @@ export default function App() {
   const [savedText, setSavedText] = useState("");
   const [modifiedMs, setModifiedMs] = useState(0);
   const [status, setStatus] = useState("");
-  const [highlightEnabled, setHighlightEnabled] = useState(true);
+  // 起動のたびに戻ると「切ったつもりが戻っている」になる(§5.11 論点3)
+  const [highlightEnabled, setHighlightEnabled] = useState(
+    () => localStorage.getItem(LS.highlight) !== "0",
+  );
   const [view, setView] = useState<ViewSettings>(storedView);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   /** 本文で選択して右クリックしたときのメニュー位置 */
@@ -320,6 +327,9 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(LS.view, JSON.stringify(view));
   }, [view]);
+  useEffect(() => {
+    localStorage.setItem(LS.highlight, highlightEnabled ? "1" : "0");
+  }, [highlightEnabled]);
 
   // 配色を当てる。「デバイス設定」を選んでいる間だけOSの切替に追従する
   useEffect(() => {
@@ -850,14 +860,6 @@ export default function App() {
           )}
         </div>
         <div className="tools">
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={highlightEnabled}
-              onChange={(e) => setHighlightEnabled(e.target.checked)}
-            />
-            設定名を強調
-          </label>
           <span className="count">{charCount}字</span>
           <button
             className={`ai-status ${aiStatus.kind}`}
@@ -866,19 +868,23 @@ export default function App() {
                 ? `AI: ${aiStatus.text}(${connDetail})クリックで設定へ`
                 : "クリックでAI設定へ"
             }
-            onClick={() => {
-              setRightOpen(true);
-              setRightTab("ai");
-            }}
+            onClick={() => setSettingsOpen(true)}
           >
             <span className="ai-dot" />
             {aiStatus.text}
+          </button>
+          {/* アプリの動作に関する設定はここ1つに集約する(§5.11 案A) */}
+          <button
+            onClick={() => setSettingsOpen(true)}
+            title="AI接続・校正・本文の表示などの設定"
+          >
+            設定
           </button>
           <div className="view-menu-anchor">
             <button
               className={viewMenuOpen ? "toggled" : ""}
               onClick={() => setViewMenuOpen((v) => !v)}
-              title="行番号・ルーラー・折り返しの設定"
+              title="行番号・ルーラー・折り返しの設定(書きながら変えるもの)"
             >
               表示
             </button>
@@ -1059,10 +1065,6 @@ export default function App() {
                     codex={codex}
                     disabled={!project}
                     settings={aiSettings}
-                    onPatchSettings={patchAiSettings}
-                    models={models}
-                    connDetail={connDetail}
-                    onCheckConnection={checkConnection}
                     onBusy={busy.chat}
                     onShowReference={showReference}
                     onSaved={(p, e) => void noteSaved("着想", p, e)}
@@ -1196,6 +1198,19 @@ export default function App() {
       )}
 
       {helpOpen && <HelpDialog onClose={() => setHelpOpen(false)} />}
+
+      {settingsOpen && (
+        <SettingsDialog
+          settings={aiSettings}
+          onPatch={patchAiSettings}
+          models={models}
+          connDetail={connDetail}
+          onCheckConnection={checkConnection}
+          highlightEnabled={highlightEnabled}
+          onHighlightChange={setHighlightEnabled}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
 
       {previewOpen && (
         <RubyPreview

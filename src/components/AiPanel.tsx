@@ -43,13 +43,13 @@ type Props = {
   mentionedPaths: string[];
   codex: CodexEntry[];
   disabled: boolean;
-  /** AI設定はAppが一元管理する(タブ常駐で写しを持つと上書き事故が起きる) */
+  /**
+   * AI設定はAppが一元管理する(タブ常駐で写しを持つと上書き事故が起きる)。
+   *
+   * **ここでは編集しない。** 設定の編集はヘッダーの「設定」へ集約した(§5.11)。
+   * このタブが持つのは相談だけで、settings は相談の記録にモデル名を残すために読むだけ
+   */
   settings: AiSettings | null;
-  onPatchSettings: (p: Partial<AiSettings>) => void;
-  /** 接続状態もAppが持つ(ヘッダーの状態表示と食い違わせないため) */
-  models: string[];
-  connDetail: string;
-  onCheckConnection: () => Promise<string[]>;
   /** 実行中であることをヘッダーへ伝える。終わったら null */
   onBusy: (label: string | null) => void;
   /** 設定の中身を参照タブで開く */
@@ -65,15 +65,10 @@ export function AiPanel({
   codex,
   disabled,
   settings,
-  onPatchSettings,
-  models,
-  connDetail,
-  onCheckConnection,
   onBusy,
   onShowReference,
   onSaved,
 }: Props) {
-  const [showSettings, setShowSettings] = useState(false);
   /** 渡す資料の選択。自動で当たった分も**外せる**(U-05 / §6.2) */
   const materials = useMaterials(mentionedPaths);
   const [preview, setPreview] = useState<ContextPreview | null>(null);
@@ -127,16 +122,6 @@ export function AiPanel({
     setQuestion(body);
     questionRef.current?.focus();
   }, []);
-
-  const patch = onPatchSettings;
-
-  const connect = useCallback(async () => {
-    const list = await onCheckConnection();
-    // モデル未選択なら先頭を入れておく(P-8: 選ばせる手間を減らす)
-    if (list.length > 0 && settings && !settings.model) {
-      patch({ model: list[0] });
-    }
-  }, [settings, patch, onCheckConnection]);
 
   const { autoPaths, manualPaths } = materials;
 
@@ -274,61 +259,6 @@ export function AiPanel({
 
   return (
     <div className="ai-panel">
-      <div className="block">
-        <div className="block-head">
-          <h2>AI相談</h2>
-          <button className="mini" onClick={() => setShowSettings((v) => !v)}>
-            設定
-          </button>
-        </div>
-        {showSettings && settings && (
-          <div className="settings">
-            <label>
-              接続先
-              <input
-                value={settings.base_url}
-                onChange={(e) => patch({ base_url: e.target.value })}
-                spellCheck={false}
-              />
-            </label>
-            <label>
-              APIキー(ローカルLLMでは不要)
-              <input
-                type="password"
-                value={settings.api_key ?? ""}
-                onChange={(e) => patch({ api_key: e.target.value || null })}
-              />
-            </label>
-            <div className="row">
-              <button onClick={connect}>接続テスト</button>
-              <span className="conn">{connDetail || "未確認"}</span>
-            </div>
-            <label>
-              モデル
-              {models.length > 0 ? (
-                <select
-                  value={settings.model}
-                  onChange={(e) => patch({ model: e.target.value })}
-                >
-                  {models.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  value={settings.model}
-                  onChange={(e) => patch({ model: e.target.value })}
-                  placeholder="接続テストで一覧を取得"
-                  spellCheck={false}
-                />
-              )}
-            </label>
-          </div>
-        )}
-      </div>
-
       <div className="block">
         <div className="block-head">
           <h2>渡す設定資料</h2>

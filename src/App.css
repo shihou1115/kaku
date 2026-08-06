@@ -1727,6 +1727,38 @@ details summary {
   margin-top: 6px;
 }
 
+/* ===== 設定(§5.11 ヘッダーへの集約) ===== */
+
+.settings-modal {
+  width: 520px;
+  max-height: 84vh;
+  padding: 0;
+  gap: 0;
+}
+
+.set-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.set-section:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.set-section h3 {
+  margin: 0;
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.set-section .hint {
+  margin: 0;
+}
+
 /* ===== プレビュー(ルビの確認) ===== */
 
 .preview-modal {
