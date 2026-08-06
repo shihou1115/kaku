@@ -88,8 +88,19 @@ impl AiSettings {
             model: self.model.clone(),
             temperature: self.temperature,
             check_chunk_chars: self.check_chunk_chars,
+            // 前回のプロジェクトは接続設定とは別の話。保存時に settings::merge が引き継ぐ
+            last_project: None,
         }
     }
+}
+
+/// 設定を保存する。**設定ファイルへ書く経路はここ1本に絞る**。
+/// 丸ごと書き直す形式なので、部分的な知識で保存すると他の項目が消える(settings::merge)。
+///
+/// 保存に失敗してもアプリは動かす(次回の起動で既定に戻るだけ)。
+fn persist_settings(ai: &AiSettings, last_project: Option<String>) {
+    let stored = settings::merge(settings::load(), ai.to_stored(), last_project);
+    let _ = settings::save(&stored);
 }
 
 fn root_of(state: &State<AppState>) -> Result<PathBuf, String> {
@@ -133,12 +144,34 @@ fn open_project(path: String, state: State<AppState>) -> Result<OpenedProject, S
         .map(|s| s.to_string_lossy().to_string())
         .unwrap_or_else(|| path.clone());
     *state.root.lock().map_err(|_| "状態の更新に失敗")? = Some(root.clone());
+    let root_str = root.to_string_lossy().to_string();
+    // 次の起動で開き直せるように覚える
+    if let Ok(ai) = state.ai.lock() {
+        persist_settings(&ai, Some(root_str.clone()));
+    }
     Ok(OpenedProject {
-        root: root.to_string_lossy().to_string(),
+        root: root_str,
         name,
         tree,
         codex,
     })
+}
+
+/// 前回開いたプロジェクトの場所。起動時に開き直すために使う。
+///
+/// **返すのは「すでにプロジェクトであるフォルダ」だけ**。フォルダが消えていたり、
+/// `manuscript/` が無くなっていたら `None` を返す。
+/// `open_project` は `manuscript/` が無いフォルダを新規プロジェクトとして初期化するので、
+/// ここで絞らないと**起動しただけでフォルダが作られる**ことになる(初期化は人の操作でだけ起こす)。
+#[tauri::command]
+fn last_project() -> Option<String> {
+    let path = settings::load()?.last_project?;
+    let root = PathBuf::from(&path);
+    if root.join("manuscript").is_dir() {
+        Some(path)
+    } else {
+        None
+    }
 }
 
 /// サンプルプロジェクトを作って開く(M-08)。
@@ -157,8 +190,13 @@ fn create_sample_project(path: String, state: State<AppState>) -> Result<OpenedP
         .map(|s| s.to_string_lossy().to_string())
         .unwrap_or_else(|| path.clone());
     *state.root.lock().map_err(|_| "状態の更新に失敗")? = Some(root.clone());
+    let root_str = root.to_string_lossy().to_string();
+    // サンプルも「開いたプロジェクト」なので同じように覚える
+    if let Ok(ai) = state.ai.lock() {
+        persist_settings(&ai, Some(root_str.clone()));
+    }
     Ok(OpenedProject {
-        root: root.to_string_lossy().to_string(),
+        root: root_str,
         name,
         tree: project::scan(&root).map_err(to_msg)?,
         codex: project::load_codex(&root).map_err(to_msg)?,
@@ -1022,8 +1060,7 @@ fn get_ai_settings(state: State<AppState>) -> Result<AiSettings, String> {
 fn set_ai_settings(settings: AiSettings, state: State<AppState>) -> Result<(), String> {
     let mut settings = settings;
     settings.check_chunk_chars = settings::clamp_chunk_chars(settings.check_chunk_chars);
-    // 保存に失敗してもアプリは動かす(次回の起動で既定に戻るだけ)
-    let _ = settings::save(&settings.to_stored());
+    persist_settings(&settings, None);
     *state.ai.lock().map_err(|_| "状態の更新に失敗")? = settings;
     Ok(())
 }
@@ -1145,6 +1182,7 @@ pub fn run() {
         .manage(state)
         .invoke_handler(tauri::generate_handler![
             open_project,
+            last_project,
             create_sample_project,
             refresh_project,
             read_file,

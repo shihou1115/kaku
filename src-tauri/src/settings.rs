@@ -20,6 +20,10 @@ pub struct StoredSettings {
     pub temperature: f32,
     /// 校正で1回に送る本文の文字数(PoC#7 §7.2)
     pub check_chunk_chars: usize,
+    /// 前回開いたプロジェクトの場所。**小説データではなく環境の設定**なので、
+    /// プロジェクトの中ではなくここに置く。無くても起動は止まらない
+    #[serde(default)]
+    pub last_project: Option<String>,
 }
 
 pub fn settings_path() -> PathBuf {
@@ -46,6 +50,20 @@ pub fn save(s: &StoredSettings) -> std::io::Result<()> {
     std::fs::write(path, json)
 }
 
+/// 保存する内容を組み立てる。
+///
+/// 設定ファイルは丸ごと書き直すため、**部分的な知識で上書きすると他の項目が消える**。
+/// 接続設定を保存しただけで前回のプロジェクトを忘れる、といった事故を防ぐのがここ。
+/// `last_project` に `None` を渡した場合は、保存済みの値をそのまま引き継ぐ。
+pub fn merge(
+    stored: Option<StoredSettings>,
+    mut next: StoredSettings,
+    last_project: Option<String>,
+) -> StoredSettings {
+    next.last_project = last_project.or_else(|| stored.and_then(|s| s.last_project));
+    next
+}
+
 /// 設定値を安全な範囲に収める。
 ///
 /// 分割字数は、小さすぎると実行回数が増えて遅くなり、大きすぎると
@@ -65,6 +83,16 @@ mod tests {
         assert_eq!(clamp_chunk_chars(100_000), 12_000);
     }
 
+    fn sample() -> StoredSettings {
+        StoredSettings {
+            base_url: "http://localhost:1234/v1".into(),
+            model: "some-model".into(),
+            temperature: 0.7,
+            check_chunk_chars: 6_000,
+            last_project: None,
+        }
+    }
+
     #[test]
     fn roundtrips_without_api_key() {
         let s = StoredSettings {
@@ -72,6 +100,7 @@ mod tests {
             model: "some-model".into(),
             temperature: 0.7,
             check_chunk_chars: 6_000,
+            last_project: Some(r"C:\novels\作品".into()),
         };
         let json = serde_json::to_string(&s).unwrap();
         // APIキーに相当するものが混ざっていないこと
@@ -85,5 +114,42 @@ mod tests {
     fn broken_file_falls_back_to_default() {
         // load() は壊れたJSONでも None を返すだけで落ちない
         assert!(serde_json::from_str::<StoredSettings>("{壊れた").is_err());
+    }
+
+    /// 前回のプロジェクトを覚える前に書かれた settings.json も読めること。
+    /// 読めないと、更新した瞬間に接続設定まで既定へ戻る
+    #[test]
+    fn reads_settings_written_before_last_project_existed() {
+        let old = r#"{"base_url":"http://localhost:1234/v1","model":"m","temperature":0.7,"check_chunk_chars":3000}"#;
+        let s: StoredSettings = serde_json::from_str(old).unwrap();
+        assert_eq!(s.last_project, None);
+        assert_eq!(s.model, "m");
+    }
+
+    /// **接続設定の保存で前回のプロジェクトを消さないこと。**
+    /// 設定ファイルを丸ごと書き直す以上、ここを外すと「開き直すと忘れている」に戻る
+    #[test]
+    fn saving_ai_settings_keeps_the_last_project() {
+        let stored = StoredSettings {
+            last_project: Some(r"C:\novels\作品".into()),
+            ..sample()
+        };
+        let mut next = sample();
+        next.model = "別のモデル".into();
+
+        let merged = merge(Some(stored), next, None);
+        assert_eq!(merged.model, "別のモデル");
+        assert_eq!(merged.last_project.as_deref(), Some(r"C:\novels\作品"));
+    }
+
+    /// 開き直したときは新しいプロジェクトで上書きされること
+    #[test]
+    fn opening_a_project_replaces_the_remembered_one() {
+        let stored = StoredSettings {
+            last_project: Some(r"C:\novels\古い".into()),
+            ..sample()
+        };
+        let merged = merge(Some(stored), sample(), Some(r"C:\novels\新しい".into()));
+        assert_eq!(merged.last_project.as_deref(), Some(r"C:\novels\新しい"));
     }
 }

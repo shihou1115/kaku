@@ -430,6 +430,31 @@ export default function App() {
     return () => unlisten?.();
   }, [flushSave]);
 
+  /**
+   * 起動時に前回のプロジェクトを開き直す。
+   *
+   * 毎回フォルダを選び直させない(P-8: ツール自体の作業負荷を最小にする)。
+   * **開けなければ黙って空状態のまま**にする — 起動を止めてまで伝えることではないし、
+   * フォルダを移した/消した本人にとっては警告が出る方が煩わしい。
+   * 一度だけ走らせる(ref の門番)。ここを依存つきにすると開き直しが繰り返される
+   */
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+    (async () => {
+      try {
+        const path = await api.lastProject();
+        if (!path) return;
+        const p = await api.openProject(path);
+        setProject(p);
+        setStatus(`「${p.name}」を開きました`);
+      } catch {
+        // 覚えていない / 開けなくなっている / Tauri外(ブラウザでの開発時)
+      }
+    })();
+  }, []);
+
   // ===== ファイル操作 =====
 
   const openProject = useCallback(async () => {

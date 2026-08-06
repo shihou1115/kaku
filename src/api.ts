@@ -217,6 +217,8 @@ export type ChatEvent =
 
 export const api = {
   openProject: (path: string) => invoke<OpenedProject>("open_project", { path }),
+  /** 前回開いたプロジェクトの場所。無い・消えている場合は null */
+  lastProject: () => invoke<string | null>("last_project"),
   createSampleProject: (path: string) =>
     invoke<OpenedProject>("create_sample_project", { path }),
   refreshProject: () => invoke<OpenedProject>("refresh_project"),
