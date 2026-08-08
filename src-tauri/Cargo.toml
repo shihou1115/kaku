@@ -1,6 +1,6 @@
 [package]
 name = "kaku"
-version = "1.0.0"
+version = "1.1.0"
 description = "AI小説執筆支援ツール(AIは執筆者ではなく編集者+外部記憶)"
 authors = ["shiho"]
 edition = "2021"
