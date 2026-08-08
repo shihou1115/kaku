@@ -11,12 +11,20 @@
  *   押すたびに入れ替わる(選び直しても前の文面が残らない)
  * - 応答は「この相談を残す」で `ideas/` へMarkdown保存する。
  *   会話は原稿ではなく過程の副産物なので、**選んだものだけ**を正本へ置く(§5.7 A案)
+ *
+ * 会話モード(2026-08-06 追加、§5.7):
+ * - **既定はオフ**(単発)。発想を広げる相談は往復が要るが、校正・レビューでは履歴は
+ *   ノイズとコストにしかならない。一律に付けないのが§5.7の結論
+ * - 履歴は**メモリ上だけ**(A案)。閉じれば消える。残すものは `ideas/` へ書く
+ * - 素材(本文・設定資料)は**先頭の1通にだけ**載る。往復ごとに足すと上限にすぐ当たる
+ * - 溢れたら**古い往復から落とす**。要約による圧縮はしない
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   api,
   type AiSettings,
+  type ChatTurn,
   type CodexEntry,
   type ContextPreview,
   type PromptTemplate,
@@ -34,6 +42,8 @@ type LastRun = {
   /** どの文書について相談したか */
   path: string | null;
   context: ContextPreview;
+  /** 送信した時点までの往復(会話モード)。記録にはやりとり全体を残す */
+  history: ChatTurn[];
 };
 
 type Props = {
@@ -76,6 +86,10 @@ export function AiPanel({
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** 会話モード。**既定はオフ**(§5.7: 一律に付けない) */
+  const [conversation, setConversation] = useState(false);
+  /** これまでの往復。**メモリ上だけ**に持つ(§5.7 A案) */
+  const [turns, setTurns] = useState<ChatTurn[]>([]);
   /** 応答が空のまま終わったか。検閲による拒否で起きうる(04-design §8.1) */
   const [emptyAnswer, setEmptyAnswer] = useState(false);
   const answerRef = useRef<HTMLDivElement | null>(null);
@@ -154,18 +168,23 @@ export function AiPanel({
       setError(String(e));
       return;
     }
+    // 会話モードのときだけ、これまでの往復を一緒に送る(既定は単発)
+    const history = conversation ? turns : [];
     // 送信した内容をここで固める(以後、画面を触られても記録はずれない)
-    lastRun.current = { question, path: currentPath, context: ctx };
+    lastRun.current = { question, path: currentPath, context: ctx, history };
     setBusy(true);
     onBusy("応答中");
     setAnswer("");
     setError(null);
     setEmptyAnswer(false);
     let received = 0;
+    // 積むのは**確定した応答**。setAnswer は非同期なので、ここで別に持つ
+    let full = "";
     try {
-      await api.askAi(ctx, question, (ev) => {
+      await api.askAi(ctx, question, history, (ev) => {
         if (ev.kind === "Delta") {
           received += ev.value.length;
+          full += ev.value;
           setAnswer((a) => a + ev.value);
           answerRef.current?.scrollTo(0, answerRef.current.scrollHeight);
         } else if (ev.kind === "Error") {
@@ -174,14 +193,30 @@ export function AiPanel({
       });
       // 応答が1文字も返らないことがある。多くは検閲による拒否(§8.1)。
       // 画面が無反応に見えて原因が分からないので、明示して次の手を示す
-      if (received === 0) setEmptyAnswer(true);
+      if (received === 0) {
+        setEmptyAnswer(true);
+      } else if (conversation) {
+        // 往復として積み、依頼欄を空ける(次の問いを書く場所にする)。
+        // **空の応答は積まない** — 拒否された往復を履歴に入れても意味がない
+        setTurns((t) => [...t, { question, answer: full }]);
+        setQuestion("");
+      }
     } catch (e) {
       setError(String(e));
     } finally {
       setBusy(false);
       onBusy(null);
     }
-  }, [question, body, currentPath, autoPaths, manualPaths, onBusy]);
+  }, [
+    question,
+    body,
+    currentPath,
+    autoPaths,
+    manualPaths,
+    onBusy,
+    conversation,
+    turns,
+  ]);
 
   /**
    * この相談を `ideas/` へ残す(M-03の「結果保存」)。
@@ -232,11 +267,22 @@ export function AiPanel({
         "",
         materialList,
         "",
-        "## 依頼",
+        // 会話モードでは**やりとり全体**を残す。最後の1往復だけでは何の話か読めない
+        ...run.history.flatMap((t, i) => [
+          `## 依頼 ${i + 1}`,
+          "",
+          t.question,
+          "",
+          `## 応答 ${i + 1}`,
+          "",
+          t.answer,
+          "",
+        ]),
+        run.history.length > 0 ? `## 依頼 ${run.history.length + 1}` : "## 依頼",
         "",
         run.question,
         "",
-        "## 応答",
+        run.history.length > 0 ? `## 応答 ${run.history.length + 1}` : "## 応答",
         "",
         answer,
         "",
@@ -386,6 +432,43 @@ export function AiPanel({
             {busy ? "応答中…" : "送信"}
           </button>
         </div>
+        {/* 会話モード(§5.7)。**既定はオフ**で、続けたいときだけ入れる */}
+        <div className="row conv-row">
+          <label className="check" title="前のやりとりを踏まえて答えさせます">
+            <input
+              type="checkbox"
+              checked={conversation}
+              onChange={(e) => {
+                setConversation(e.target.checked);
+                if (!e.target.checked) setTurns([]);
+              }}
+              disabled={busy}
+            />
+            会話を続ける
+          </label>
+          {conversation && turns.length > 0 && (
+            <>
+              <span className="conv-count">{turns.length}往復</span>
+              <button
+                className="mini"
+                onClick={() => {
+                  setTurns([]);
+                  setAnswer("");
+                }}
+                disabled={busy}
+              >
+                新しい相談を始める
+              </button>
+            </>
+          )}
+        </div>
+        {conversation && (
+          <p className="hint">
+            やりとりは<strong>アプリを閉じると消えます</strong>。
+            残すものは応答の「この相談を残す」で <code>ideas/</code> へ書いてください。
+            長くなると古い往復から落とします。
+          </p>
+        )}
         {preview && (
           <details className="preview" open>
             <summary>
@@ -413,6 +496,23 @@ export function AiPanel({
           </p>
         )}
       </div>
+
+      {/* これまでの往復。**下(最新)へ向かって読む**ので、応答ブロックの上に置く */}
+      {conversation && turns.length > 0 && (
+        <div className="block">
+          <div className="block-head">
+            <h2>これまでのやりとり</h2>
+          </div>
+          <div className="conv-thread">
+            {turns.map((t, i) => (
+              <div className="conv-turn" key={i}>
+                <p className="conv-q">{t.question}</p>
+                <div className="conv-a">{t.answer}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {(answer || busy) && (
         <div className="block answer-block">

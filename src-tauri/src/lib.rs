@@ -1104,6 +1104,8 @@ enum ChatEvent {
 async fn ask_ai(
     context: ContextPreview,
     question: String,
+    // これまでの往復(会話モード)。単発の相談では空で来る(§5.7)
+    history: Vec<context::ChatTurn>,
     on_event: Channel<ChatEvent>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
@@ -1111,16 +1113,7 @@ async fn ask_ai(
     if s.model.trim().is_empty() {
         return Err("モデルが未設定です。設定でモデルを選んでください".to_string());
     }
-    let messages = vec![
-        ChatMessage {
-            role: "system".into(),
-            content: context::SYSTEM_PROMPT.to_string(),
-        },
-        ChatMessage {
-            role: "user".into(),
-            content: context::render_user_message(&context, &question),
-        },
-    ];
+    let messages = context::build_chat_messages(&context, &question, &history);
 
     let resp = ai::stream_request(&s.base_url, &s.api_key, &s.model, &messages, s.temperature)
         .send()

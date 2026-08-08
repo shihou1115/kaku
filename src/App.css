@@ -1483,6 +1483,56 @@ button.toggled {
   padding: 8px;
 }
 
+/* ===== 会話モード(§5.7) ===== */
+
+.conv-row {
+  align-items: center;
+  gap: 8px;
+}
+
+.conv-count {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.conv-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.conv-turn {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.conv-turn:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+/* 依頼と応答を見分けられないと、どこから読むのか分からなくなる */
+.conv-q {
+  margin: 0;
+  font-size: 12px;
+  color: var(--accent);
+  white-space: pre-wrap;
+}
+
+.conv-a {
+  font-size: 12px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  background: var(--surface-alt);
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+
 .caret {
   color: var(--accent);
 }

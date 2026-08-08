@@ -108,6 +108,77 @@ pub const SYSTEM_PROMPT: &str = "\
 - 与えられた設定資料と矛盾しないようにし、資料に無いことは推測であると明示します。
 - 日本語で、簡潔に答えます。";
 
+/// 会話の1往復(§5.7 会話モード)。
+///
+/// **保持するのはメモリ上だけ**(A案)。アプリを閉じれば消え、残したいものは
+/// 「この相談を残す」で `ideas/` へ書く。会話は原稿ではなく過程の副産物であり、
+/// 正本(D-1)へ自動で混ぜない。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatTurn {
+    pub question: String,
+    pub answer: String,
+}
+
+/// 会話履歴に許す長さ(文字数)。超えた分は**古い往復から落とす**。
+///
+/// 要約による圧縮はしない — 情報が落ちるうえ、要約のためのAI呼び出しが増える
+/// (§5.7 / 開発原則7。撤回済みの「予算計算・段階的縮退」を履歴管理の名目で
+/// 復活させないこと=[06-decision-log.md] §4)。
+pub const MAX_HISTORY_CHARS: usize = 8_000;
+
+/// 履歴を上限に収める。**新しい往復を残す**(直前のやりとりが一番効くため)。
+pub fn trim_history(turns: &[ChatTurn], max_chars: usize) -> Vec<ChatTurn> {
+    let mut kept: Vec<ChatTurn> = Vec::new();
+    let mut total = 0usize;
+    for t in turns.iter().rev() {
+        let len = t.question.chars().count() + t.answer.chars().count();
+        if total + len > max_chars && !kept.is_empty() {
+            break;
+        }
+        total += len;
+        kept.push(t.clone());
+    }
+    kept.reverse();
+    kept
+}
+
+/// 送るメッセージ列を組み立てる。
+///
+/// **設定資料と本文は最初のユーザーメッセージにだけ載せる。** 往復のたびに足すと
+/// 数千字が積み上がり、ローカルLLMの上限にすぐ当たる(§5.7 のコンテキストの送り方)。
+/// 載せるのは常に**最新の**本文なので、途中で書き足した分が見えなくなることもない。
+pub fn build_chat_messages(
+    ctx: &ContextPreview,
+    question: &str,
+    history: &[ChatTurn],
+) -> Vec<crate::ai::ChatMessage> {
+    let msg = |role: &str, content: String| crate::ai::ChatMessage {
+        role: role.to_string(),
+        content,
+    };
+    let mut messages = vec![msg("system", SYSTEM_PROMPT.to_string())];
+
+    let history = trim_history(history, MAX_HISTORY_CHARS);
+    for (i, turn) in history.iter().enumerate() {
+        // 素材が載るのは先頭の1通だけ。落として先頭が入れ替わったら、そこへ載せ直す
+        let content = if i == 0 {
+            render_user_message(ctx, &turn.question)
+        } else {
+            turn.question.clone()
+        };
+        messages.push(msg("user", content));
+        messages.push(msg("assistant", turn.answer.clone()));
+    }
+
+    let content = if history.is_empty() {
+        render_user_message(ctx, question)
+    } else {
+        question.to_string()
+    };
+    messages.push(msg("user", content));
+    messages
+}
+
 /// 組み立てた素材を1つのユーザーメッセージにする。
 pub fn render_user_message(ctx: &ContextPreview, question: &str) -> String {
     let mut s = String::new();
@@ -195,5 +266,92 @@ mod tests {
         assert!(msg.contains("## 架純"));
         assert!(msg.contains("# 対象本文"));
         assert!(msg.contains("# 依頼"));
+    }
+
+    // ===== 会話モード(§5.7) =====
+
+    fn ctx_with_body(body: &str) -> ContextPreview {
+        let codex = vec![entry("codex/x.md", "架純")];
+        build(body, &codex, &|_| Some("主人公".into()), &["codex/x.md".into()], &[])
+    }
+
+    fn turn(q: &str, a: &str) -> ChatTurn {
+        ChatTurn {
+            question: q.to_string(),
+            answer: a.to_string(),
+        }
+    }
+
+    /// 履歴が無ければ、これまでと同じ2通(system + user)のまま
+    #[test]
+    fn without_history_the_shape_is_unchanged() {
+        let ctx = ctx_with_body("　転校初日。");
+        let msgs = build_chat_messages(&ctx, "問題点は?", &[]);
+        assert_eq!(msgs.len(), 2);
+        assert_eq!(msgs[0].role, "system");
+        assert_eq!(msgs[1].role, "user");
+        assert!(msgs[1].content.contains("# 対象本文"));
+    }
+
+    /// **素材が載るのは先頭のユーザーメッセージだけ。**
+    /// 往復のたびに本文を足すと、数千字が積み上がって上限にすぐ当たる
+    #[test]
+    fn materials_ride_only_on_the_first_user_message() {
+        let ctx = ctx_with_body("　転校初日。");
+        let history = vec![turn("1つ目", "答え1"), turn("2つ目", "答え2")];
+        let msgs = build_chat_messages(&ctx, "3つ目", &history);
+
+        let roles: Vec<&str> = msgs.iter().map(|m| m.role.as_str()).collect();
+        assert_eq!(
+            roles,
+            vec!["system", "user", "assistant", "user", "assistant", "user"]
+        );
+        assert!(msgs[1].content.contains("# 対象本文"), "先頭には素材が載る");
+        assert_eq!(msgs[3].content, "2つ目", "2通目以降は依頼だけ");
+        assert_eq!(msgs[5].content, "3つ目", "最後の依頼にも素材は載せない");
+        assert_eq!(
+            msgs.iter().filter(|m| m.content.contains("# 対象本文")).count(),
+            1
+        );
+    }
+
+    /// 上限を超えたら**古い往復から落とす**(新しい方を残す)
+    #[test]
+    fn old_turns_are_dropped_first() {
+        let long = "あ".repeat(1_000);
+        let turns: Vec<ChatTurn> = (0..10)
+            .map(|i| turn(&format!("依頼{i}"), &long))
+            .collect();
+        let kept = trim_history(&turns, 3_000);
+        assert!(kept.len() < turns.len(), "落ちていない");
+        assert_eq!(
+            kept.last().unwrap().question,
+            "依頼9",
+            "直前のやりとりが残っていない"
+        );
+        assert!(!kept.iter().any(|t| t.question == "依頼0"));
+    }
+
+    /// 1往復だけで上限を超える場合でも、直前の1件は残す(空にしない)
+    #[test]
+    fn a_single_huge_turn_is_still_kept() {
+        let turns = vec![turn("依頼", &"あ".repeat(50_000))];
+        assert_eq!(trim_history(&turns, 100).len(), 1);
+    }
+
+    /// 古い往復が落ちて先頭が入れ替わったら、**そこへ素材を載せ直す**
+    #[test]
+    fn materials_move_to_the_new_first_turn_after_trimming() {
+        let ctx = ctx_with_body("　転校初日。");
+        let long = "あ".repeat(MAX_HISTORY_CHARS);
+        let history = vec![turn("古い依頼", "短い答え"), turn("新しい依頼", &long)];
+        let msgs = build_chat_messages(&ctx, "次の依頼", &history);
+
+        assert!(
+            !msgs.iter().any(|m| m.content.contains("古い依頼")),
+            "古い往復が落ちていない"
+        );
+        assert!(msgs[1].content.contains("# 対象本文"), "素材が消えた");
+        assert!(msgs[1].content.contains("新しい依頼"));
     }
 }

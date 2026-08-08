@@ -210,6 +210,17 @@ export type AiSettings = {
   check_chunk_chars: number;
 };
 
+/**
+ * 会話の1往復(§5.7 会話モード)。
+ *
+ * **メモリ上にしか持たない。** アプリを閉じれば消える。残したいものは
+ * 「この相談を残す」で `ideas/` へ書く(会話は原稿ではなく過程の副産物)。
+ */
+export type ChatTurn = {
+  question: string;
+  answer: string;
+};
+
 export type ChatEvent =
   | { kind: "Delta"; value: string }
   | { kind: "Done" }
@@ -289,13 +300,23 @@ export const api = {
       mentionedPaths,
       manualPaths,
     }),
+  /**
+   * 相談を送る。`history` はこれまでの往復(会話モード)。
+   * 単発の相談では空配列を渡す(§5.7)。
+   */
   askAi: (
     context: ContextPreview,
     question: string,
+    history: ChatTurn[],
     onEvent: (e: ChatEvent) => void,
   ) => {
     const channel = new Channel<ChatEvent>();
     channel.onmessage = onEvent;
-    return invoke<void>("ask_ai", { context, question, onEvent: channel });
+    return invoke<void>("ask_ai", {
+      context,
+      question,
+      history,
+      onEvent: channel,
+    });
   },
 };
