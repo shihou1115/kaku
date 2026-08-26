@@ -68,6 +68,18 @@ export function ReviewPane({
   const [saving, setSaving] = useState<string | null>(null);
   /** レビューした時点の対象。あとで別の文書を開かれても記録がずれない */
   const [reviewedPath, setReviewedPath] = useState<string | null>(null);
+  /**
+   * レビューした時点の観点と資料。
+   *
+   * 記録に書くのは**実際に送ったもの**でなければ意味がない。画面の現在値を読むと、
+   * 実行後にチップや資料のチェックを触っただけで記録が変わる(AI相談で同じ穴を
+   * 2026-07-31 に塞いだ。こちらが取りこぼしになっていた)。
+   */
+  const [reviewedAspects, setReviewedAspects] = useState<ReviewAspect[]>([]);
+  const [reviewedMaterials, setReviewedMaterials] = useState<{
+    auto: string[];
+    manual: string[];
+  }>({ auto: [], manual: [] });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [meta, setMeta] = useState<{
@@ -101,6 +113,9 @@ export function ReviewPane({
       setOverall(r.overall);
       setReviewedBody(body);
       setReviewedPath(currentPath);
+      // 観点はバックエンドが解決した「実際に見た観点」を使う
+      setReviewedAspects(r.aspects);
+      setReviewedMaterials({ auto: autoPaths, manual: manualPaths });
       setVerdicts({});
       setMeta({
         model: r.model,
@@ -161,8 +176,8 @@ export function ReviewPane({
       }
 
       const materials = [
-        ...autoPaths.map((p) => ({ p, kind: "自動" })),
-        ...manualPaths.map((p) => ({ p, kind: "手動" })),
+        ...reviewedMaterials.auto.map((p) => ({ p, kind: "自動" })),
+        ...reviewedMaterials.manual.map((p) => ({ p, kind: "手動" })),
       ].map(({ p, kind }) => {
         const c = codex.find((x) => x.path === p);
         return `- ${c?.title ?? p}(${kind}) — ${p}`;
@@ -174,14 +189,14 @@ export function ReviewPane({
           created: now.toISOString(),
           model: meta?.model,
           source: reviewedPath ?? undefined,
-          aspects: aspects
+          aspects: reviewedAspects
             .map((k) => REVIEW_ASPECTS.find((a) => a.key === k)?.label ?? k)
             .join("、"),
         }),
         "## 対象",
         "",
         `- 文書: ${reviewedPath ?? "(ファイルを開いていない)"}`,
-        `- 観点: ${aspects
+        `- 観点: ${reviewedAspects
           .map((k) => REVIEW_ASPECTS.find((a) => a.key === k)?.label ?? k)
           .join("、")}`,
         "",
@@ -212,11 +227,10 @@ export function ReviewPane({
       comments,
       overall,
       verdicts,
-      aspects,
       meta,
       reviewedPath,
-      autoPaths,
-      manualPaths,
+      reviewedAspects,
+      reviewedMaterials,
       codex,
       onSaved,
     ],

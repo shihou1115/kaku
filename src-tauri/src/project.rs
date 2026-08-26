@@ -280,8 +280,21 @@ fn decode(bytes: &[u8], label: &str) -> Result<String, ProjectError> {
 /// ここはバックアップ・ゴミ箱・ログ・索引の置き場で、**アプリが書き込むのは
 /// それぞれの専用処理からだけ**である。原稿の保存経路がここへ届いてはいけない。
 /// 特にゴミ箱は「消さずに取っておいたもの」なので、上書きされると退避の意味が消える。
+/// 相対パスを正規化する(`./` を落として区切りを `/` に揃える)。
+///
+/// **判定の前に必ずこれを通す。** `./.app/x` のような書き方で
+/// `is_app_area` をすり抜けられると、退避しておいたものが上書きされる。
+fn normalize_rel(relative: &str) -> String {
+    relative
+        .replace('\\', "/")
+        .split('/')
+        .filter(|seg| !seg.is_empty() && *seg != ".")
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
 pub fn is_app_area(relative: &str) -> bool {
-    let p = relative.replace('\\', "/");
+    let p = normalize_rel(relative);
     p == APP_DIR || p.starts_with(&format!("{APP_DIR}/"))
 }
 
@@ -336,6 +349,8 @@ pub fn create_file(root: &Path, relative: &str, content: &str) -> Result<bool, P
 /// 確認ダイアログを押し間違えても、エクスプローラで取り戻せる。
 /// 戻り値は退避先の絶対パス(UIで案内するため)。
 pub fn trash(root: &Path, relative: &str) -> Result<String, ProjectError> {
+    // ゴミ箱の中身をさらにゴミ箱へ入れない(退避したものは動かさない)
+    reject_app_area(relative)?;
     let path = resolve(root, relative)?;
     if !path.exists() {
         return Err(ProjectError::Io(io::Error::new(
@@ -343,8 +358,19 @@ pub fn trash(root: &Path, relative: &str) -> Result<String, ProjectError> {
             format!("見つかりません: {relative}"),
         )));
     }
+    // 退避先のフォルダ名は秒まで(人が読めることを優先している)。
+    // **同じ秒に同じ相対パスを2度退避すると先のものを踏む**ので、
+    // 埋まっていたら連番を付けて空いている場所を取る。
+    // `fs::rename` は Windows では黙って上書きするため、ここで避けないと退避の意味が消える
     let stamp = timestamp_dir(std::time::SystemTime::now());
-    let dest = root.join(APP_DIR).join("trash").join(&stamp).join(relative);
+    let base = root.join(APP_DIR).join("trash");
+    let mut dest = base.join(&stamp).join(relative);
+    for n in 2..1000 {
+        if !dest.exists() {
+            break;
+        }
+        dest = base.join(format!("{stamp}_{n}")).join(relative);
+    }
     if let Some(parent) = dest.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -398,6 +424,9 @@ pub fn count_files(root: &Path, relative: &str) -> Result<usize, ProjectError> {
 
 /// 改名・移動。プロジェクト内のMarkdownリンクも追随させる(§5-6)。
 pub fn rename(root: &Path, from: &str, to: &str) -> Result<(), ProjectError> {
+    // 退避したものを動かすのも、原稿をアプリ専用領域へ押し込むのも塞ぐ
+    reject_app_area(from)?;
+    reject_app_area(to)?;
     let src = resolve(root, from)?;
     let dst = resolve(root, to)?;
     if !src.exists() {
@@ -422,6 +451,7 @@ pub fn rename(root: &Path, from: &str, to: &str) -> Result<(), ProjectError> {
 
 /// 複製。「〜のコピー」を付け、既にあれば連番にする。
 pub fn duplicate(root: &Path, relative: &str) -> Result<String, ProjectError> {
+    reject_app_area(relative)?;
     let src = resolve(root, relative)?;
     if !src.is_file() {
         return Err(ProjectError::Io(io::Error::new(
@@ -458,6 +488,7 @@ pub fn duplicate(root: &Path, relative: &str) -> Result<String, ProjectError> {
 }
 
 pub fn create_dir(root: &Path, relative: &str) -> Result<bool, ProjectError> {
+    reject_app_area(relative)?;
     let path = resolve(root, relative)?;
     if path.exists() {
         return Ok(false);
@@ -515,10 +546,21 @@ pub fn replace_links(text: &str, base_dir: &str, old_rel: &str, new_rel: &str) -
             return out;
         };
         let target = &tail[..end];
-        if normalize_join(base_dir, target).as_deref() == Some(old_rel) {
-            out.push_str(&relative_from(base_dir, new_rel));
-        } else {
-            out.push_str(target);
+        // 完全一致(ファイルの改名)と、接頭辞一致(**フォルダーの改名**)の両方を見る。
+        // 完全一致だけだと `codex/characters` を改名しても
+        // `codex/characters/悠二.md` を指すリンクが切れたまま残る。
+        // `old_rel` の直後に `/` を要求するので、兄弟の `codex/characters2` は巻き込まない
+        let moved = normalize_join(base_dir, target).and_then(|r| {
+            if r == old_rel {
+                Some(new_rel.to_string())
+            } else {
+                r.strip_prefix(&format!("{old_rel}/"))
+                    .map(|rest| format!("{new_rel}/{rest}"))
+            }
+        });
+        match moved {
+            Some(t) => out.push_str(&relative_from(base_dir, &t)),
+            None => out.push_str(target),
         }
         out.push(')');
         rest = &tail[end + 1..];
@@ -957,6 +999,70 @@ mod tests {
         let second = duplicate(&root, "codex/characters/架純.md").unwrap();
         assert_eq!(second, "codex/characters/架純 のコピー2.md");
         fs::remove_dir_all(root).ok();
+    }
+
+    /// フォルダーを改名したら、配下を指すリンクも追随すること。
+    /// 兄弟フォルダー(接頭辞が同じだけ)は巻き込まないこと
+    #[test]
+    fn folder_rename_follows_links_of_descendants() {
+        let text = "[a](../codex/characters/悠二.md) [b](../codex/characters2/x.md) [c](../codex/characters)";
+        let out = replace_links(text, "manuscript", "codex/characters", "codex/人物");
+        assert!(out.contains("../codex/人物/悠二.md"), "配下が追随していない: {out}");
+        assert!(out.contains("../codex/characters2/x.md"), "兄弟を巻き込んだ: {out}");
+        assert!(out.contains("../codex/人物)"), "フォルダー自身が追随していない: {out}");
+    }
+
+    /// 同じ秒に同じ相対パスを2度捨てても、先に退避したものを踏まないこと。
+    /// **Windows の `fs::rename` は黙って上書きする**ので、ここが抜けると退避の意味が消える
+    #[test]
+    fn trashing_the_same_path_twice_keeps_both() {
+        let root = tmp();
+        init(&root).unwrap();
+        create_file(&root, "manuscript/01.md", "一度目").unwrap();
+        let first = trash(&root, "manuscript/01.md").unwrap();
+        create_file(&root, "manuscript/01.md", "二度目").unwrap();
+        let second = trash(&root, "manuscript/01.md").unwrap();
+
+        assert_ne!(first, second, "退避先が同じになっている");
+        assert_eq!(fs::read_to_string(&first).unwrap(), "一度目");
+        assert_eq!(fs::read_to_string(&second).unwrap(), "二度目");
+    }
+
+    /// `./` を挟んでもアプリ専用領域と判定できること。
+    /// すり抜けると、退避したものを改名で踏める
+    #[test]
+    fn app_area_is_detected_through_dot_segments() {
+        assert!(is_app_area(".app/trash/x.md"));
+        assert!(is_app_area("./.app/trash/x.md"));
+        assert!(is_app_area(".app"));
+        assert!(!is_app_area("manuscript/.app風/x.md"));
+    }
+
+    /// 改名・複製・フォルダー作成もアプリ専用領域を触れないこと。
+    /// **保存経路だけ塞いでも、別の呼び出しから抜けられては意味がない**
+    #[test]
+    fn app_area_is_closed_for_move_and_copy_too() {
+        let root = tmp();
+        init(&root).unwrap();
+        create_file(&root, "manuscript/01.md", "原稿").unwrap();
+        let trashed = trash(&root, "manuscript/01.md").unwrap();
+        let rel = std::path::Path::new(&trashed)
+            .strip_prefix(&root)
+            .unwrap()
+            .to_string_lossy()
+            .replace(char::from(92), "/");
+
+        create_file(&root, "manuscript/02.md", "べつの原稿").unwrap();
+        // 原稿をアプリ専用領域へ押し込めない(`./` で回り込むのも塞ぐ)
+        assert!(rename(&root, "manuscript/02.md", ".app/backups/02.md").is_err());
+        assert!(rename(&root, "manuscript/02.md", "./.app/backups/02.md").is_err());
+        // 退避したものを取り出す・複製する・その中にフォルダーを作る、も塞ぐ
+        assert!(rename(&root, &rel, "manuscript/戻し.md").is_err());
+        assert!(duplicate(&root, &rel).is_err());
+        assert!(create_dir(&root, ".app/新しい").is_err());
+        // 退避した中身は無傷
+        assert_eq!(fs::read_to_string(&trashed).unwrap(), "原稿");
+        assert!(resolve(&root, "manuscript/02.md").unwrap().exists());
     }
 
     #[test]
