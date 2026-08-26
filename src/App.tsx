@@ -433,6 +433,11 @@ export default function App() {
         if (live.current.currentPath === p) {
           setSavedText(t);
           setModifiedMs(r.modified_ms);
+          // **再描画を待たずに ref も更新する。** live.current は描画のたびに
+          // 作り直されるので、次の自動保存が描画より先に走ると古い時刻で
+          // 照合してしまい、自分が書いた変更を競合と誤判定する
+          live.current.modifiedMs = r.modified_ms;
+          live.current.savedText = t;
         }
         setStatus(
           `${silent ? "自動保存" : "保存"}しました(${new Date().toLocaleTimeString()})`,
