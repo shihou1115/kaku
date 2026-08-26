@@ -40,6 +40,12 @@ struct AppState {
     /// 開いているプロジェクトのルート。未選択なら None
     root: Mutex<Option<PathBuf>>,
     ai: Mutex<AiSettings>,
+    /// AIの中止(T-10撤回後も V1 の約束に残っている `cancel`)。
+    ///
+    /// 実行中フラグではなく**世代番号**にする。中止は「いま走っているものを止める」
+    /// 操作なので、フラグ方式だと後から始まった処理が先の中止を打ち消してしまう。
+    /// 各実行は開始時の番号を覚え、番号が変わっていたら自分は中止されたと判断する。
+    ai_epoch: std::sync::atomic::AtomicU64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -114,6 +120,37 @@ fn root_of(state: &State<AppState>) -> Result<PathBuf, String> {
 
 fn to_msg(e: ProjectError) -> String {
     e.to_string()
+}
+
+/// 実行中のAI処理を中止する。
+///
+/// 走っているリクエスト自体は途中で切らない(HTTPの中断まで持ち込むと
+/// 薄いクライアントでなくなる)。**次の塊へ進まない**ところで止める。
+/// 校正は最大4分割×240秒あるので、これだけで待ち時間の上限が大きく下がる。
+#[tauri::command]
+fn cancel_ai(state: State<AppState>) {
+    state
+        .ai_epoch
+        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+}
+
+/// 開始時の世代番号。これが変わったら中止された
+fn ai_epoch(state: &State<AppState>) -> u64 {
+    state.ai_epoch.load(std::sync::atomic::Ordering::SeqCst)
+}
+
+fn ai_cancelled(state: &State<AppState>, epoch: u64) -> bool {
+    ai_epoch(state) != epoch
+}
+
+/// 中止されたことを結果の断り書きに足す。**黙って短い結果を返さない**
+/// (「ここまでしか見ていない」と分かる形にする)
+fn note_cancelled(warning: Option<String>) -> Option<String> {
+    let head = "中止しました。ここまでの結果だけを表示しています".to_string();
+    Some(match warning {
+        Some(w) => format!("{head} / {w}"),
+        None => head,
+    })
 }
 
 // ===== プロジェクト =====
@@ -462,8 +499,14 @@ async fn proofread_ai(
     let mut truncated = 0usize;
     // 応答は返ったが形式として読み取れなかった塊。これも「誤りなし」ではない
     let mut unparsed = 0usize;
+    let epoch = ai_epoch(&state);
+    let mut cancelled = false;
 
     for chunk in &chunks {
+        if ai_cancelled(&state, epoch) {
+            cancelled = true;
+            break;
+        }
         let messages = vec![
             ChatMessage {
                 role: "system".into(),
@@ -520,19 +563,21 @@ async fn proofread_ai(
 
         let mut issues = proofread::parse_ai_issues(&raw);
         let mut structured = proofread::looks_structured(&raw);
-        // 構造化出力が通ったのに中身が取れない場合は経路Bで測り直す。
+        // **指定した形で読み取れない**場合は経路Bで測り直す(レビュー側と同じ条件)。
+        // 条件を `issues.is_empty()` にすると、正常な「指摘なし」(`{"issues":[]}`)でも
+        // 毎回2回投げることになり、誤字の無い本文ほど時間とトークンが倍かかる。
         // ただし**打ち切られていた場合は再試行しない**。原因はコンテキスト長の
         // 不足であって出力形式ではないため、投げ直しても同じ結果になり時間を捨てるだけ
-        if issues.is_empty() && !used_fallback && !chunk_truncated {
+        if !structured && !used_fallback && !chunk_truncated {
             if let Ok(out) = ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.1, None).await
             {
                 completion_tokens += out.usage.map(|u| u.completion_tokens).unwrap_or(0);
-                let retried = proofread::parse_ai_issues(&out.content);
-                if !retried.is_empty() {
+                // 経路Bが**読み取れた**なら、0件でもそれが答え(誤字なしと読めている)
+                if proofread::looks_structured(&out.content) {
                     used_fallback = true;
-                    issues = retried;
+                    issues = proofread::parse_ai_issues(&out.content);
+                    structured = true;
                 }
-                structured = structured || proofread::looks_structured(&out.content);
             }
         }
         // 応答は返ったのに形式を守っていない塊。**「誤りなし」ではない**
@@ -590,7 +635,7 @@ async fn proofread_ai(
         chunks: chunks.len(),
         elapsed_ms,
         tokens_per_sec,
-        warning,
+        warning: if cancelled { note_cancelled(warning) } else { warning },
     })
 }
 
@@ -768,8 +813,14 @@ async fn review_ai(
     let mut refused = 0usize;
     // 応答は返ったが指定した形で読み取れなかった塊。これも「指摘なし」ではない
     let mut unparsed = 0usize;
+    let epoch = ai_epoch(&state);
+    let mut cancelled = false;
 
     for chunk in &chunks {
+        if ai_cancelled(&state, epoch) {
+            cancelled = true;
+            break;
+        }
         let messages = vec![
             ChatMessage {
                 role: "system".into(),
@@ -921,7 +972,7 @@ async fn review_ai(
         tokens_per_sec,
         refused: refused > 0,
         unparsed: unparsed > 0,
-        warning,
+        warning: if cancelled { note_cancelled(warning) } else { warning },
     })
 }
 
@@ -960,8 +1011,14 @@ async fn extract_entities(
     let mut raw_all = Vec::new();
     let mut truncated = 0usize;
     let mut failures = 0usize;
+    let epoch = ai_epoch(&state);
+    let mut cancelled = false;
 
     for chunk in &chunks {
+        if ai_cancelled(&state, epoch) {
+            cancelled = true;
+            break;
+        }
         let messages = vec![
             ChatMessage {
                 role: "system".into(),
@@ -1010,7 +1067,7 @@ async fn extract_entities(
         rejected,
         chunks: chunks.len(),
         elapsed_ms: started.elapsed().as_millis() as u64,
-        warning,
+        warning: if cancelled { note_cancelled(warning) } else { warning },
     })
 }
 
@@ -1118,6 +1175,8 @@ async fn ask_ai(
         return Err("モデルが未設定です。設定でモデルを選んでください".to_string());
     }
     let messages = context::build_chat_messages(&context, &question, &history);
+    // 応答を待っている間に中止されることもあるので、投げる前に覚える
+    let epoch = ai_epoch(&state);
 
     let resp = ai::stream_request(&s.base_url, &s.api_key, &s.model, &messages, s.temperature)
         .send()
@@ -1143,6 +1202,10 @@ async fn ask_ai(
                 return Err(msg);
             }
         };
+        if ai_cancelled(&state, epoch) {
+            let _ = on_event.send(ChatEvent::Done);
+            return Ok(());
+        }
         buf.push_str(&String::from_utf8_lossy(&chunk));
         // 行単位で処理し、途中で切れた行は次のチャンクへ持ち越す
         while let Some(pos) = buf.find('\n') {
@@ -1211,6 +1274,7 @@ pub fn run() {
             list_models,
             build_context,
             ask_ai,
+            cancel_ai,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

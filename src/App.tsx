@@ -909,6 +909,19 @@ export default function App() {
             <span className="ai-dot" />
             {aiStatus.text}
           </button>
+          {/* 実行中だけ出す。校正は最大4分割×240秒あり、止められないと待つしかない */}
+          {aiStatus.kind === "busy" && (
+            <button
+              className="ai-stop"
+              title="実行中のAI処理を中止する(ここまでの結果は残ります)"
+              onClick={() => {
+                void api.cancelAi().catch(() => {});
+                setStatus("中止しています(いま送っている分の応答を待っています)");
+              }}
+            >
+              中止
+            </button>
+          )}
           {/* アプリの動作に関する設定はここ1つに集約する(§5.11 案A) */}
           <button
             onClick={() => setSettingsOpen(true)}

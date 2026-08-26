@@ -216,6 +216,12 @@ body,
 
 /* ===== AIの状態表示(ヘッダー) ===== */
 
+/* 実行中だけ出る中止ボタン。危険な操作ではないので警告色にはしない */
+.ai-stop {
+  font-size: 11px;
+  padding: 2px 8px;
+}
+
 .ai-status {
   display: inline-flex;
   align-items: center;
