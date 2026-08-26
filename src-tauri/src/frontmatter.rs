@@ -70,9 +70,9 @@ pub fn parse(fm: &str) -> FrontMatter {
         let value = strip_comment(value.trim());
 
         match key {
-            "type" => out.type_ = non_empty(unquote(value)),
-            "title" => out.title = non_empty(unquote(value)),
-            "description" => out.description = non_empty(unquote(value)),
+            "type" => out.type_ = non_empty(&unquote(value)),
+            "title" => out.title = non_empty(&unquote(value)),
+            "description" => out.description = non_empty(&unquote(value)),
             "aliases" => {
                 if value.is_empty() {
                     // ブロック形式:
@@ -83,7 +83,7 @@ pub fn parse(fm: &str) -> FrontMatter {
                         if let Some(item) = t.strip_prefix("- ").or_else(|| t.strip_prefix('-')) {
                             if next.starts_with(' ') || next.starts_with('\t') || t.starts_with('-')
                             {
-                                if let Some(v) = non_empty(unquote(strip_comment(item.trim()))) {
+                                if let Some(v) = non_empty(&unquote(strip_comment(item.trim()))) {
                                     out.aliases.push(v);
                                 }
                                 lines.next();
@@ -241,10 +241,41 @@ fn parse_inline_list(value: &str) -> Vec<String> {
         .strip_prefix('[')
         .and_then(|v| v.strip_suffix(']'))
         .unwrap_or(value);
-    inner
-        .split(',')
-        .filter_map(|p| non_empty(unquote(p.trim())))
+    split_top_level(inner)
+        .iter()
+        .filter_map(|p| non_empty(&unquote(p.trim())))
         .collect()
+}
+
+/// 引用符の外にあるカンマだけで割る。
+///
+/// 素朴に `split(',')` すると `["黒木, 龍一", "教授"]` のような別名が途中で切れる。
+/// 書き手(quote_if_needed)がカンマを含む値を引用符で包む以上、
+/// 読み手も引用符を見なければ往復が壊れる。
+fn split_top_level(inner: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    let mut quote: Option<char> = None;
+    for ch in inner.chars() {
+        match quote {
+            Some(q) => {
+                cur.push(ch);
+                if ch == q {
+                    quote = None;
+                }
+            }
+            None => match ch {
+                '"' | '\'' => {
+                    quote = Some(ch);
+                    cur.push(ch);
+                }
+                ',' => out.push(std::mem::take(&mut cur)),
+                _ => cur.push(ch),
+            },
+        }
+    }
+    out.push(cur);
+    out
 }
 
 /// 行末コメントを落とす。ただし引用符の中の `#` は残す
@@ -268,14 +299,22 @@ fn strip_comment(value: &str) -> &str {
     value
 }
 
-fn unquote(value: &str) -> &str {
+/// 引用符を外す。**書き手が付けたエスケープもここで戻す。**
+///
+/// 外すだけだと往復で壊れる:
+///  - 二重引用符: quote_if_needed が `"` を `\"` にして書く
+///  - 単一引用符: saveNote.ts が YAML の規則どおり `'` を `''` にして書く
+///
+/// 戻さないと、件名や別名に `\"` や `''` が見えたまま残る。
+fn unquote(value: &str) -> String {
     let v = value.trim();
-    for q in ['"', '\''] {
-        if v.len() >= 2 && v.starts_with(q) && v.ends_with(q) {
-            return &v[1..v.len() - 1];
-        }
+    if v.len() >= 2 && v.starts_with('"') && v.ends_with('"') {
+        return v[1..v.len() - 1].replace("\\\"", "\"");
     }
-    v
+    if v.len() >= 2 && v.starts_with('\'') && v.ends_with('\'') {
+        return v[1..v.len() - 1].replace("''", "'");
+    }
+    v.to_string()
 }
 
 fn non_empty(value: &str) -> Option<String> {
@@ -323,6 +362,26 @@ pub fn set_title(source: &str, title: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// 引用符の中のカンマで別名が切れないこと。
+    /// 書き手がカンマを含む値を包む以上、読み手も引用符を見なければ往復が壊れる
+    #[test]
+    fn aliases_keep_commas_inside_quotes() {
+        let src = "---\naliases: [\"黒木, 龍一\", 教授, '佐藤, 架純']\n---\n本文\n";
+        let fm = parse(src);
+        assert_eq!(fm.aliases, vec!["黒木, 龍一", "教授", "佐藤, 架純"]);
+    }
+
+    /// 引用符のエスケープが往復で戻ること。
+    /// 戻さないと、件名に `''` や `\"` が見えたまま残る
+    #[test]
+    fn quoted_escapes_survive_a_round_trip() {
+        let src = "---\ntitle: '架純''s: 展開案'\n---\n";
+        assert_eq!(parse(src).title.as_deref(), Some("架純's: 展開案"));
+
+        let src = "---\ntitle: \"引用の\\\"中\\\"\"\n---\n";
+        assert_eq!(parse(src).title.as_deref(), Some("引用の\"中\""));
+    }
 
     #[test]
     fn splits_frontmatter_and_body() {

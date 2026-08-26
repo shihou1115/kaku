@@ -5,6 +5,7 @@
 
 // ドメインロジックは統合テスト(tests/flow.rs)からも叩けるよう公開する
 pub mod ai;
+pub mod ailog;
 pub mod context;
 pub mod extract;
 pub mod frontmatter;
@@ -141,6 +142,33 @@ fn ai_epoch(state: &State<AppState>) -> u64 {
 
 fn ai_cancelled(state: &State<AppState>, epoch: u64) -> bool {
     ai_epoch(state) != epoch
+}
+
+/// AI呼び出しを記録する(T-06)。プロジェクトが開かれていなければ何もしない。
+///
+/// **プロンプトの実体を残す**ことが目的なので、要約や省略はしない
+/// (06 §4 でプロンプトのバージョン管理機構を撤回した根拠がこのログである)。
+fn log_ai(
+    state: &State<AppState>,
+    feature: &str,
+    s: &AiSettings,
+    messages: &[ChatMessage],
+    response: &str,
+    elapsed_ms: u64,
+    note: Option<&str>,
+) {
+    if let Ok(root) = root_of(state) {
+        ailog::write(
+            &root,
+            feature,
+            &s.model,
+            &s.base_url,
+            messages,
+            response,
+            elapsed_ms,
+            note,
+        );
+    }
 }
 
 /// 中止されたことを結果の断り書きに足す。**黙って短い結果を返さない**
@@ -534,6 +562,7 @@ async fn proofread_ai(
             cancelled = true;
             break;
         }
+        let call_started = std::time::Instant::now();
         let messages = vec![
             ChatMessage {
                 role: "system".into(),
@@ -588,6 +617,15 @@ async fn proofread_ai(
             }
         };
 
+        log_ai(
+            &state,
+            "proofread",
+            &s,
+            &messages,
+            &raw,
+            call_started.elapsed().as_millis() as u64,
+            if chunk_truncated { Some("打ち切られた塊あり") } else { None },
+        );
         let mut issues = proofread::parse_ai_issues(&raw);
         let mut structured = proofread::looks_structured(&raw);
         // **指定した形で読み取れない**場合は経路Bで測り直す(レビュー側と同じ条件)。
@@ -848,6 +886,7 @@ async fn review_ai(
             cancelled = true;
             break;
         }
+        let call_started = std::time::Instant::now();
         let messages = vec![
             ChatMessage {
                 role: "system".into(),
@@ -907,6 +946,15 @@ async fn review_ai(
             }
         };
 
+        log_ai(
+            &state,
+            "review",
+            &s,
+            &messages,
+            &raw,
+            call_started.elapsed().as_millis() as u64,
+            if chunk_truncated { Some("打ち切られた塊あり") } else { None },
+        );
         let mut parsed = review::parse(&raw);
         let mut shown_raw = raw;
         // 指定した形で読み取れない場合は経路Bで測り直す。
@@ -1046,6 +1094,7 @@ async fn extract_entities(
             cancelled = true;
             break;
         }
+        let call_started = std::time::Instant::now();
         let messages = vec![
             ChatMessage {
                 role: "system".into(),
@@ -1062,6 +1111,15 @@ async fn extract_entities(
                 if out.truncated() {
                     truncated += 1;
                 }
+                log_ai(
+                    &state,
+                    "extract",
+                    &s,
+                    &messages,
+                    &out.content,
+                    call_started.elapsed().as_millis() as u64,
+                    if out.truncated() { Some("打ち切られた") } else { None },
+                );
                 raw_all.extend(extract::parse(&out.content));
             }
             Err(_) => failures += 1,
@@ -1204,6 +1262,9 @@ async fn ask_ai(
     let messages = context::build_chat_messages(&context, &question, &history);
     // 応答を待っている間に中止されることもあるので、投げる前に覚える
     let epoch = ai_epoch(&state);
+    let call_started = std::time::Instant::now();
+    // 記録(T-06)のために手元にも積む。画面へ流すのとは別物
+    let mut answer = String::new();
 
     let resp = ai::stream_request(&s.base_url, &s.api_key, &s.model, &messages, s.temperature)
         .send()
@@ -1231,6 +1292,15 @@ async fn ask_ai(
             }
         };
         if ai_cancelled(&state, epoch) {
+            log_ai(
+                &state,
+                "chat",
+                &s,
+                &messages,
+                &answer,
+                call_started.elapsed().as_millis() as u64,
+                Some("中止された"),
+            );
             let _ = on_event.send(ChatEvent::Done);
             return Ok(());
         }
@@ -1239,9 +1309,23 @@ async fn ask_ai(
         for line in ai::drain_sse_lines(&mut buf) {
             match ai::parse_sse_line(&line) {
                 ai::SseEvent::Delta(d) => {
+                    answer.push_str(&d);
                     let _ = on_event.send(ChatEvent::Delta(d));
                 }
                 ai::SseEvent::Done => {
+                    log_ai(
+                        &state,
+                        "chat",
+                        &s,
+                        &messages,
+                        &answer,
+                        call_started.elapsed().as_millis() as u64,
+                        if answer.is_empty() {
+                            Some("応答が1文字も返らなかった(拒否の疑い)")
+                        } else {
+                            None
+                        },
+                    );
                     let _ = on_event.send(ChatEvent::Done);
                     return Ok(());
                 }
@@ -1253,9 +1337,23 @@ async fn ask_ai(
     if !buf.is_empty() {
         let line = String::from_utf8_lossy(&buf).into_owned();
         if let ai::SseEvent::Delta(d) = ai::parse_sse_line(&line) {
+            answer.push_str(&d);
             let _ = on_event.send(ChatEvent::Delta(d));
         }
     }
+    log_ai(
+        &state,
+        "chat",
+        &s,
+        &messages,
+        &answer,
+        call_started.elapsed().as_millis() as u64,
+        if answer.is_empty() {
+            Some("応答が1文字も返らなかった(拒否の疑い)")
+        } else {
+            None
+        },
+    );
     let _ = on_event.send(ChatEvent::Done);
     Ok(())
 }

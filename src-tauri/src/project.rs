@@ -252,7 +252,11 @@ fn collect_codex(root: &Path, dir: &Path, out: &mut Vec<CodexEntry>) -> Result<(
     Ok(())
 }
 
-/// ファイルを読む。UTF-8(BOM有無)と Shift_JIS を受け入れる(§4.4)。
+/// ファイルを読む。**UTF-8(BOM有無)だけを受け入れる。**
+///
+/// 03-data-format.md §4.4 は Shift_JIS の受容も挙げているが、実装はしていない。
+/// 判別を誤ると本文が静かに壊れるので、読めないものは読めないと言う方を採る
+/// (既存原稿の取り込みは Q-4 で決まってから)。
 pub fn read_text(root: &Path, relative: &str) -> Result<String, ProjectError> {
     let path = resolve(root, relative)?;
     let bytes = fs::read(&path)?;
@@ -630,6 +634,13 @@ fn timestamp_dir(t: std::time::SystemTime) -> String {
         (rem % 3600) / 60,
         rem % 60
     )
+}
+
+/// UNIXミリ秒 → `YYYY-MM-DD`(UTC)。AI呼び出しログの日別ファイル名に使う
+pub fn date_dir_utc(at_ms: u128) -> String {
+    let days = (at_ms / 86_400_000) as i64;
+    let (y, m, d) = civil_from_days(days);
+    format!("{y:04}-{m:02}-{d:02}")
 }
 
 /// エポック日数 → 年月日(Howard Hinnant の civil_from_days)
