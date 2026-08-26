@@ -325,11 +325,21 @@ pub fn apply(
         }
     }
 
-    for (target, seg) in targets.iter().zip(segs.iter()) {
+    for (i, (target, seg)) in targets.iter().zip(segs.iter()).enumerate() {
         // 元のフロントマターを引き継ぎ、title だけ差し替える(未知フィールドを壊さない)
         let content =
             crate::frontmatter::set_title(&format!("{header}{}", seg.text), &seg.title);
-        crate::project::create_file(root, target, &content).map_err(|e| e.to_string())?;
+        if let Err(e) = crate::project::create_file(root, target, &content) {
+            // **途中で失敗したら、このコールで作った分を消して元へ戻す。**
+            // 上の事前確認で「空いている」と確かめた場所だけなので、消して安全。
+            // 元原稿にはまだ触れていない(ゴミ箱への退避はこのループの後)
+            for done in &targets[..i] {
+                if let Ok(p) = crate::project::resolve(root, done) {
+                    let _ = std::fs::remove_file(p);
+                }
+            }
+            return Err(e.to_string());
+        }
     }
 
     let trashed = crate::project::trash(root, path).map_err(|e| e.to_string())?;

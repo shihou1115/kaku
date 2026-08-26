@@ -206,6 +206,24 @@ pub async fn chat(
     })
 }
 
+/// 受信バッファから**完結した行だけ**を取り出す(残りは次のチャンクへ持ち越す)。
+///
+/// **チャンクの切れ目はUTF-8の文字境界と一致しない。** 受信するのは
+/// ソケットの読み取り単位であって、SSEイベントでも文字でもない。
+/// チャンクごとに `from_utf8_lossy` を通すと、2つに割れた日本語1文字が
+/// その時点で U+FFFD に潰れ、あとから直せない。
+///
+/// バイト列のまま改行を探し、行が完結してから文字列にする。
+/// 区切りの改行(0x0A)はASCIIなので、マルチバイト列の途中に現れることはない。
+pub fn drain_sse_lines(buf: &mut Vec<u8>) -> Vec<String> {
+    let mut lines = Vec::new();
+    while let Some(pos) = buf.iter().position(|&b| b == b'\n') {
+        let line: Vec<u8> = buf.drain(..=pos).collect();
+        lines.push(String::from_utf8_lossy(&line).into_owned());
+    }
+    lines
+}
+
 /// SSE の1行から本文の増分を取り出す。
 ///
 /// `data: {...}` 形式。`[DONE]` は終端。解析できない行は無視する(寛容に扱う)。
@@ -271,6 +289,42 @@ pub fn stream_request(
         response_format: None,
     };
     auth(client().post(&url), api_key).json(&body)
+}
+
+#[cfg(test)]
+mod tests_sse_lines {
+    use super::*;
+
+    /// **チャンクの切れ目が文字の途中に落ちても化けないこと。**
+    /// ここが壊れると、日本語が U+FFFD に潰れたまま画面にも会話履歴にも残る
+    #[test]
+    fn a_character_split_across_chunks_survives() {
+        let payload = "data: {\"choices\":[{\"delta\":{\"content\":\"あい\"}}]}\n";
+        let bytes = payload.as_bytes();
+        // 「あ」の3バイトの途中で割る
+        let head = payload.find('あ').unwrap() + 1;
+
+        let mut buf: Vec<u8> = Vec::new();
+        buf.extend_from_slice(&bytes[..head]);
+        assert!(drain_sse_lines(&mut buf).is_empty(), "行が完結していないのに出した");
+        buf.extend_from_slice(&bytes[head..]);
+        let lines = drain_sse_lines(&mut buf);
+
+        assert_eq!(lines.len(), 1);
+        assert!(!lines[0].contains(char::REPLACEMENT_CHARACTER), "化けた: {}", lines[0]);
+        assert!(matches!(parse_sse_line(&lines[0]), SseEvent::Delta(ref d) if d == "あい"));
+        assert!(buf.is_empty());
+    }
+
+    /// 完結していない行は次のチャンクへ持ち越すこと
+    #[test]
+    fn incomplete_lines_are_carried_over() {
+        let mut buf: Vec<u8> = Vec::new();
+        buf.extend_from_slice(b"data: 1\ndata: 2");
+        let lines = drain_sse_lines(&mut buf);
+        assert_eq!(lines, vec!["data: 1\n".to_string()]);
+        assert_eq!(buf, b"data: 2");
+    }
 }
 
 #[cfg(test)]

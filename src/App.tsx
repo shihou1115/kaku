@@ -211,18 +211,35 @@ export default function App() {
   // 古い値で上書きし合う。持ち主を1つにして防ぐ
   const [aiSettings, setAiSettings] = useState<AiSettings | null>(null);
 
+  /** 起動時に読んだ値。これと同じものを書き戻さないための目印 */
+  const loadedSettings = useRef<AiSettings | null>(null);
+
   useEffect(() => {
-    api.getAiSettings().then(setAiSettings).catch(() => {});
+    api
+      .getAiSettings()
+      .then((s) => {
+        loadedSettings.current = s;
+        setAiSettings(s);
+      })
+      .catch(() => {});
   }, []);
 
   const patchAiSettings = useCallback((p: Partial<AiSettings>) => {
-    setAiSettings((prev) => {
-      if (!prev) return prev;
-      const next = { ...prev, ...p };
-      api.setAiSettings(next).catch(() => {});
-      return next;
-    });
+    // **updater は純粋に保つ。** 以前はここで保存まで呼んでいたが、
+    // 状態更新の副作用として書き込むと、打鍵のたびに settings.json の
+    // 読み書きが同期で走る(StrictMode では二重に走る)
+    setAiSettings((prev) => (prev ? { ...prev, ...p } : prev));
   }, []);
+
+  // 保存は状態更新と分け、入力が落ち着いてから1回だけ書く。
+  // 接続先URLを打ち直すと数十回の書き込みになっていた
+  useEffect(() => {
+    if (!aiSettings || aiSettings === loadedSettings.current) return;
+    const t = setTimeout(() => {
+      void api.setAiSettings(aiSettings).catch(() => {});
+    }, 400);
+    return () => clearTimeout(t);
+  }, [aiSettings]);
 
   // ===== AIの状態(ヘッダーに出す) =====
   //

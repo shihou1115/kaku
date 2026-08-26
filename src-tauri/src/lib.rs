@@ -1219,7 +1219,8 @@ async fn ask_ai(
     }
 
     let mut stream = resp.bytes_stream();
-    let mut buf = String::new();
+    // **バイト列のまま持つ。** チャンクごとに文字列化すると、割れた日本語1文字が化ける
+    let mut buf: Vec<u8> = Vec::new();
     while let Some(chunk) = stream.next().await {
         let chunk = match chunk {
             Ok(c) => c,
@@ -1233,10 +1234,9 @@ async fn ask_ai(
             let _ = on_event.send(ChatEvent::Done);
             return Ok(());
         }
-        buf.push_str(&String::from_utf8_lossy(&chunk));
-        // 行単位で処理し、途中で切れた行は次のチャンクへ持ち越す
-        while let Some(pos) = buf.find('\n') {
-            let line: String = buf.drain(..=pos).collect();
+        buf.extend_from_slice(&chunk);
+        // 行単位で処理し、途中で切れた行は次のチャンクへ持ち越す(ai::drain_sse_lines)
+        for line in ai::drain_sse_lines(&mut buf) {
             match ai::parse_sse_line(&line) {
                 ai::SseEvent::Delta(d) => {
                     let _ = on_event.send(ChatEvent::Delta(d));
@@ -1247,6 +1247,13 @@ async fn ask_ai(
                 }
                 ai::SseEvent::Ignore => {}
             }
+        }
+    }
+    // 改行で終わらずに切れた最後の行も捨てない([DONE] を送らないサーバがある)
+    if !buf.is_empty() {
+        let line = String::from_utf8_lossy(&buf).into_owned();
+        if let ai::SseEvent::Delta(d) = ai::parse_sse_line(&line) {
+            let _ = on_event.send(ChatEvent::Delta(d));
         }
     }
     let _ = on_event.send(ChatEvent::Done);
