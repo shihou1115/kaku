@@ -274,16 +274,43 @@ fn read_file(path: String, state: State<AppState>) -> Result<FileContent, String
     })
 }
 
+/// 保存の結果。**競合はエラーではない**ので Ok で返す。
+///
+/// Err にすると自動保存の失敗通知と混ざり、フロントが文字列で見分ける羽目になる。
+#[derive(Serialize)]
+#[serde(tag = "kind")]
+enum SaveOutcome {
+    /// 書けた。値は保存後の更新時刻
+    Saved { modified_ms: u64 },
+    /// **書いていない。** 読み込んだ後に外部で書き換えられていた(T-08)
+    Conflict { actual_ms: u64 },
+}
+
 /// 保存(保存前に1世代のバックアップを取る)。
 ///
-/// 戻り値は保存後の更新時刻。**書けたあとに更新時刻が読めなくても保存は失敗ではない**
-/// ので 0 を返す。ここで Err にすると、フロントは「保存に失敗した」と判断して
-/// 切替や終了を止めてしまう(書けているのに操作できなくなる)。
+/// `expected_ms` を渡すと、**ディスク側がその時刻のままの場合だけ書く**(楽観ロック)。
+/// 外部エディタやgitでの書き換えを黙って踏み潰さないため(T-08 / D-5「勝手に上書きしない」)。
+/// 新規作成直後など、まだ時刻を持っていない経路は `None` で素通しできる。
+///
+/// 戻り値の更新時刻は、**書けたあとに読めなくても保存は失敗ではない**ので 0 を返す。
+/// ここで Err にすると、フロントは「保存に失敗した」と判断して切替や終了を止めてしまう。
 #[tauri::command]
-fn save_file(path: String, text: String, state: State<AppState>) -> Result<u64, String> {
+fn save_file(
+    path: String,
+    text: String,
+    expected_ms: Option<u64>,
+    state: State<AppState>,
+) -> Result<SaveOutcome, String> {
     let root = root_of(&state)?;
+    if let Ok(actual) = project::modified_ms(&root, &path) {
+        if project::is_stale(actual, expected_ms) {
+            return Ok(SaveOutcome::Conflict { actual_ms: actual });
+        }
+    }
     project::write_text(&root, &path, &text).map_err(to_msg)?;
-    Ok(project::modified_ms(&root, &path).unwrap_or(0))
+    Ok(SaveOutcome::Saved {
+        modified_ms: project::modified_ms(&root, &path).unwrap_or(0),
+    })
 }
 
 #[tauri::command]

@@ -607,6 +607,15 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
 /// 外部編集の検知に使う更新時刻(エポックからのミリ秒)。
 ///
 /// 常駐監視はしない。フロントがフォーカス復帰時に問い合わせる(§5-1)。
+/// 読み込んだ後に外部で書き換えられたか(楽観ロック=T-08)。
+///
+/// `expected` が無ければ照合しない(新規作成直後など、まだ時刻を持たない経路)。
+/// **0 は「時刻が読めなかった」の印**なので照合に使わない。ここを弾かないと、
+/// 時刻を読めない環境で保存が毎回競合になり、一切書けなくなる。
+pub fn is_stale(actual_ms: u64, expected_ms: Option<u64>) -> bool {
+    matches!(expected_ms, Some(e) if e != 0 && e != actual_ms)
+}
+
 pub fn modified_ms(root: &Path, relative: &str) -> Result<u64, ProjectError> {
     let path = resolve(root, relative)?;
     let meta = fs::metadata(path)?;
@@ -948,6 +957,18 @@ mod tests {
         let second = duplicate(&root, "codex/characters/架純.md").unwrap();
         assert_eq!(second, "codex/characters/架純 のコピー2.md");
         fs::remove_dir_all(root).ok();
+    }
+
+    #[test]
+    fn stale_check_only_fires_on_a_real_mismatch() {
+        // 時刻が一致していれば書いてよい
+        assert!(!is_stale(1_000, Some(1_000)));
+        // 外部で書き換えられた
+        assert!(is_stale(2_000, Some(1_000)));
+        // 期待値を持たない経路は素通し
+        assert!(!is_stale(2_000, None));
+        // **0 は「読めなかった」の印。** 照合すると保存が一切通らなくなる
+        assert!(!is_stale(2_000, Some(0)));
     }
 
     #[test]

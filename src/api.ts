@@ -221,6 +221,16 @@ export type ChatTurn = {
   answer: string;
 };
 
+/**
+ * 保存の結果。**競合はエラーではない**(T-08)。
+ *
+ * `Conflict` は「書いていない」ことを意味する。読み込んだ後に外部で
+ * 書き換えられていたので、どうするかを人に決めてもらう。
+ */
+export type SaveOutcome =
+  | { kind: "Saved"; modified_ms: number }
+  | { kind: "Conflict"; actual_ms: number };
+
 export type ChatEvent =
   | { kind: "Delta"; value: string }
   | { kind: "Done" }
@@ -234,8 +244,12 @@ export const api = {
     invoke<OpenedProject>("create_sample_project", { path }),
   refreshProject: () => invoke<OpenedProject>("refresh_project"),
   readFile: (path: string) => invoke<FileContent>("read_file", { path }),
-  saveFile: (path: string, text: string) =>
-    invoke<number>("save_file", { path, text }),
+  /**
+   * 保存する。`expectedMs` を渡すと、ディスク側がその時刻のままの場合だけ書く。
+   * 外部編集を黙って踏み潰さないための楽観ロック(T-08)。
+   */
+  saveFile: (path: string, text: string, expectedMs: number | null) =>
+    invoke<SaveOutcome>("save_file", { path, text, expectedMs }),
   createFile: (path: string, text: string) =>
     invoke<boolean>("create_file", { path, text }),
   fileModifiedMs: (path: string) =>
