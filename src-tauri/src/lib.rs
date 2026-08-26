@@ -237,12 +237,16 @@ fn read_file(path: String, state: State<AppState>) -> Result<FileContent, String
     })
 }
 
-/// 保存(保存前に1世代のバックアップを取る)
+/// 保存(保存前に1世代のバックアップを取る)。
+///
+/// 戻り値は保存後の更新時刻。**書けたあとに更新時刻が読めなくても保存は失敗ではない**
+/// ので 0 を返す。ここで Err にすると、フロントは「保存に失敗した」と判断して
+/// 切替や終了を止めてしまう(書けているのに操作できなくなる)。
 #[tauri::command]
 fn save_file(path: String, text: String, state: State<AppState>) -> Result<u64, String> {
     let root = root_of(&state)?;
     project::write_text(&root, &path, &text).map_err(to_msg)?;
-    project::modified_ms(&root, &path).map_err(to_msg)
+    Ok(project::modified_ms(&root, &path).unwrap_or(0))
 }
 
 #[tauri::command]

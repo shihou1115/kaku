@@ -157,6 +157,8 @@ export default function App() {
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  /** 保存に失敗したまま閉じようとしたとき。捨ててよいかを本人に聞く */
+  const [closeAsk, setCloseAsk] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   /** 本文で選択して右クリックしたときのメニュー位置 */
   const [selMenu, setSelMenu] = useState<{ x: number; y: number } | null>(null);
@@ -358,14 +360,22 @@ export default function App() {
   const live = useRef({ currentPath, text, savedText });
   live.current = { currentPath, text, savedText };
   /** 実行中の保存。切替時はこれを待ってから次に進む */
-  const inflight = useRef<Promise<void> | null>(null);
+  const inflight = useRef<Promise<boolean> | null>(null);
 
-  /** 未保存なら保存する。silent=true なら控えめに通知する */
-  const flushSave = useCallback(async (silent: boolean): Promise<void> => {
+  /**
+   * 未保存なら保存する。silent=true なら控えめに通知する。
+   *
+   * **戻り値は「このあと本文を捨ててよいか」。** 保存に失敗したまま切替・削除・終了へ
+   * 進むと、編集内容はどこにも残らない(`.app/backups/` に入るのは**保存前のディスクの
+   * 内容**であって、未保存の編集ではない)。保存するものが無い場合は true。
+   */
+  const flushSave = useCallback(async (silent: boolean): Promise<boolean> => {
     // 実行中の保存があれば必ず待つ(待たずに切り替えると保存が取りこぼされる)
-    if (inflight.current) await inflight.current;
+    let ok = true;
+    if (inflight.current) ok = await inflight.current;
     const { currentPath: p, text: t, savedText: s } = live.current;
-    if (!p || t === s) return;
+    // 保存するものが無いときは、直前の保存の成否をそのまま返す
+    if (!p || t === s) return ok;
 
     const task = (async () => {
       try {
@@ -378,13 +388,15 @@ export default function App() {
         setStatus(
           `${silent ? "自動保存" : "保存"}しました(${new Date().toLocaleTimeString()})`,
         );
+        return true;
       } catch (e) {
         setStatus(`保存に失敗しました: ${e}`);
+        return false;
       }
     })();
     inflight.current = task;
     try {
-      await task;
+      return await task;
     } finally {
       if (inflight.current === task) inflight.current = null;
     }
@@ -425,8 +437,13 @@ export default function App() {
             return;
           }
           e.preventDefault();
-          await flushSave(true);
-          await w.destroy();
+          // 保存できていないまま破棄すると、書いたものがどこにも残らない。
+          // 黙って閉じずに、捨てるかどうかを本人に選ばせる
+          if (await flushSave(true)) {
+            await w.destroy();
+            return;
+          }
+          setCloseAsk(true);
         })
         .then((f) => {
           unlisten = f;
@@ -468,7 +485,10 @@ export default function App() {
   // ===== ファイル操作 =====
 
   const openProject = useCallback(async () => {
-    await flushSave(true);
+    if (!(await flushSave(true))) {
+      setStatus("保存に失敗したため、プロジェクトの切り替えを中止しました");
+      return;
+    }
     const picked = await openDialog({
       directory: true,
       title: "小説プロジェクトのフォルダを選ぶ(空フォルダなら新規作成)",
@@ -495,7 +515,10 @@ export default function App() {
    * **AI未接続でも試せる**素材(ハイライトと表記ゆれ検出)を入れてある
    */
   const openSample = useCallback(async () => {
-    await flushSave(true);
+    if (!(await flushSave(true))) {
+      setStatus("保存に失敗したため、サンプルの作成を中止しました");
+      return;
+    }
     const picked = await openDialog({
       directory: true,
       title: "サンプルを作るフォルダを選ぶ(空のフォルダを推奨)",
@@ -520,8 +543,15 @@ export default function App() {
   /** ファイルを開く。開いた本文を返す(検索から一致箇所へ飛ぶのに使う) */
   const openFile = useCallback(
     async (path: string): Promise<string | null> => {
-      // 切り替え前に必ず保存する(ここが編集内容を失う最大の場面だった)
-      await flushSave(true);
+      // 切り替え前に必ず保存する(ここが編集内容を失う最大の場面だった)。
+      // **保存できていなければ切り替えない** — バッファを差し替えると、
+      // 書いたものはディスクにもundo履歴にも残らない
+      if (!(await flushSave(true))) {
+        setStatus(
+          "保存に失敗したため、ファイルの切り替えを中止しました。本文はこのまま残っています",
+        );
+        return null;
+      }
       try {
         const f = await api.readFile(path);
         setCurrentPath(f.path);
@@ -650,7 +680,13 @@ export default function App() {
         currentPath === node.path ||
         (node.is_dir && currentPath?.startsWith(`${node.path}/`));
       if (openedInside) {
-        await flushSave(true);
+        // 保存できていなければ、閉じることも削除もしない
+        if (!(await flushSave(true))) {
+          setStatus(
+            "保存に失敗したため、削除を中止しました。本文はこのまま残っています",
+          );
+          return;
+        }
         setCurrentPath(null);
         setText("");
         setSavedText("");
@@ -1194,6 +1230,22 @@ export default function App() {
           selectStem={prompt.mode === "rename" && !prompt.node.is_dir}
           onSubmit={(v) => void doPrompt(v)}
           onCancel={() => setPrompt(null)}
+        />
+      )}
+
+      {/* 保存に失敗したまま閉じようとしたとき。黙って捨てない(§7 指摘1) */}
+      {closeAsk && (
+        <ConfirmDialog
+          title="保存できていません"
+          message="このまま閉じると、保存できていない編集内容は失われます。"
+          note="閉じずに戻れば、本文はそのまま残っています。別の場所へコピーするか、原因(ファイルが読み取り専用・同期ソフトのロック・空き容量)を取り除いてから保存し直せます。"
+          confirmLabel="保存せずに閉じる"
+          danger
+          onConfirm={() => {
+            setCloseAsk(false);
+            void getCurrentWindow().destroy();
+          }}
+          onCancel={() => setCloseAsk(false)}
         />
       )}
 
