@@ -751,8 +751,7 @@ async fn suggest_scene_split(
     // 分割は**全体を通して読まないと切れ目が分からない**ので、分割送信はしない。
     // 長すぎてコンテキストに入らない場合は打ち切りとして正直に伝える
     let out = ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.2, None)
-        .await
-        .map_err(|e| e)?;
+        .await?;
 
     let warning = if out.finish_reason.as_deref() == Some("length") {
         Some(

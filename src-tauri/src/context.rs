@@ -64,7 +64,7 @@ pub fn build(
     // 手動追加を先に入れる(ユーザーの明示的な意思を優先して切り捨てから守る)
     for (paths, source) in [(manual_paths, "manual"), (mentioned_paths, "mention")] {
         for p in paths {
-            if seen.iter().any(|s| *s == p.as_str()) {
+            if seen.contains(&p.as_str()) {
                 continue;
             }
             let Some(c) = codex.iter().find(|c| &c.path == p) else {

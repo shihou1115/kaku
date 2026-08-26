@@ -335,7 +335,11 @@ export default function App() {
    */
   const inTrash = currentPath !== null && isTrashPath(currentPath);
   const dirty = text !== savedText;
-  const codex: CodexEntry[] = project?.codex ?? [];
+  // 毎描画で新しい配列を作ると、これを依存に持つ言及検出などが毎回走り直す
+  const codex: CodexEntry[] = useMemo(
+    () => project?.codex ?? [],
+    [project],
+  );
 
   useEffect(() => {
     localStorage.setItem(LS.leftW, String(leftW));

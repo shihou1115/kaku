@@ -234,7 +234,7 @@ mod tests {
     fn mask_keeps_positions_in_utf16() {
         // **ここが崩れると表記ゆれの指摘位置がずれる**
         let t = "　架純は｜白鏡《しろかがみ》を見た。";
-        let m = mask(&t);
+        let m = mask(t);
         assert_eq!(
             t.chars().count(),
             m.chars().count(),

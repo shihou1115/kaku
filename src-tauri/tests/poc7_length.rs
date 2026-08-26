@@ -88,8 +88,8 @@ async fn detection_rate_by_length() {
     eprintln!("接続先: {base_url}\nモデル: {model}\n");
     eprintln!("埋め込んだ誤り: {}件", ERRORS.len());
     eprintln!(
-        "{:>7} | {:>6} | {:>8} | {:>6} | {:>7} | {:>7} | {:>7} | {}",
-        "文字数", "検知", "検知率", "誤検出", "prompt", "出力tok", "tok/s", "所要"
+        "{:>7} | {:>6} | {:>8} | {:>6} | {:>7} | {:>7} | {:>7} | 所要",
+        "文字数", "検知", "検知率", "誤検出", "prompt", "出力tok", "tok/s"
     );
     eprintln!("{}", "-".repeat(84));
 

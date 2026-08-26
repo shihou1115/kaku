@@ -42,6 +42,9 @@ struct Entry<'a> {
 }
 
 /// 1件追記する。失敗は握りつぶす(呼び出し元の処理を止めない)。
+///
+/// 引数は多いが、構造体にまとめると呼び出し側が冗長になるだけで読みやすくならない
+#[allow(clippy::too_many_arguments)]
 pub fn write(
     root: &Path,
     feature: &str,

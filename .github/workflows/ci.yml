@@ -40,7 +40,16 @@ jobs:
 
       - run: npm run build
 
+      # 入れた理由は react-hooks の依存チェック1点(過去に無限ループを踏んだ形)
+      - run: npm run lint
+
       - run: npm test
+
+      # 既知の脆弱性が入ったまま配らない
+      - run: npm audit --audit-level=high
+
+      # 警告を残さない。ローカルで一度通してから CI に載せた
+      - run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 
       # 実機のLLMが要る2件は #[ignore] なのでここでは走らない
       - run: cargo test --manifest-path src-tauri/Cargo.toml

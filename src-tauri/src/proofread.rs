@@ -138,7 +138,7 @@ pub fn check_notation(text: &str, names: &[String]) -> Vec<NotationHit> {
     let mut grouped: Vec<(String, Vec<usize>)> = Vec::new();
     for (word, byte_pos) in candidates(text) {
         // 登録名そのものは対象外
-        if known.iter().any(|k| *k == word) {
+        if known.contains(&word) {
             continue;
         }
         match grouped.iter_mut().find(|(w, _)| *w == word) {

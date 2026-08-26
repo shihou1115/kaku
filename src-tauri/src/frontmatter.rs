@@ -172,7 +172,6 @@ pub fn add_aliases(source: &str, additions: &[String]) -> String {
     let mut fence = 0u8;
     let mut wrote = false;
     let mut skipping_block = false;
-    let mut title_line_end: Option<usize> = None;
 
     for line in source.split_inclusive('\n') {
         let bare = line.trim_end_matches(['\n', '\r']);
@@ -181,14 +180,9 @@ pub fn add_aliases(source: &str, additions: &[String]) -> String {
             fence += 1;
             // フロントマターを閉じる直前で、まだ書けていなければここで入れる
             if fence == 2 && !wrote {
-                match title_line_end {
-                    // title の直後に入れたかったが行き過ぎたので閉じ括弧の前に置く
-                    _ => {
-                        out.push_str(&alias_line);
-                        out.push_str(nl);
-                        wrote = true;
-                    }
-                }
+                out.push_str(&alias_line);
+                out.push_str(nl);
+                wrote = true;
             }
             skipping_block = false;
             out.push_str(line);
@@ -212,9 +206,6 @@ pub fn add_aliases(source: &str, additions: &[String]) -> String {
                 // インライン形式なら後続は無い。ブロック形式なら項目行を捨てる
                 skipping_block = bare.split_once(':').map(|(_, v)| v.trim().is_empty()).unwrap_or(false);
                 continue;
-            }
-            if bare.trim_start().starts_with("title:") {
-                title_line_end = Some(out.len() + line.len());
             }
         }
         out.push_str(line);
@@ -287,12 +278,11 @@ fn strip_comment(value: &str) -> &str {
             Some(q) if b == q => quote = None,
             Some(_) => {}
             None if b == b'"' || b == b'\'' => quote = Some(b),
-            None if b == b'#' => {
+            None if b == b'#'
                 // ` #` の形だけをコメント開始と見なす(URL の # を誤爆させない)
-                if i == 0 || bytes[i - 1] == b' ' || bytes[i - 1] == b'\t' {
+                && (i == 0 || bytes[i - 1] == b' ' || bytes[i - 1] == b'\t') => {
                     return value[..i].trim_end();
                 }
-            }
             None => {}
         }
     }
@@ -501,7 +491,7 @@ mod tests {
     #[test]
     fn adds_aliases_to_inline_form() {
         let src = "---\ntype: character\ntitle: 黒木龍一\naliases: [黒木]\n---\n\n本文\n";
-        let got = add_aliases(&src.to_string(), &["龍一".into(), "教授".into()]);
+        let got = add_aliases(src, &["龍一".into(), "教授".into()]);
         assert!(got.contains("aliases: [黒木, 龍一, 教授]"), "{got}");
         // 他の行は温存されること
         assert!(got.contains("type: character"));

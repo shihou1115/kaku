@@ -569,7 +569,7 @@ mod tests {
         let codex = vec![entry("黒木龍一", &["教授"])];
         let got = verify(body, one("龍一", &["教授"]), &codex);
         assert_eq!(got.candidates.len(), 1);
-        assert_eq!(got.candidates[0].existing_path.is_some(), true);
+        assert!(got.candidates[0].existing_path.is_some());
         assert_eq!(got.candidates[0].aliases, vec!["龍一"]);
     }
 

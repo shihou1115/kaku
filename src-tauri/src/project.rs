@@ -507,7 +507,7 @@ pub fn create_dir(root: &Path, relative: &str) -> Result<bool, ProjectError> {
 /// 改名対象と一致したものだけを差し替える(同名別ファイルを巻き込まない)。
 fn rewrite_links(root: &Path, old_rel: &str, new_rel: &str) -> Result<(), ProjectError> {
     let mut targets = Vec::new();
-    collect_md(root, root, &mut targets)?;
+    collect_md(root, &mut targets)?;
     for file in targets {
         let Ok(text) = fs::read_to_string(&file) else {
             continue;
@@ -521,7 +521,7 @@ fn rewrite_links(root: &Path, old_rel: &str, new_rel: &str) -> Result<(), Projec
     Ok(())
 }
 
-fn collect_md(root: &Path, dir: &Path, out: &mut Vec<PathBuf>) -> Result<(), ProjectError> {
+fn collect_md(dir: &Path, out: &mut Vec<PathBuf>) -> Result<(), ProjectError> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let name = entry.file_name().to_string_lossy().to_string();
@@ -530,7 +530,7 @@ fn collect_md(root: &Path, dir: &Path, out: &mut Vec<PathBuf>) -> Result<(), Pro
         }
         let path = entry.path();
         if entry.file_type()?.is_dir() {
-            collect_md(root, &path, out)?;
+            collect_md(&path, out)?;
         } else if path.extension().map(|e| e == "md").unwrap_or(false) {
             out.push(path);
         }
@@ -614,7 +614,7 @@ fn relative_from(base_dir: &str, target_rel: &str) -> String {
         .take_while(|(a, b)| a == b)
         .count();
     let ups = base.len() - common;
-    let mut parts: Vec<String> = std::iter::repeat("..".to_string()).take(ups).collect();
+    let mut parts: Vec<String> = std::iter::repeat_n("..".to_string(), ups).collect();
     parts.extend(target[common..].iter().map(|s| s.to_string()));
     parts.join("/")
 }
