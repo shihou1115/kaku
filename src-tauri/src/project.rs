@@ -509,10 +509,15 @@ pub fn create_dir(root: &Path, relative: &str) -> Result<bool, ProjectError> {
     Ok(true)
 }
 
-/// 改名に追随して、他ファイル内の相対リンクを書き換える。
+/// 改名・移動に追随して、プロジェクト内の相対リンクを書き換える(03 §5-6)。
 ///
-/// `](相対パス)` 形式のみ扱う。リンク先を各ファイルの位置から解決し、
-/// 改名対象と一致したものだけを差し替える(同名別ファイルを巻き込まない)。
+/// `](相対パス)` 形式のみ扱う。直すのは2種類:
+///  - **リンク先が動いた**もの(他のファイルから、改名したファイル・フォルダーを指すリンク)
+///  - **リンク元が動いた**もの(動かしたファイル・フォルダーの中から外を指すリンク)。
+///    深い階層へ移すと `../` の数が変わる
+///
+/// 書き換える前に、保存と同じく1世代のバックアップを取る。
+/// 一度に多くのファイルへ書くので、取り違えたときに戻せるようにしておく。
 fn rewrite_links(root: &Path, old_rel: &str, new_rel: &str) -> Result<(), ProjectError> {
     let mut targets = Vec::new();
     collect_md(root, &mut targets)?;
@@ -520,13 +525,27 @@ fn rewrite_links(root: &Path, old_rel: &str, new_rel: &str) -> Result<(), Projec
         let Ok(text) = fs::read_to_string(&file) else {
             continue;
         };
-        let dir = rel_string(root, file.parent().unwrap_or(root));
-        let replaced = replace_links(&text, &dir, old_rel, new_rel);
+        let rel = rel_string(root, &file);
+        // 動いたファイルなら、動く前の場所を復元する(リンクはそこから書かれている)
+        let before = if rel == new_rel {
+            old_rel.to_string()
+        } else if let Some(rest) = rel.strip_prefix(&format!("{new_rel}/")) {
+            format!("{old_rel}/{rest}")
+        } else {
+            rel.clone()
+        };
+        let replaced = replace_links(&text, parent_dir(&before), parent_dir(&rel), old_rel, new_rel);
         if replaced != text {
+            backup(root, &rel, &file)?;
             fs::write(&file, replaced)?;
         }
     }
     Ok(())
+}
+
+/// プロジェクト相対パスの親フォルダー(直下なら空)
+fn parent_dir(rel: &str) -> &str {
+    rel.rsplit_once('/').map(|(d, _)| d).unwrap_or("")
 }
 
 fn collect_md(dir: &Path, out: &mut Vec<PathBuf>) -> Result<(), ProjectError> {
@@ -546,8 +565,21 @@ fn collect_md(dir: &Path, out: &mut Vec<PathBuf>) -> Result<(), ProjectError> {
     Ok(())
 }
 
-/// `base_dir` にあるファイルの本文中のリンクを書き換える。純関数(テスト用に分離)。
-pub fn replace_links(text: &str, base_dir: &str, old_rel: &str, new_rel: &str) -> String {
+/// 本文中のリンクを、改名・移動に合わせて書き換える。純関数(テスト用に分離)。
+///
+/// このファイルは `old_dir` にあり、いまは `new_dir` にある(動いていなければ同じ)。
+/// リンクは**動く前の場所から**解決する。いまの場所から解決すると、
+/// 動いたファイルの `../x.md` が別のファイルを指して見え、取り違えて書き換える。
+///
+/// 書き換えるのは、元の書き方のままでは**同じ先を指さなくなる**リンクだけ。
+/// 指し続けるものは書き方(`./` の有無など)も含めて残す。
+pub fn replace_links(
+    text: &str,
+    old_dir: &str,
+    new_dir: &str,
+    old_rel: &str,
+    new_rel: &str,
+) -> String {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
     while let Some(idx) = rest.find("](") {
@@ -558,20 +590,25 @@ pub fn replace_links(text: &str, base_dir: &str, old_rel: &str, new_rel: &str) -
             return out;
         };
         let target = &tail[..end];
-        // 完全一致(ファイルの改名)と、接頭辞一致(**フォルダーの改名**)の両方を見る。
-        // 完全一致だけだと `codex/characters` を改名しても
-        // `codex/characters/悠二.md` を指すリンクが切れたまま残る。
-        // `old_rel` の直後に `/` を要求するので、兄弟の `codex/characters2` は巻き込まない
-        let moved = normalize_join(base_dir, target).and_then(|r| {
-            if r == old_rel {
-                Some(new_rel.to_string())
-            } else {
-                r.strip_prefix(&format!("{old_rel}/"))
-                    .map(|rest| format!("{new_rel}/{rest}"))
+        match normalize_join(old_dir, target) {
+            Some(was) => {
+                // 完全一致(ファイルの改名)と、接頭辞一致(**フォルダーの改名**)の両方を見る。
+                // 完全一致だけだと `codex/characters` を改名しても
+                // `codex/characters/悠二.md` を指すリンクが切れたまま残る。
+                // `old_rel` の直後に `/` を要求するので、兄弟の `codex/characters2` は巻き込まない
+                let dest = if was == old_rel {
+                    new_rel.to_string()
+                } else if let Some(rest) = was.strip_prefix(&format!("{old_rel}/")) {
+                    format!("{new_rel}/{rest}")
+                } else {
+                    was
+                };
+                if normalize_join(new_dir, target).as_deref() == Some(dest.as_str()) {
+                    out.push_str(target);
+                } else {
+                    out.push_str(&relative_from(new_dir, &dest));
+                }
             }
-        });
-        match moved {
-            Some(t) => out.push_str(&relative_from(base_dir, &t)),
             None => out.push_str(target),
         }
         out.push(')');
@@ -912,6 +949,7 @@ mod tests {
         let got = replace_links(
             text,
             "codex/characters",
+            "codex/characters",
             "codex/characters/悠二.md",
             "codex/characters/五十嵐悠二.md",
         );
@@ -1026,10 +1064,111 @@ mod tests {
     #[test]
     fn folder_rename_follows_links_of_descendants() {
         let text = "[a](../codex/characters/悠二.md) [b](../codex/characters2/x.md) [c](../codex/characters)";
-        let out = replace_links(text, "manuscript", "codex/characters", "codex/人物");
+        let out = replace_links(
+            text,
+            "manuscript",
+            "manuscript",
+            "codex/characters",
+            "codex/人物",
+        );
         assert!(out.contains("../codex/人物/悠二.md"), "配下が追随していない: {out}");
         assert!(out.contains("../codex/characters2/x.md"), "兄弟を巻き込んだ: {out}");
         assert!(out.contains("../codex/人物)"), "フォルダー自身が追随していない: {out}");
+    }
+
+    /// 深い階層へ移したファイルの中のリンクは `../` の数を直す(03 §5-6)。
+    /// 自分自身へのリンクのように、そのままで同じ先を指すものは書き方ごと残す
+    #[test]
+    fn moving_a_file_deeper_keeps_its_own_links() {
+        let root = tmp();
+        init(&root).unwrap();
+        create_file(&root, "codex/characters/悠二.md", "幼馴染\n").unwrap();
+        create_file(
+            &root,
+            "manuscript/01.md",
+            "[悠二](../codex/characters/悠二.md) [ここ](01.md) [外](https://example.com)\n",
+        )
+        .unwrap();
+
+        rename(&root, "manuscript/01.md", "manuscript/第一章/01.md").unwrap();
+
+        assert_eq!(
+            fs::read_to_string(root.join("manuscript/第一章/01.md")).unwrap(),
+            "[悠二](../../codex/characters/悠二.md) [ここ](01.md) [外](https://example.com)\n"
+        );
+        // 書き換えた分は控えが残る(保存と同じ1世代)
+        assert!(root.join(".app/backups/manuscript/第一章/01.md").exists());
+        fs::remove_dir_all(root).ok();
+    }
+
+    /// フォルダーごと深い階層へ移したら、中から外へのリンクだけ直し、中どうしのリンクは残す
+    #[test]
+    fn moving_a_folder_deeper_keeps_links_inside_and_out() {
+        let root = tmp();
+        init(&root).unwrap();
+        create_file(&root, "codex/locations/青葉高校.md", "舞台\n").unwrap();
+        create_file(&root, "codex/characters/悠二.md", "幼馴染\n").unwrap();
+        create_file(
+            &root,
+            "codex/characters/架純.md",
+            "[悠二](悠二.md) [悠二](./悠二.md) [高校](../locations/青葉高校.md)\n",
+        )
+        .unwrap();
+        create_file(
+            &root,
+            "manuscript/01.md",
+            "[架純](../codex/characters/架純.md)\n",
+        )
+        .unwrap();
+
+        rename(&root, "codex/characters", "codex/人物/主要").unwrap();
+
+        assert_eq!(
+            fs::read_to_string(root.join("codex/人物/主要/架純.md")).unwrap(),
+            "[悠二](悠二.md) [悠二](./悠二.md) [高校](../../locations/青葉高校.md)\n"
+        );
+        assert_eq!(
+            fs::read_to_string(root.join("manuscript/01.md")).unwrap(),
+            "[架純](../codex/人物/主要/架純.md)\n"
+        );
+        fs::remove_dir_all(root).ok();
+    }
+
+    /// 同じ深さでのフォルダー改名では、中のファイルは1文字も変えない
+    #[test]
+    fn same_depth_folder_rename_leaves_inner_links_alone() {
+        let root = tmp();
+        init(&root).unwrap();
+        let inner = "[悠二](悠二.md) [悠二](./悠二.md) [高校](../locations/青葉高校.md)\n";
+        create_file(&root, "codex/characters/悠二.md", "幼馴染\n").unwrap();
+        create_file(&root, "codex/characters/架純.md", inner).unwrap();
+
+        rename(&root, "codex/characters", "codex/人物").unwrap();
+
+        assert_eq!(
+            fs::read_to_string(root.join("codex/人物/架純.md")).unwrap(),
+            inner
+        );
+        // 書き換えていないので控えも作らない
+        assert!(!root.join(".app/backups/codex/人物/架純.md").exists());
+        fs::remove_dir_all(root).ok();
+    }
+
+    /// 動いたファイルのリンクは、**動く前の場所から**解決する。
+    /// いまの場所から解決すると、別のファイルを指していた `../01.md` を
+    /// 改名したファイル自身へのリンクと取り違える
+    #[test]
+    fn links_of_a_moved_file_are_read_from_where_it_was() {
+        // manuscript/01.md を manuscript/a/01.md へ移した。中の `../01.md` は
+        // もともと直下の 01.md を指していた(manuscript/01.md ではない)
+        let got = replace_links(
+            "[直下](../01.md)",
+            "manuscript",
+            "manuscript/a",
+            "manuscript/01.md",
+            "manuscript/a/01.md",
+        );
+        assert_eq!(got, "[直下](../../01.md)");
     }
 
     /// 同じ秒に同じ相対パスを2度捨てても、先に退避したものを踏まないこと。
