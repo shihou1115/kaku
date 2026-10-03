@@ -1461,10 +1461,19 @@ async fn ask_ai(
     };
     let started = std::time::Instant::now();
 
-    let resp = ai::stream_request(&s.base_url, &s.api_key, &s.model, &messages, s.temperature)
+    let resp = match ai::stream_request(&s.base_url, &s.api_key, &s.model, &messages, s.temperature)
         .send()
         .await
-        .map_err(|e| ai::describe_error(&e, &s.base_url))?;
+    {
+        Ok(r) => r,
+        // 応答の始まりを待つ間に中止され、その後で接続が切れた。通信の失敗とは言わない
+        Err(_) if cancelled() => {
+            log("chat", &messages, "", ms_since(started), Some("中止された"));
+            let _ = on_event.send(ChatEvent::Cancelled);
+            return Ok(());
+        }
+        Err(e) => return Err(ai::describe_error(&e, &s.base_url)),
+    };
 
     if !resp.status().is_success() {
         let status = resp.status();
@@ -1506,7 +1515,9 @@ async fn ask_ai(
 ///
 /// - 受信は**バイト列のまま**行に切る(割れた日本語1文字を化けさせない=`ai::drain_sse_lines`)
 /// - 改行で終わらずに切れた最後の行も捨てない(`[DONE]` を送らないサーバがある)
-/// - 中止されたら、**それ以降の増分は流さずに** `Cancelled` で返す
+/// - 中止されたら、**それ以降の増分は流さずに** `Cancelled` で返す。
+///   中止のあとで受信が途切れた・終わった場合も `Cancelled`(中止を「途中までの完結した
+///   応答」や「通信の失敗」と取り違えると、会話の履歴に積まれたり、拒否と表示されたりする)
 ///
 /// 失敗したときも、そこまでに受け取った分を返す(ログに残すため)。
 async fn consume_stream(
@@ -1520,6 +1531,7 @@ async fn consume_stream(
     while let Some(chunk) = stream.next().await {
         let chunk = match chunk {
             Ok(c) => c,
+            Err(_) if (h.cancelled)() => return Ok((StreamEnd::Cancelled, answer)),
             Err(e) => return Err((format!("受信が中断されました: {e}"), answer)),
         };
         if (h.cancelled)() {
@@ -1536,6 +1548,10 @@ async fn consume_stream(
                 ai::SseEvent::Ignore => {}
             }
         }
+    }
+    // 中止を待つ間に、それ以上の増分なしで接続が閉じた
+    if (h.cancelled)() {
+        return Ok((StreamEnd::Cancelled, answer));
     }
     if !buf.is_empty() {
         let line = String::from_utf8_lossy(&buf).into_owned();
@@ -2094,6 +2110,37 @@ mod ai_run_tests {
         assert_eq!(end, StreamEnd::Cancelled);
         assert_eq!(answer, "一");
         assert_eq!(got, vec!["一".to_string()], "中止の後も流している");
+    }
+
+    /// 中止のあと、それ以上の増分なしで接続が閉じても `Cancelled` で返す。
+    /// `Done` で返すと、途中までの応答が完結した往復として会話の履歴に積まれ、
+    /// 1文字も来ていなければ「拒否の疑い」と表示される(実機確認で見つけた経路)
+    #[tokio::test]
+    async fn stream_reports_cancel_when_the_connection_just_closes_after_it() {
+        use std::sync::atomic::AtomicBool;
+        // [DONE] を送らずに閉じるサーバー
+        let m = mock(vec![Reply::Stream(vec![sse_delta("一").into_bytes()])]);
+        let stopped = Arc::new(AtomicBool::new(false));
+        let seen = stopped.clone();
+        let c = move || seen.load(Ordering::SeqCst);
+        let l = no_log();
+        let h = AiHooks {
+            cancelled: &c,
+            log: &l,
+        };
+        let resp = ai::stream_request(&m.base_url, &None, "test-model", &[], 0.7)
+            .send()
+            .await
+            .unwrap();
+        let mut got = Vec::new();
+        // 1文字目を受け取った直後に「中止」が押された
+        let mut push = |d: String| {
+            got.push(d);
+            stopped.store(true, Ordering::SeqCst);
+        };
+        let (end, answer) = consume_stream(resp, &h, &mut push).await.unwrap();
+        assert_eq!(end, StreamEnd::Cancelled, "中止のあとの終端を完了と取り違えた");
+        assert_eq!(answer, "一");
     }
 
     fn outcome(content: &str, finish: Option<&str>) -> ai::ChatOutcome {
