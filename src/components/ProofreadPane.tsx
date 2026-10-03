@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type AiIssue, type AiSettings, type NotationHit } from "../api";
+import { countLabel, fullyChecked } from "./resultLabel";
 
 type Props = {
   /** 現在の本文。結果の鮮度判定に使う */
@@ -166,6 +167,11 @@ export function ProofreadPane({
 
   const stale = checkedBody !== null && checkedBody !== body;
   const aiStale = aiBody !== null && aiBody !== body;
+  /** AIの検査がどこまで届いたか。0件を「誤りなし」と言ってよいかを決める */
+  const aiCoverage = {
+    warning: aiMeta?.warning ?? null,
+    unchecked: aiMeta?.unchecked ?? 0,
+  };
 
   return (
     <div className="proofread-pane">
@@ -289,7 +295,7 @@ export function ProofreadPane({
           )}
           {issues && !aiStale && (
             <span className="pf-count">
-              {issues.length === 0 ? "指摘なし" : `${issues.length}件`}
+              {countLabel(issues.length, aiCoverage, "指摘なし")}
             </span>
           )}
         </div>
@@ -339,7 +345,22 @@ export function ProofreadPane({
           </p>
         )}
         {issues?.length === 0 && !aiStale && (
-          <p className="hint pf-hint">誤字脱字は見つかりませんでした。</p>
+          <p className="hint pf-hint">
+            {fullyChecked(aiCoverage) ? (
+              "誤字脱字は見つかりませんでした。"
+            ) : aiCoverage.warning ? (
+              <>
+                指摘は挙がりませんでしたが、
+                <strong>上の警告のとおり確認できていない箇所があります</strong>。
+                「誤りなし」ではありません。
+              </>
+            ) : (
+              <>
+                確認した範囲では見つかりませんでした。
+                <strong>末尾は確認していない</strong>ので、分けて確認してください。
+              </>
+            )}
+          </p>
         )}
 
         {issues && issues.length > 0 && (

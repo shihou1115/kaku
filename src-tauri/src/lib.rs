@@ -840,25 +840,35 @@ async fn suggest_scene_split(
         return Err("中止しました".to_string());
     }
 
-    let warning = if out.truncated() {
-        Some(
-            "応答が途中で打ち切られました。本文が長すぎてモデルが最後まで読めていない可能性があります"
-                .to_string(),
-        )
-    } else if out.refused() {
-        Some("モデルが応答を返しませんでした。別のモデルをお試しください".to_string())
-    } else {
-        None
-    };
-
     let points = split::verify(body, split::parse(&out.content));
     Ok(SplitSuggestion {
         points,
         total_chars: body.chars().count(),
         model: s.model,
         elapsed_ms: started.elapsed().as_millis() as u64,
-        warning,
+        warning: split_warning(&out),
     })
+}
+
+/// 分割の提案に付ける断り書き。**「切れ目なし」と読めてしまう失敗を黙らない**
+/// (打ち切り・拒否・形式不備の3つ。どれも候補0件として画面に届く)
+fn split_warning(out: &ai::ChatOutcome) -> Option<String> {
+    if out.truncated() {
+        Some(
+            "応答が途中で打ち切られました。本文が長すぎてモデルが最後まで読めていない可能性があります"
+                .to_string(),
+        )
+    } else if out.refused() {
+        Some("モデルが応答を返しませんでした。別のモデルをお試しください".to_string())
+    } else if !split::looks_structured(&out.content) {
+        Some(
+            "応答を指定した形式として読み取れませんでした(モデルが形式を守っていません)。\
+             「切れ目なし」ではありません。別のモデルをお試しください"
+                .to_string(),
+        )
+    } else {
+        None
+    }
 }
 
 /// 採用された切れ目で実際に分割する(中身は split::apply)。
@@ -2090,5 +2100,28 @@ mod ai_run_tests {
         assert_eq!(end, StreamEnd::Cancelled);
         assert_eq!(answer, "一");
         assert_eq!(got, vec!["一".to_string()], "中止の後も流している");
+    }
+
+    fn outcome(content: &str, finish: Option<&str>) -> ai::ChatOutcome {
+        ai::ChatOutcome {
+            content: content.to_string(),
+            usage: None,
+            finish_reason: finish.map(str::to_string),
+        }
+    }
+
+    /// 分割の提案で、候補0件に見える失敗を黙らないこと。
+    /// 散文で返されると以前は警告なしで「切れ目は見つかりませんでした」と出ていた
+    #[test]
+    fn split_warns_when_the_answer_could_not_be_read() {
+        assert!(split_warning(&outcome(r#"{"points":[]}"#, Some("stop"))).is_none());
+        let prose = split_warning(&outcome("この本文は一つの場面です。", Some("stop")))
+            .expect("散文なのに警告が無い(=「切れ目なし」と誤報告)");
+        assert!(prose.contains("読み取れませんでした"), "{prose}");
+        let refused = split_warning(&outcome("", Some("stop"))).expect("拒否なのに警告が無い");
+        assert!(refused.contains("応答を返しませんでした"), "{refused}");
+        let cut = split_warning(&outcome(r#"{"points":[{"quo"#, Some("length")))
+            .expect("打ち切りなのに警告が無い");
+        assert!(cut.contains("打ち切られました"), "{cut}");
     }
 }

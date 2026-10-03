@@ -291,6 +291,24 @@ pub fn extract_json_blob(raw: &str) -> &str {
     trimmed
 }
 
+/// 応答が「指定した形の一覧」として読み取れたか。`keys` のどれかの下に配列がある、
+/// または応答そのものが配列なら true。
+///
+/// **`false` と「0件」は違う。** 散文で返された応答は各機能の `parse` が空を返すので、
+/// これを見ずに件数だけで判断すると「見つかりませんでした」と誤報告する。
+/// 校正・抽出・分割の3箇所で同じ判定が要るため、ここに置く(キーは各 `parse` と揃える)。
+pub fn has_list(raw: &str, keys: &[&str]) -> bool {
+    let blob = extract_json_blob(raw);
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(blob) else {
+        return false;
+    };
+    keys.iter()
+        .find_map(|k| value.get(*k))
+        .and_then(|v| v.as_array())
+        .or_else(|| value.as_array())
+        .is_some()
+}
+
 pub fn stream_request(
     base_url: &str,
     api_key: &Option<String>,

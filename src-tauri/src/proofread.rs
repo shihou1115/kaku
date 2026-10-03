@@ -476,17 +476,7 @@ pub fn parse_ai_issues(raw: &str) -> Vec<AiIssue> {
 /// 報告するのが校正で最悪の失敗なので、呼び出し側が区別できるようにする
 /// (M-05の実装で同じ穴が見つかったため、こちらにも入れた)。
 pub fn looks_structured(raw: &str) -> bool {
-    let blob = crate::ai::extract_json_blob(raw);
-    let Ok(value) = serde_json::from_str::<serde_json::Value>(blob) else {
-        return false;
-    };
-    value
-        .get("issues")
-        .or_else(|| value.get("items"))
-        .or_else(|| value.get("results"))
-        .and_then(|v| v.as_array())
-        .or_else(|| value.as_array())
-        .is_some()
+    crate::ai::has_list(raw, &["issues", "items", "results"])
 }
 
 /// 引用が本文に実在するかを照合し、位置を埋める。

@@ -101,6 +101,14 @@ pub fn build_prompt(body: &str) -> String {
     s
 }
 
+/// 応答が「切れ目の一覧」として読み取れたか。
+///
+/// **`false` と「切れ目なし」は違う。** 散文で返された応答は `parse` が空を返すので、
+/// これを見ずに候補数だけで判断すると「切れ目は見つかりませんでした」と出してしまう。
+pub fn looks_structured(raw: &str) -> bool {
+    crate::ai::has_list(raw, &["points", "scenes", "items"])
+}
+
 /// 応答の寛容パース(レビュー・校正と同じ方針)
 pub fn parse(raw: &str) -> Vec<RawPoint> {
     let blob = crate::ai::extract_json_blob(raw);
@@ -393,6 +401,16 @@ mod tests {
         let got = parse(r#"{"points":[{"quote":"その日の放課後","title":"図書室"}]}"#);
         assert_eq!(got.len(), 1);
         assert_eq!(got[0].title, "図書室");
+    }
+
+    #[test]
+    fn tells_no_points_from_an_unreadable_answer() {
+        assert!(looks_structured(r#"{"points":[]}"#), "読めて0件");
+        assert!(looks_structured("```json\n{\"scenes\":[]}\n```"));
+        assert!(looks_structured("[]"));
+        assert!(!looks_structured("この本文は一つの場面として読めます。"), "散文");
+        assert!(!looks_structured(""), "空");
+        assert!(!looks_structured(r#"{"points":"なし"}"#), "配列ではない");
     }
 
     #[test]

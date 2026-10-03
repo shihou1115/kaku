@@ -234,17 +234,7 @@ pub fn parse(raw: &str) -> Vec<RawEntity> {
 /// **`false` と「候補なし」は違う。** 散文で返された応答は `parse` が空を返すので、
 /// これを見ずに候補数だけで判断すると「固有名詞は見つかりませんでした」と誤報告する。
 pub fn looks_structured(raw: &str) -> bool {
-    let blob = crate::ai::extract_json_blob(raw);
-    let Ok(value) = serde_json::from_str::<serde_json::Value>(blob) else {
-        return false;
-    };
-    value
-        .get("entities")
-        .or_else(|| value.get("items"))
-        .or_else(|| value.get("results"))
-        .and_then(|v| v.as_array())
-        .or_else(|| value.as_array())
-        .is_some()
+    crate::ai::has_list(raw, &["entities", "items", "results"])
 }
 
 /// LLMの出力を機械側で検証して候補に落とす(名寄せの検証を含む)。

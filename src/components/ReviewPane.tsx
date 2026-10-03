@@ -23,6 +23,7 @@ import {
 import { useMaterials } from "./useMaterials";
 import { PromptDialog } from "./PromptDialog";
 import { frontmatter, notePath } from "./saveNote";
+import { countLabel } from "./resultLabel";
 
 type Props = {
   /** 現在の本文。結果の鮮度判定に使う */
@@ -333,11 +334,16 @@ export function ReviewPane({
           </button>
           {comments && !stale && (
             <span className="pf-count">
-              {comments.length === 0
-                ? "指摘なし"
-                : droppedCount > 0
-                  ? `${openCount}/${comments.length}件`
-                  : `${comments.length}件`}
+              {droppedCount > 0
+                ? `${openCount}/${comments.length}件`
+                : countLabel(
+                    comments.length,
+                    {
+                      warning: meta?.warning ?? null,
+                      unchecked: meta?.unchecked ?? 0,
+                    },
+                    "指摘なし",
+                  )}
             </span>
           )}
           {/* 講評を資産として残す(03 §4.3)。**自動保存はしない**(未決-5) */}
@@ -539,6 +545,11 @@ export function ReviewPane({
             <>
               指摘は挙がりませんでしたが、
               <strong>上の警告のとおり見落としの可能性があります</strong>。
+            </>
+          ) : meta && meta.unchecked > 0 ? (
+            <>
+              見た範囲では指摘は挙がりませんでした。
+              <strong>末尾は見ていない</strong>ので、分けて実行してください。
             </>
           ) : (
             "指摘は挙がりませんでした。観点を絞りすぎていないか、本文が短すぎないか確かめてください。"
