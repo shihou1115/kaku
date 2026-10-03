@@ -311,10 +311,12 @@ struct FileContent {
     modified_ms: u64,
 }
 
+/// 画面(エディタ・参照ペイン)へ渡す本文。**改行は LF に揃える**(project::to_lf)。
+/// 保存時に元の改行コードへ戻す(save_file → project::save_text)
 #[tauri::command]
 fn read_file(path: String, state: State<AppState>) -> Result<FileContent, String> {
     let root = root_of(&state)?;
-    let text = project::read_text(&root, &path).map_err(to_msg)?;
+    let text = project::to_lf(&project::read_text(&root, &path).map_err(to_msg)?);
     let modified_ms = project::modified_ms(&root, &path).map_err(to_msg)?;
     Ok(FileContent {
         path,
@@ -356,7 +358,7 @@ fn save_file(
             return Ok(SaveOutcome::Conflict { actual_ms: actual });
         }
     }
-    project::write_text(&root, &path, &text).map_err(to_msg)?;
+    project::save_text(&root, &path, &text).map_err(to_msg)?;
     Ok(SaveOutcome::Saved {
         modified_ms: project::modified_ms(&root, &path).unwrap_or(0),
     })

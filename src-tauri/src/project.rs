@@ -316,6 +316,30 @@ fn reject_app_area(relative: &str) -> Result<(), ProjectError> {
     Ok(())
 }
 
+/// 改行を LF に揃える。**画面へ渡す本文は必ずこれを通す。**
+///
+/// エディタ(CodeMirror)は改行を LF に揃えて持つ。CRLF のまま渡すと、本文の文字位置
+/// (校正・レビューの指摘位置)がエディタ上の位置と1行につき1字ずつずれ、
+/// 「置換」が別の文字を書き換える。
+pub fn to_lf(text: &str) -> String {
+    text.replace("\r\n", "\n").replace('\r', "\n")
+}
+
+/// 画面から来た本文(LF)を保存する。**既存のファイルが CRLF なら CRLF で書く**
+/// (03 §4.4「ファイル単位で既存の改行コードを保持」)。新しいファイルは LF。
+///
+/// 以前は画面の LF のまま書いていたため、ほかのエディタで作った CRLF の原稿は
+/// 一度編集しただけで全行の改行が変わり、git の差分が全行になった。
+pub fn save_text(root: &Path, relative: &str, text: &str) -> Result<(), ProjectError> {
+    let lf = to_lf(text);
+    let crlf = resolve(root, relative)
+        .ok()
+        .and_then(|p| fs::read(p).ok())
+        .is_some_and(|b| b.windows(2).any(|w| w == b"\r\n"));
+    let content = if crlf { lf.replace('\n', "\r\n") } else { lf };
+    write_text(root, relative, &content)
+}
+
 /// 保存する。**保存前に1世代のバックアップを取る**(M-01 / MVP要素5)。
 ///
 /// 履歴管理はしない。同じファイルの前回内容だけを `.app/backups/` に残す。
@@ -1264,6 +1288,47 @@ mod tests {
         assert_eq!(timestamp_dir(t), "2026-07-26_123456");
         // エポック
         assert_eq!(timestamp_dir(std::time::UNIX_EPOCH), "1970-01-01_000000");
+    }
+
+    /// 画面へ渡す本文は改行を LF に揃える。CRLF のままだと、指摘の位置がエディタ上の
+    /// 位置と1行につき1字ずれ、「置換」が別の文字を書き換える
+    #[test]
+    fn text_for_the_editor_uses_lf_only() {
+        assert_eq!(to_lf("一\r\n二\r\n"), "一\n二\n");
+        assert_eq!(to_lf("一\r二"), "一\n二");
+        assert_eq!(to_lf("一\n二"), "一\n二");
+    }
+
+    /// 保存はファイルごとに元の改行コードを保つ(03 §4.4)。新しいファイルは LF
+    #[test]
+    fn saving_keeps_each_files_line_endings() {
+        let root = tmp();
+        init(&root).unwrap();
+        fs::write(root.join("manuscript/crlf.md"), "一\r\n二\r\n").unwrap();
+        create_file(&root, "manuscript/lf.md", "一\n二\n").unwrap();
+
+        save_text(&root, "manuscript/crlf.md", "一\n二\n三\n").unwrap();
+        save_text(&root, "manuscript/lf.md", "一\n二\n三\n").unwrap();
+        save_text(&root, "manuscript/new.md", "一\n二\n").unwrap();
+
+        assert_eq!(
+            fs::read(root.join("manuscript/crlf.md")).unwrap(),
+            "一\r\n二\r\n三\r\n".as_bytes()
+        );
+        assert_eq!(
+            fs::read(root.join("manuscript/lf.md")).unwrap(),
+            "一\n二\n三\n".as_bytes()
+        );
+        assert_eq!(
+            fs::read(root.join("manuscript/new.md")).unwrap(),
+            "一\n二\n".as_bytes()
+        );
+        // 読み直した本文は LF に揃うので、画面が持っている本文と一致する(競合と誤判定しない)
+        assert_eq!(
+            to_lf(&read_text(&root, "manuscript/crlf.md").unwrap()),
+            "一\n二\n三\n"
+        );
+        fs::remove_dir_all(root).ok();
     }
 
     #[test]
