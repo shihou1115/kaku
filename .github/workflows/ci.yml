@@ -45,8 +45,11 @@ jobs:
 
       - run: npm test
 
-      # 既知の脆弱性が入ったまま配らない
-      - run: npm audit --audit-level=high
+      # 既知の脆弱性が入ったまま配らない。見るのは**配るもの(dependencies)だけ**。
+      # 開発用の道具(vitest・eslint 等)まで見ると、コードと無関係に勧告が出た日から
+      # CI が赤くなり、「他人の環境では動かない」という赤の意味が薄まる(2026-10-04 に実際に起きた)。
+      # 開発用の勧告は手元の `npm audit` で見て、気づいたときに直す
+      - run: npm audit --omit=dev --audit-level=high
 
       # 警告を残さない。ローカルで一度通してから CI に載せた
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
