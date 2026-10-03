@@ -234,6 +234,8 @@ export type SaveOutcome =
 export type ChatEvent =
   | { kind: "Delta"; value: string }
   | { kind: "Done" }
+  /** 中止された。完了(Done)とは区別する */
+  | { kind: "Cancelled" }
   | { kind: "Error"; value: string };
 
 export const api = {

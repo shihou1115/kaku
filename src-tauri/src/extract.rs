@@ -229,6 +229,24 @@ pub fn parse(raw: &str) -> Vec<RawEntity> {
         .collect()
 }
 
+/// 応答が「指定した形」として読み取れたか(校正の `proofread::looks_structured` と同じ役割)。
+///
+/// **`false` と「候補なし」は違う。** 散文で返された応答は `parse` が空を返すので、
+/// これを見ずに候補数だけで判断すると「固有名詞は見つかりませんでした」と誤報告する。
+pub fn looks_structured(raw: &str) -> bool {
+    let blob = crate::ai::extract_json_blob(raw);
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(blob) else {
+        return false;
+    };
+    value
+        .get("entities")
+        .or_else(|| value.get("items"))
+        .or_else(|| value.get("results"))
+        .and_then(|v| v.as_array())
+        .or_else(|| value.as_array())
+        .is_some()
+}
+
 /// LLMの出力を機械側で検証して候補に落とす(名寄せの検証を含む)。
 ///
 /// 落とすもの:
@@ -610,6 +628,17 @@ mod tests {
         assert_eq!(got[0].kind, "character");
         assert_eq!(got[1].kind, "location");
         assert_eq!(got[2].kind, "term", "未知の種別は term に寄せる");
+    }
+
+    /// 0件で読めた応答と、読めなかった応答を区別できること
+    #[test]
+    fn tells_an_empty_answer_from_an_unreadable_one() {
+        assert!(looks_structured(r#"{"entities":[]}"#), "読めて0件");
+        assert!(looks_structured("```json\n{\"entities\":[]}\n```"));
+        assert!(looks_structured("[]"));
+        assert!(!looks_structured("登場人物は佐藤架純と五十嵐悠二です。"), "散文");
+        assert!(!looks_structured(""), "空");
+        assert!(!looks_structured(r#"{"note":"no entities"}"#), "配列が無い");
     }
 
     #[test]

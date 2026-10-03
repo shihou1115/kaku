@@ -41,10 +41,21 @@ struct ChatResponse {
 
 #[derive(Debug, Deserialize)]
 struct Choice {
-    message: ChatMessage,
+    message: ResponseMessage,
     /// "stop" = 正常終了 / "length" = コンテキストや上限で打ち切られた
     #[serde(default)]
     finish_reason: Option<String>,
+}
+
+/// 応答側のメッセージ。**`content` は null で来ることがある。**
+///
+/// OpenAI の構造化出力ではモデルが拒否すると `content: null` と `refusal` が返る。
+/// `String` で受けると解析エラーになり、拒否が「接続設定を確認してください」という
+/// 的外れな失敗に化ける。null は空文字として受け、拒否(`refused()`)として扱う。
+#[derive(Debug, Deserialize)]
+struct ResponseMessage {
+    #[serde(default)]
+    content: Option<String>,
 }
 
 /// 応答一式。**打ち切りを見逃さない**ために finish_reason を必ず持ち回る。
@@ -59,10 +70,15 @@ pub struct ChatOutcome {
 }
 
 impl ChatOutcome {
-    /// コンテキスト上限などで応答が打ち切られたか
+    /// コンテキスト上限などで応答が打ち切られたか(`finish_reason == "length"`)。
+    ///
+    /// **`refused()` とは重ならない。** 以前は「空応答で終了理由あり」も打ち切りに
+    /// 含めていたため、正常終了(`stop`)の空応答=検閲による拒否が両方に当たり、
+    /// 先に `truncated()` を見た校正と抽出は拒否を「コンテキスト長が不足」と誤診していた
+    /// (04-design §7.1「同じ0文字でも次にすべきことが逆なので混ぜて表示しない」に反する)。
+    /// 推論で文脈を使い切った空応答は `length` で返るので、ここで拾える。
     pub fn truncated(&self) -> bool {
         self.finish_reason.as_deref() == Some("length")
-            || (self.content.trim().is_empty() && self.finish_reason.is_some())
     }
 
     /// 打ち切りではなく、正常終了したのに1文字も返らなかったか。
@@ -71,7 +87,7 @@ impl ChatOutcome {
     /// 打ち切り(コンテキスト不足)とは対処が違う — 前者はモデルを替える、
     /// 後者はコンテキスト長を増やす — ので、区別して伝える必要がある。
     pub fn refused(&self) -> bool {
-        self.content.trim().is_empty() && self.finish_reason.as_deref() != Some("length")
+        self.content.trim().is_empty() && !self.truncated()
     }
 }
 
@@ -200,7 +216,9 @@ pub async fn chat(
         .map_err(|e| format!("応答の解析に失敗: {e}"))?;
     let first = parsed.choices.first();
     Ok(ChatOutcome {
-        content: first.map(|c| c.message.content.clone()).unwrap_or_default(),
+        content: first
+            .and_then(|c| c.message.content.clone())
+            .unwrap_or_default(),
         finish_reason: first.and_then(|c| c.finish_reason.clone()),
         usage: parsed.usage,
     })
@@ -372,11 +390,37 @@ mod tests {
         // コンテキスト不足で切れた
         assert!(make("途中まで", Some("length")).truncated());
         assert!(!make("途中まで", Some("length")).refused());
-        // 正常終了なのに1文字も返らない = 検閲の疑い(§8.1)
+        // 推論で文脈を使い切って1文字も出せなかった(§7.1)。これも打ち切り
+        assert!(make("", Some("length")).truncated());
+        assert!(!make("", Some("length")).refused());
+        // 正常終了なのに1文字も返らない = 検閲の疑い(§8.1)。**打ち切りではない**
         assert!(make("", Some("stop")).refused());
-        // 空応答は打ち切り判定にも当たるが、対処が違うので呼び出し側で先に length を見る
+        assert!(!make("", Some("stop")).truncated());
+        // 終了理由を返さないサーバでも、空なら拒否として扱う
+        assert!(make("", None).refused());
+        assert!(!make("", None).truncated());
+        // 普通の応答はどちらでもない
         assert!(!make("普通の応答", Some("stop")).refused());
         assert!(!make("普通の応答", Some("stop")).truncated());
+    }
+
+    /// **2つの判定が同時に真にならないこと。** 重なっていると、呼び出し側が
+    /// どちらを先に見たかで診断が変わり、実際に校正と抽出が拒否を打ち切りと誤診していた
+    #[test]
+    fn truncation_and_refusal_never_overlap() {
+        for content in ["", "  ", "本文"] {
+            for reason in [None, Some("stop"), Some("length"), Some("content_filter")] {
+                let o = ChatOutcome {
+                    content: content.to_string(),
+                    usage: None,
+                    finish_reason: reason.map(|s| s.to_string()),
+                };
+                assert!(
+                    !(o.truncated() && o.refused()),
+                    "重なっている: {content:?} / {reason:?}"
+                );
+            }
+        }
     }
 
     #[test]

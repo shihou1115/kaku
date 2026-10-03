@@ -135,41 +135,62 @@ fn cancel_ai(state: State<AppState>) {
         .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 }
 
-/// 開始時の世代番号。これが変わったら中止された
-fn ai_epoch(state: &State<AppState>) -> u64 {
-    state.ai_epoch.load(std::sync::atomic::Ordering::SeqCst)
+// ===== AI実行と外界のつなぎ =====
+
+/// AI実行が外界に触れる2点 — 中止の確認と、呼び出しの記録(T-06)。
+///
+/// コマンド本体から切り離してあるのは**テストのため**。本番では AppState の世代番号と
+/// `.app/logs/` につなぎ、テストでは差し替えて、擬似サーバー相手に
+/// 「何回投げたか」「何と警告したか」を確かめる。lib.rs はここまでテストが無く、
+/// 校正の二重実行も、拒否を打ち切りと取り違える誤診も、この層で起きていた。
+///
+/// **再試行やフォールバックの手順をここへ集めないこと。** 06 §4 で撤回した
+/// 「汎用AI実行エンジン」の入口になる。手順は各コマンドの `run_*` にそのまま書く。
+struct AiHooks<'a> {
+    /// 中止されたか。各塊の頭で見る
+    cancelled: &'a CancelFn<'a>,
+    log: &'a LogFn<'a>,
 }
 
-fn ai_cancelled(state: &State<AppState>, epoch: u64) -> bool {
-    ai_epoch(state) != epoch
+/// 寿命を引数に取る。取らないと trait object が `'static` 扱いになり、
+/// コマンド内の `State` を借りた中止判定を渡せなくなる
+type CancelFn<'a> = dyn Fn() -> bool + Send + Sync + 'a;
+
+/// 1回の呼び出しを記録する(機能名・送ったもの・受けたもの・所要ミリ秒・但し書き)
+type LogFn<'a> = dyn Fn(&str, &[ChatMessage], &str, u64, Option<&str>) + Send + Sync + 'a;
+
+/// 本番の中止判定。**開始時の世代番号**を覚え、変わっていたら中止されたとみなす。
+///
+/// フラグにすると、後から始まった処理が先の中止を打ち消してしまう。
+fn live_cancel(app: &AppState) -> impl Fn() -> bool + Send + Sync + '_ {
+    let start = app.ai_epoch.load(std::sync::atomic::Ordering::SeqCst);
+    move || app.ai_epoch.load(std::sync::atomic::Ordering::SeqCst) != start
 }
 
-/// AI呼び出しを記録する(T-06)。プロジェクトが開かれていなければ何もしない。
+/// 本番の記録先(`.app/logs/`)。プロジェクトが開かれていなければ記録しない。
 ///
 /// **プロンプトの実体を残す**ことが目的なので、要約や省略はしない
 /// (06 §4 でプロンプトのバージョン管理機構を撤回した根拠がこのログである)。
-fn log_ai(
-    state: &State<AppState>,
-    feature: &str,
-    s: &AiSettings,
-    messages: &[ChatMessage],
-    response: &str,
-    elapsed_ms: u64,
-    note: Option<&str>,
-) {
-    if let Ok(root) = root_of(state) {
-        ailog::write(
-            &root,
-            feature,
-            &s.model,
-            &s.base_url,
-            messages,
-            response,
-            elapsed_ms,
-            note,
-        );
+fn live_log(
+    root: Option<PathBuf>,
+    model: String,
+    base_url: String,
+) -> impl Fn(&str, &[ChatMessage], &str, u64, Option<&str>) + Send + Sync {
+    move |feature, messages, response, elapsed_ms, note| {
+        if let Some(root) = &root {
+            ailog::write(
+                root, feature, &model, &base_url, messages, response, elapsed_ms, note,
+            );
+        }
     }
 }
+
+fn ms_since(t: std::time::Instant) -> u64 {
+    t.elapsed().as_millis() as u64
+}
+
+/// モデルが未設定のときの案内(設定はヘッダーの「設定」にある=§5.11)
+const NO_MODEL: &str = "モデルが未設定です。ヘッダーの「設定」で接続先とモデルを選んでください";
 
 /// 中止されたことを結果の断り書きに足す。**黙って短い結果を返さない**
 /// (「ここまでしか見ていない」と分かる形にする)
@@ -525,15 +546,56 @@ async fn proofread_ai(
 ) -> Result<AiProofreadResult, String> {
     let s = state.ai.lock().map_err(|_| "状態の取得に失敗")?.clone();
     if s.model.trim().is_empty() {
-        return Err("モデルが未設定です。AI相談タブの設定で接続してください".to_string());
+        return Err(NO_MODEL.to_string());
     }
     let root = root_of(&state)?;
     let codex = project::load_codex(&root).map_err(to_msg)?;
     let names: Vec<String> = codex.iter().flat_map(|c| c.patterns()).collect();
 
+    let cancelled = live_cancel(state.inner());
+    let log = live_log(Some(root), s.model.clone(), s.base_url.clone());
+    let hooks = AiHooks {
+        cancelled: &cancelled,
+        log: &log,
+    };
+    run_proofread(&s, &text, &names, &hooks).await
+}
+
+/// 1回の呼び出しの出力トークン数(usage を返さないモデルでは 0)
+fn out_tokens(out: &ai::ChatOutcome) -> u64 {
+    out.usage.map(|u| u.completion_tokens).unwrap_or(0)
+}
+
+/// ログに添える但し書き。打ち切りと拒否は**次にすべきことが逆**なので分けて残す
+fn outcome_note(out: &ai::ChatOutcome) -> Option<&'static str> {
+    if out.truncated() {
+        Some("打ち切られた")
+    } else if out.refused() {
+        Some("空の応答(拒否の疑い)")
+    } else {
+        None
+    }
+}
+
+/// 誤字脱字チェックの本体。
+///
+/// 1塊ごとの手順:
+///  1. 経路A(構造化出力)。接続先が受け付けなければ経路B(スキーマ無し)へ落とす
+///  2. **形式として読み取れない**ときだけ経路Bで測り直す。打ち切りなら測り直さない
+///     (原因はコンテキスト長で、投げ直しても同じになる)
+///  3. **判定は測り直しの後で下す** — 打ち切り / 拒否(空応答)/ 形式不備 / 読めた。
+///     経路Aが空でも、測り直しで読めたならそれは拒否ではない
+///
+/// 打ち切り・拒否・形式不備のどれも「指摘なし」ではない。区別して警告に出す。
+async fn run_proofread(
+    s: &AiSettings,
+    text: &str,
+    names: &[String],
+    h: &AiHooks<'_>,
+) -> Result<AiProofreadResult, String> {
     // 長文はまとめて投げると応答が打ち切られることがあるので分割して順に検査する
     // (PoC#7 §7.1)。分割字数は環境によって最適値が違うため設定可能(§7.2)
-    let all_chunks = proofread::split_for_check_with(&text, s.check_chunk_chars);
+    let all_chunks = proofread::split_for_check_with(text, s.check_chunk_chars);
     let total_chunks = all_chunks.len();
     let chunks: Vec<String> = all_chunks
         .into_iter()
@@ -552,17 +614,17 @@ async fn proofread_ai(
     let mut failures = 0usize;
     // 応答が打ち切られた塊の数。「指摘なし」と取り違えると誤報告になる
     let mut truncated = 0usize;
+    // 1文字も返らなかった塊。検閲による拒否でこの形になる(打ち切りとは対処が逆)
+    let mut refused = 0usize;
     // 応答は返ったが形式として読み取れなかった塊。これも「誤りなし」ではない
     let mut unparsed = 0usize;
-    let epoch = ai_epoch(&state);
     let mut cancelled = false;
 
     for chunk in &chunks {
-        if ai_cancelled(&state, epoch) {
+        if (h.cancelled)() {
             cancelled = true;
             break;
         }
-        let call_started = std::time::Instant::now();
         let messages = vec![
             ChatMessage {
                 role: "system".into(),
@@ -572,14 +634,14 @@ async fn proofread_ai(
             },
             ChatMessage {
                 role: "user".into(),
-                content: proofread::build_prompt(chunk, &names),
+                content: proofread::build_prompt(chunk, names),
             },
         ];
 
         // 経路A: 構造化出力。失敗したら経路B(スキーマ無し+寛容パース)へ落とす
         let mut used_fallback = false;
-        let mut chunk_truncated = false;
-        let raw = match ai::chat(
+        let call_started = std::time::Instant::now();
+        let first = match ai::chat(
             &s.base_url,
             &s.api_key,
             &s.model,
@@ -589,26 +651,14 @@ async fn proofread_ai(
         )
         .await
         {
-            Ok(out) => {
-                completion_tokens += out.usage.map(|u| u.completion_tokens).unwrap_or(0);
-                if out.truncated() {
-                    truncated += 1;
-                    chunk_truncated = true;
-                }
-                out.content
-            }
+            Ok(out) => out,
             Err(_) => {
                 used_fallback = true;
                 match ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.1, None).await {
-                    Ok(out) => {
-                        completion_tokens += out.usage.map(|u| u.completion_tokens).unwrap_or(0);
-                        if out.truncated() {
-                            truncated += 1;
-                            chunk_truncated = true;
-                        }
-                        out.content
-                    }
-                    Err(_) => {
+                    Ok(out) => out,
+                    Err(e) => {
+                        let note = format!("失敗: {e}");
+                        (h.log)("proofread", &messages, "", ms_since(call_started), Some(&note));
                         // 一部が落ちても、取れた分は返す(全部やり直させない)
                         failures += 1;
                         continue;
@@ -616,27 +666,38 @@ async fn proofread_ai(
                 }
             }
         };
-
-        log_ai(
-            &state,
+        completion_tokens += out_tokens(&first);
+        (h.log)(
             "proofread",
-            &s,
             &messages,
-            &raw,
-            call_started.elapsed().as_millis() as u64,
-            if chunk_truncated { Some("打ち切られた塊あり") } else { None },
+            &first.content,
+            ms_since(call_started),
+            outcome_note(&first),
         );
-        let mut issues = proofread::parse_ai_issues(&raw);
-        let mut structured = proofread::looks_structured(&raw);
+
+        let mut chunk_truncated = first.truncated();
+        let mut got_text = !first.content.trim().is_empty();
+        let mut issues = proofread::parse_ai_issues(&first.content);
+        let mut structured = proofread::looks_structured(&first.content);
         // **指定した形で読み取れない**場合は経路Bで測り直す(レビュー側と同じ条件)。
         // 条件を `issues.is_empty()` にすると、正常な「指摘なし」(`{"issues":[]}`)でも
         // 毎回2回投げることになり、誤字の無い本文ほど時間とトークンが倍かかる。
         // ただし**打ち切られていた場合は再試行しない**。原因はコンテキスト長の
         // 不足であって出力形式ではないため、投げ直しても同じ結果になり時間を捨てるだけ
         if !structured && !used_fallback && !chunk_truncated {
+            let retry_started = std::time::Instant::now();
             if let Ok(out) = ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.1, None).await
             {
-                completion_tokens += out.usage.map(|u| u.completion_tokens).unwrap_or(0);
+                completion_tokens += out_tokens(&out);
+                (h.log)(
+                    "proofread",
+                    &messages,
+                    &out.content,
+                    ms_since(retry_started),
+                    Some(outcome_note(&out).unwrap_or("形式の測り直し(経路B)")),
+                );
+                got_text |= !out.content.trim().is_empty();
+                chunk_truncated |= out.truncated();
                 // 経路Bが**読み取れた**なら、0件でもそれが答え(誤字なしと読めている)
                 if proofread::looks_structured(&out.content) {
                     used_fallback = true;
@@ -645,9 +706,16 @@ async fn proofread_ai(
                 }
             }
         }
-        // 応答は返ったのに形式を守っていない塊。**「誤りなし」ではない**
-        if !structured && !chunk_truncated && !raw.trim().is_empty() {
-            unparsed += 1;
+
+        // 判定は測り直しの後で下す。どれも「誤りなし」ではない
+        if chunk_truncated {
+            truncated += 1;
+        } else if !structured {
+            if got_text {
+                unparsed += 1;
+            } else {
+                refused += 1;
+            }
         }
         if used_fallback {
             path = "fallback";
@@ -667,18 +735,24 @@ async fn proofread_ai(
         None
     };
 
-    // 打ち切りは「指摘なし」と区別して必ず伝える。
-    // 校正で「誤りが無い」と誤解させるのは最悪の誤報告になる
+    // 打ち切り・拒否・形式不備は「指摘なし」と区別して必ず伝える。
+    // 校正で「誤りが無い」と誤解させるのは最悪の誤報告になる。
+    // (警告は画面にそのまま文字で出るので、Markdown の強調記号は書かない)
     let warning = if truncated > 0 {
         Some(format!(
             "{truncated}箇所で応答が途中で打ち切られました(モデルのコンテキスト長が不足しています)。\
              見落としがある可能性が高いので、LM Studio のコンテキスト長を増やすか、\
              短い範囲に区切って確認してください"
         ))
+    } else if refused > 0 {
+        Some(format!(
+            "{refused}箇所でモデルが応答を返しませんでした。「誤りなし」ではありません。\
+             題材によっては検閲で拒否されることがあります。非検閲モデルに切り替えてお試しください"
+        ))
     } else if unparsed > 0 {
         Some(format!(
             "{unparsed}箇所で、応答を指定した形式として読み取れませんでした\
-             (モデルが形式を守っていません)。**「誤りなし」ではありません**。\
+             (モデルが形式を守っていません)。「誤りなし」ではありません。\
              別のモデルをお試しください"
         ))
     } else if failures > 0 {
@@ -690,13 +764,13 @@ async fn proofread_ai(
     };
 
     // 位置は本文全体に対して引き直す(塊ごとのずれを持ち込まない)
-    let issues = proofread::resolve_issues(&text, proofread::dedupe_issues(collected));
+    let issues = proofread::resolve_issues(text, proofread::dedupe_issues(collected));
 
     Ok(AiProofreadResult {
         issues,
         unchecked_chars,
         path: path.to_string(),
-        model: s.model,
+        model: s.model.clone(),
         chunks: chunks.len(),
         elapsed_ms,
         tokens_per_sec,
@@ -724,9 +798,11 @@ async fn suggest_scene_split(
 ) -> Result<SplitSuggestion, String> {
     let s = state.ai.lock().map_err(|_| "状態の取得に失敗")?.clone();
     if s.model.trim().is_empty() {
-        return Err("モデルが未設定です。AI相談タブの設定で接続してください".to_string());
+        return Err(NO_MODEL.to_string());
     }
     let root = root_of(&state)?;
+    let cancelled = live_cancel(state.inner());
+    let log = live_log(Some(root.clone()), s.model.clone(), s.base_url.clone());
     let source = project::read_text(&root, &path).map_err(to_msg)?;
     let (_, body) = frontmatter::split(&source);
     if body.chars().count() < split::MIN_SEGMENT_CHARS * 2 {
@@ -750,10 +826,21 @@ async fn suggest_scene_split(
     let started = std::time::Instant::now();
     // 分割は**全体を通して読まないと切れ目が分からない**ので、分割送信はしない。
     // 長すぎてコンテキストに入らない場合は打ち切りとして正直に伝える
-    let out = ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.2, None)
-        .await?;
+    let out = ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.2, None).await?;
+    log(
+        "split",
+        &messages,
+        &out.content,
+        ms_since(started),
+        outcome_note(&out),
+    );
+    // 1回きりの呼び出しなので途中では止められない。返ってきた時点で中止されていたら
+    // 提案は出さない(ヘッダーの「中止」を押したのに提案が出ると、押した意味が無い)
+    if cancelled() {
+        return Err("中止しました".to_string());
+    }
 
-    let warning = if out.finish_reason.as_deref() == Some("length") {
+    let warning = if out.truncated() {
         Some(
             "応答が途中で打ち切られました。本文が長すぎてモデルが最後まで読めていない可能性があります"
                 .to_string(),
@@ -834,7 +921,7 @@ async fn review_ai(
 ) -> Result<AiReviewResult, String> {
     let s = state.ai.lock().map_err(|_| "状態の取得に失敗")?.clone();
     if s.model.trim().is_empty() {
-        return Err("モデルが未設定です。AI相談タブの設定で接続してください".to_string());
+        return Err(NO_MODEL.to_string());
     }
     if text.trim().is_empty() {
         return Err("本文がありません".to_string());
@@ -851,12 +938,36 @@ async fn review_ai(
         .map(|e| (e.title.clone(), e.text.clone()))
         .collect();
     let material_names: Vec<String> = ctx.entries.iter().map(|e| e.title.clone()).collect();
-
     let picked = review::selected_aspects(&aspects);
+
+    let cancelled = live_cancel(state.inner());
+    let log = live_log(Some(root.clone()), s.model.clone(), s.base_url.clone());
+    let hooks = AiHooks {
+        cancelled: &cancelled,
+        log: &log,
+    };
+    run_review(&s, &text, &picked, &materials, material_names, &hooks).await
+}
+
+/// レビューの本体。
+///
+/// 1塊ごとの手順は校正と同じ形(経路A→B / 形式の測り直し / **判定は測り直しの後**)。
+/// 同じ形だが**共通化はしない**(06 §4 の汎用AI実行エンジンの撤回)。
+/// その代わり、両方の挙動を擬似サーバー相手のテストで固定している。
+///
+/// 読み取れなかった応答は捨てずに、生のまま全体講評として見せる(§6.3 の最後の受け皿)。
+async fn run_review(
+    s: &AiSettings,
+    text: &str,
+    picked: &[&review::Aspect],
+    materials: &[(String, String)],
+    material_names: Vec<String>,
+    h: &AiHooks<'_>,
+) -> Result<AiReviewResult, String> {
     let used_aspects: Vec<String> = picked.iter().map(|a| a.key.to_string()).collect();
 
     // 長文は分割する。所要時間は実行回数でほぼ決まるので、分割字数は設定に従う(§7.2)
-    let all_chunks = proofread::split_for_check_with(&text, s.check_chunk_chars);
+    let all_chunks = proofread::split_for_check_with(text, s.check_chunk_chars);
     let total_chunks = all_chunks.len();
     let chunks: Vec<String> = all_chunks.into_iter().take(proofread::MAX_CHUNKS).collect();
     let unchecked_chars = if total_chunks > chunks.len() {
@@ -877,15 +988,13 @@ async fn review_ai(
     let mut refused = 0usize;
     // 応答は返ったが指定した形で読み取れなかった塊。これも「指摘なし」ではない
     let mut unparsed = 0usize;
-    let epoch = ai_epoch(&state);
     let mut cancelled = false;
 
     for chunk in &chunks {
-        if ai_cancelled(&state, epoch) {
+        if (h.cancelled)() {
             cancelled = true;
             break;
         }
-        let call_started = std::time::Instant::now();
         let messages = vec![
             ChatMessage {
                 role: "system".into(),
@@ -893,17 +1002,17 @@ async fn review_ai(
             },
             ChatMessage {
                 role: "user".into(),
-                content: review::build_prompt(chunk, &picked, &materials),
+                content: review::build_prompt(chunk, picked, materials),
             },
         ];
 
         let mut used_fallback = false;
-        let mut chunk_truncated = false;
+        let call_started = std::time::Instant::now();
         // 温度は校正(0.1)より少し高くする。校正は正解が1つだが、
         // レビューは読み方に幅があり、固めすぎると当たり障りのない指摘に寄る
         //
         // 経路A: 構造化出力。失敗したら経路B(スキーマ無し+寛容パース)へ落とす
-        let raw = match ai::chat(
+        let first = match ai::chat(
             &s.base_url,
             &s.api_key,
             &s.model,
@@ -913,30 +1022,14 @@ async fn review_ai(
         )
         .await
         {
-            Ok(out) => {
-                completion_tokens += out.usage.map(|u| u.completion_tokens).unwrap_or(0);
-                if out.finish_reason.as_deref() == Some("length") {
-                    truncated += 1;
-                    chunk_truncated = true;
-                } else if out.refused() {
-                    refused += 1;
-                }
-                out.content
-            }
+            Ok(out) => out,
             Err(_) => {
                 used_fallback = true;
                 match ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.3, None).await {
-                    Ok(out) => {
-                        completion_tokens += out.usage.map(|u| u.completion_tokens).unwrap_or(0);
-                        if out.finish_reason.as_deref() == Some("length") {
-                            truncated += 1;
-                            chunk_truncated = true;
-                        } else if out.refused() {
-                            refused += 1;
-                        }
-                        out.content
-                    }
-                    Err(_) => {
+                    Ok(out) => out,
+                    Err(e) => {
+                        let note = format!("失敗: {e}");
+                        (h.log)("review", &messages, "", ms_since(call_started), Some(&note));
                         // 一部が落ちても、取れた分は返す(全部やり直させない)
                         failures += 1;
                         continue;
@@ -944,43 +1037,67 @@ async fn review_ai(
                 }
             }
         };
-
-        log_ai(
-            &state,
+        completion_tokens += out_tokens(&first);
+        (h.log)(
             "review",
-            &s,
             &messages,
-            &raw,
-            call_started.elapsed().as_millis() as u64,
-            if chunk_truncated { Some("打ち切られた塊あり") } else { None },
+            &first.content,
+            ms_since(call_started),
+            outcome_note(&first),
         );
-        let mut parsed = review::parse(&raw);
-        let mut shown_raw = raw;
+
+        let mut chunk_truncated = first.truncated();
+        let mut got_text = !first.content.trim().is_empty();
+        let mut parsed = review::parse(&first.content);
+        let mut shown_raw = first.content;
         // 指定した形で読み取れない場合は経路Bで測り直す。
         // ただし**打ち切られていた場合は再試行しない**(原因は出力形式ではなく
         // コンテキスト不足なので、投げ直しても同じ結果になり時間を捨てるだけ)
         if !parsed.structured && !used_fallback && !chunk_truncated {
+            let retry_started = std::time::Instant::now();
             if let Ok(out) = ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.3, None).await
             {
-                completion_tokens += out.usage.map(|u| u.completion_tokens).unwrap_or(0);
+                completion_tokens += out_tokens(&out);
+                (h.log)(
+                    "review",
+                    &messages,
+                    &out.content,
+                    ms_since(retry_started),
+                    Some(outcome_note(&out).unwrap_or("形式の測り直し(経路B)")),
+                );
+                chunk_truncated |= out.truncated();
                 let retried = review::parse(&out.content);
                 if retried.structured {
                     used_fallback = true;
                     parsed = retried;
                     shown_raw = out.content;
+                } else if !out.content.trim().is_empty() {
+                    got_text = true;
+                    // 経路Aが空で測り直しが散文なら、見せるべき生の応答は測り直しの方
+                    if shown_raw.trim().is_empty() {
+                        shown_raw = out.content;
+                    }
                 }
             }
         }
 
-        // 形式を守らない応答(散文・英語・箇条書き等)を捨てない。
-        //
-        // **捨てると「指摘なし」と区別が付かなくなる**。中身はあるのに読めていない
-        // だけなので、生の応答をそのまま講評として見せ、照合できていないことを警告する。
-        // これはレビューで最悪の誤報告(問題ありませんでした)を防ぐための処置であり、
-        // 経路B(プレーンテキスト+寛容パース)の最後の受け皿にあたる(§6.3)
-        if !parsed.structured && !shown_raw.trim().is_empty() {
-            unparsed += 1;
-            parsed.overall = review::clip_raw(&shown_raw);
+        // 判定は測り直しの後で下す。経路Aが空でも、測り直しで読めたならそれは拒否ではない
+        if chunk_truncated {
+            truncated += 1;
+        }
+        if !parsed.structured {
+            if got_text {
+                // 形式を守らない応答(散文・英語・箇条書き等)を捨てない。
+                //
+                // **捨てると「指摘なし」と区別が付かなくなる**。中身はあるのに読めていない
+                // だけなので、生の応答をそのまま講評として見せ、照合できていないことを警告する。
+                // これはレビューで最悪の誤報告(問題ありませんでした)を防ぐための処置であり、
+                // 経路B(プレーンテキスト+寛容パース)の最後の受け皿にあたる(§6.3)
+                unparsed += 1;
+                parsed.overall = review::clip_raw(&shown_raw);
+            } else if !chunk_truncated {
+                refused += 1;
+            }
         }
 
         if used_fallback {
@@ -1018,7 +1135,7 @@ async fn review_ai(
     } else if unparsed > 0 {
         Some(format!(
             "{unparsed}箇所で、応答を指定した形式として読み取れませんでした(モデルが形式を守っていません)。\
-             **「指摘なし」ではありません**。読み取れなかった応答はそのまま下に出していますが、\
+             「指摘なし」ではありません。読み取れなかった応答はそのまま下に出していますが、\
              引用が本文に実在するかの照合ができていないので、内容は鵜呑みにしないでください。\
              別のモデルをお試しください"
         ))
@@ -1031,7 +1148,7 @@ async fn review_ai(
     };
 
     // 位置は本文全体に対して引き直す(塊ごとのずれを持ち込まない)
-    let comments = review::resolve(&text, review::dedupe(collected));
+    let comments = review::resolve(text, review::dedupe(collected));
 
     Ok(AiReviewResult {
         comments,
@@ -1040,7 +1157,7 @@ async fn review_ai(
         materials: material_names,
         unchecked_chars,
         path: path.to_string(),
-        model: s.model,
+        model: s.model.clone(),
         chunks: chunks.len(),
         elapsed_ms,
         tokens_per_sec,
@@ -1072,24 +1189,54 @@ async fn extract_entities(
 ) -> Result<ExtractResult, String> {
     let s = state.ai.lock().map_err(|_| "状態の取得に失敗")?.clone();
     if s.model.trim().is_empty() {
-        return Err("モデルが未設定です。AI相談タブの設定で接続してください".to_string());
+        return Err(NO_MODEL.to_string());
     }
     let root = root_of(&state)?;
     let codex = project::load_codex(&root).map_err(to_msg)?;
+
+    let cancelled = live_cancel(state.inner());
+    let log = live_log(Some(root), s.model.clone(), s.base_url.clone());
+    let hooks = AiHooks {
+        cancelled: &cancelled,
+        log: &log,
+    };
+    run_extract(&s, &text, &codex, &hooks).await
+}
+
+/// 設定抽出の本体。
+///
+/// **「候補なし」と「見ていない・読めていない」を取り違えないこと。** 校正・レビューと同じく、
+/// 打ち切り / 拒否(空応答)/ 形式不備 を区別して警告に出す。さらに抽出は、
+/// 長い本文の末尾を見ていないことも黙っていた(校正・レビューは未検査の字数を出していた)。
+///
+/// 形式の測り直しはしない(抽出は経路Bだけで動いている。新しい手順を足さない)。
+async fn run_extract(
+    s: &AiSettings,
+    text: &str,
+    codex: &[CodexEntry],
+    h: &AiHooks<'_>,
+) -> Result<ExtractResult, String> {
     let known: Vec<String> = codex.iter().flat_map(|c| c.patterns()).collect();
 
-    let chunks = proofread::split_for_check_with(&text, s.check_chunk_chars);
-    let chunks: Vec<String> = chunks.into_iter().take(proofread::MAX_CHUNKS).collect();
+    let all_chunks = proofread::split_for_check_with(text, s.check_chunk_chars);
+    let total_chunks = all_chunks.len();
+    let chunks: Vec<String> = all_chunks.into_iter().take(proofread::MAX_CHUNKS).collect();
+    let unchecked_chars = if total_chunks > chunks.len() {
+        text.chars().count() - chunks.iter().map(|c| c.chars().count()).sum::<usize>()
+    } else {
+        0
+    };
 
     let started = std::time::Instant::now();
     let mut raw_all = Vec::new();
     let mut truncated = 0usize;
+    let mut refused = 0usize;
+    let mut unparsed = 0usize;
     let mut failures = 0usize;
-    let epoch = ai_epoch(&state);
     let mut cancelled = false;
 
     for chunk in &chunks {
-        if ai_cancelled(&state, epoch) {
+        if (h.cancelled)() {
             cancelled = true;
             break;
         }
@@ -1107,21 +1254,27 @@ async fn extract_entities(
         ];
         match ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.1, None).await {
             Ok(out) => {
-                if out.truncated() {
-                    truncated += 1;
-                }
-                log_ai(
-                    &state,
+                (h.log)(
                     "extract",
-                    &s,
                     &messages,
                     &out.content,
-                    call_started.elapsed().as_millis() as u64,
-                    if out.truncated() { Some("打ち切られた") } else { None },
+                    ms_since(call_started),
+                    outcome_note(&out),
                 );
+                if out.truncated() {
+                    truncated += 1;
+                } else if out.refused() {
+                    refused += 1;
+                } else if !extract::looks_structured(&out.content) {
+                    unparsed += 1;
+                }
                 raw_all.extend(extract::parse(&out.content));
             }
-            Err(_) => failures += 1,
+            Err(e) => {
+                let note = format!("失敗: {e}");
+                (h.log)("extract", &messages, "", ms_since(call_started), Some(&note));
+                failures += 1;
+            }
         }
     }
 
@@ -1131,18 +1284,40 @@ async fn extract_entities(
 
     let raw_count = raw_all.len();
     // 実在性・重複・名寄せの検証は本文全体に対して行う
-    let verified = extract::verify(&text, raw_all, &codex);
+    let verified = extract::verify(text, raw_all, codex);
     let rejected = raw_count.saturating_sub(verified.candidates.len());
     let (candidates, conflicts) = (verified.candidates, verified.conflicts);
 
-    let warning = if truncated > 0 {
-        Some(format!(
-            "{truncated}箇所で応答が途中で打ち切られました。取りこぼしがある可能性があります"
-        ))
+    let mut notes: Vec<String> = Vec::new();
+    if truncated > 0 {
+        notes.push(format!(
+            "{truncated}箇所で応答が途中で打ち切られました(モデルのコンテキスト長が不足しています)。\
+             取りこぼしがある可能性があります"
+        ));
+    } else if refused > 0 {
+        notes.push(format!(
+            "{refused}箇所でモデルが応答を返しませんでした。題材によっては検閲で拒否されることがあります。\
+             非検閲モデルに切り替えてお試しください"
+        ));
+    } else if unparsed > 0 {
+        notes.push(format!(
+            "{unparsed}箇所で、応答を指定した形式として読み取れませんでした(モデルが形式を守っていません)。\
+             「候補なし」ではありません。別のモデルをお試しください"
+        ));
     } else if failures > 0 {
-        Some(format!("{failures}箇所の抽出に失敗しました。結果は一部のみです"))
-    } else {
+        notes.push(format!("{failures}箇所の抽出に失敗しました。結果は一部のみです"));
+    }
+    if unchecked_chars > 0 {
+        notes.push(format!(
+            "本文が長いため、末尾の{unchecked_chars}字は見ていません\
+             (1回に送る字数×{}塊まで)。範囲を分けて実行してください",
+            proofread::MAX_CHUNKS
+        ));
+    }
+    let warning = if notes.is_empty() {
         None
+    } else {
+        Some(notes.join(" / "))
     };
 
     Ok(ExtractResult {
@@ -1241,7 +1416,20 @@ fn build_context(
 enum ChatEvent {
     Delta(String),
     Done,
+    /// 中止された。**`Done` と区別する** — 区別しないと、1文字目が届く前に止めた相談が
+    /// 「検閲で拒否された」と表示され、途中で止めた応答が完結した往復として
+    /// 会話の履歴に積まれていた
+    Cancelled,
     Error(String),
+}
+
+/// 相談の応答の終わり方
+#[derive(Debug, PartialEq, Eq)]
+enum StreamEnd {
+    /// 最後まで受け取った(`[DONE]` か、接続が閉じた)
+    Done,
+    /// 中止された。それ以降の増分は流していない
+    Cancelled,
 }
 
 /// ストリーミングでAIに問い合わせる。応答は Channel でフロントへ逐次流す。
@@ -1256,14 +1444,17 @@ async fn ask_ai(
 ) -> Result<(), String> {
     let s = state.ai.lock().map_err(|_| "状態の取得に失敗")?.clone();
     if s.model.trim().is_empty() {
-        return Err("モデルが未設定です。設定でモデルを選んでください".to_string());
+        return Err(NO_MODEL.to_string());
     }
     let messages = context::build_chat_messages(&context, &question, &history);
-    // 応答を待っている間に中止されることもあるので、投げる前に覚える
-    let epoch = ai_epoch(&state);
-    let call_started = std::time::Instant::now();
-    // 記録(T-06)のために手元にも積む。画面へ流すのとは別物
-    let mut answer = String::new();
+    // 応答を待っている間に中止されることもあるので、投げる前に世代を覚える
+    let cancelled = live_cancel(state.inner());
+    let log = live_log(root_of(&state).ok(), s.model.clone(), s.base_url.clone());
+    let hooks = AiHooks {
+        cancelled: &cancelled,
+        log: &log,
+    };
+    let started = std::time::Instant::now();
 
     let resp = ai::stream_request(&s.base_url, &s.api_key, &s.model, &messages, s.temperature)
         .send()
@@ -1274,87 +1465,81 @@ async fn ask_ai(
         let status = resp.status();
         let body = resp.text().await.unwrap_or_default();
         let msg = format!("APIエラー: status={status} body={body}");
+        log("chat", &messages, "", ms_since(started), Some(&msg));
         let _ = on_event.send(ChatEvent::Error(msg.clone()));
         return Err(msg);
     }
 
+    let mut forward = |d: String| {
+        let _ = on_event.send(ChatEvent::Delta(d));
+    };
+    match consume_stream(resp, &hooks, &mut forward).await {
+        Ok((end, answer)) => {
+            let note = match end {
+                StreamEnd::Cancelled => Some("中止された"),
+                StreamEnd::Done if answer.trim().is_empty() => {
+                    Some("応答が1文字も返らなかった(拒否の疑い)")
+                }
+                StreamEnd::Done => None,
+            };
+            log("chat", &messages, &answer, ms_since(started), note);
+            let _ = on_event.send(match end {
+                StreamEnd::Done => ChatEvent::Done,
+                StreamEnd::Cancelled => ChatEvent::Cancelled,
+            });
+            Ok(())
+        }
+        Err((msg, answer)) => {
+            log("chat", &messages, &answer, ms_since(started), Some(&msg));
+            let _ = on_event.send(ChatEvent::Error(msg.clone()));
+            Err(msg)
+        }
+    }
+}
+
+/// 相談の応答を受け取りきる。受け取った増分は `on_delta` へ流し、全文も返す。
+///
+/// - 受信は**バイト列のまま**行に切る(割れた日本語1文字を化けさせない=`ai::drain_sse_lines`)
+/// - 改行で終わらずに切れた最後の行も捨てない(`[DONE]` を送らないサーバがある)
+/// - 中止されたら、**それ以降の増分は流さずに** `Cancelled` で返す
+///
+/// 失敗したときも、そこまでに受け取った分を返す(ログに残すため)。
+async fn consume_stream(
+    resp: reqwest::Response,
+    h: &AiHooks<'_>,
+    on_delta: &mut (dyn FnMut(String) + Send),
+) -> Result<(StreamEnd, String), (String, String)> {
     let mut stream = resp.bytes_stream();
-    // **バイト列のまま持つ。** チャンクごとに文字列化すると、割れた日本語1文字が化ける
     let mut buf: Vec<u8> = Vec::new();
+    let mut answer = String::new();
     while let Some(chunk) = stream.next().await {
         let chunk = match chunk {
             Ok(c) => c,
-            Err(e) => {
-                let msg = format!("受信が中断されました: {e}");
-                let _ = on_event.send(ChatEvent::Error(msg.clone()));
-                return Err(msg);
-            }
+            Err(e) => return Err((format!("受信が中断されました: {e}"), answer)),
         };
-        if ai_cancelled(&state, epoch) {
-            log_ai(
-                &state,
-                "chat",
-                &s,
-                &messages,
-                &answer,
-                call_started.elapsed().as_millis() as u64,
-                Some("中止された"),
-            );
-            let _ = on_event.send(ChatEvent::Done);
-            return Ok(());
+        if (h.cancelled)() {
+            return Ok((StreamEnd::Cancelled, answer));
         }
         buf.extend_from_slice(&chunk);
-        // 行単位で処理し、途中で切れた行は次のチャンクへ持ち越す(ai::drain_sse_lines)
         for line in ai::drain_sse_lines(&mut buf) {
             match ai::parse_sse_line(&line) {
                 ai::SseEvent::Delta(d) => {
                     answer.push_str(&d);
-                    let _ = on_event.send(ChatEvent::Delta(d));
+                    on_delta(d);
                 }
-                ai::SseEvent::Done => {
-                    log_ai(
-                        &state,
-                        "chat",
-                        &s,
-                        &messages,
-                        &answer,
-                        call_started.elapsed().as_millis() as u64,
-                        if answer.is_empty() {
-                            Some("応答が1文字も返らなかった(拒否の疑い)")
-                        } else {
-                            None
-                        },
-                    );
-                    let _ = on_event.send(ChatEvent::Done);
-                    return Ok(());
-                }
+                ai::SseEvent::Done => return Ok((StreamEnd::Done, answer)),
                 ai::SseEvent::Ignore => {}
             }
         }
     }
-    // 改行で終わらずに切れた最後の行も捨てない([DONE] を送らないサーバがある)
     if !buf.is_empty() {
         let line = String::from_utf8_lossy(&buf).into_owned();
         if let ai::SseEvent::Delta(d) = ai::parse_sse_line(&line) {
             answer.push_str(&d);
-            let _ = on_event.send(ChatEvent::Delta(d));
+            on_delta(d);
         }
     }
-    log_ai(
-        &state,
-        "chat",
-        &s,
-        &messages,
-        &answer,
-        call_started.elapsed().as_millis() as u64,
-        if answer.is_empty() {
-            Some("応答が1文字も返らなかった(拒否の疑い)")
-        } else {
-            None
-        },
-    );
-    let _ = on_event.send(ChatEvent::Done);
-    Ok(())
+    Ok((StreamEnd::Done, answer))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -1409,4 +1594,501 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/// AIコマンドの本体(`run_*` / `consume_stream`)を、擬似サーバー相手に動かすテスト。
+///
+/// lib.rs にはここまでテストが1件も無かった。校正の二重実行、拒否を打ち切りと取り違える
+/// 誤診、中止が「検閲で拒否」と表示される不具合は、どれもこの層で起きている。
+/// 解析関数の単体テストでは捕まらない「何回投げたか」「どの警告を出したか」を固定する。
+#[cfg(test)]
+mod ai_run_tests {
+    use super::*;
+    use std::io::{Read, Write};
+    use std::net::{TcpListener, TcpStream};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    /// 擬似サーバーの応答の台本
+    enum Reply {
+        /// 非ストリームの chat/completions 応答(JSON本文)
+        Json(String),
+        /// HTTPエラー。構造化出力を受け付けない接続先などの再現に使う
+        Status(u16),
+        /// ストリーム。各要素を**間を空けて別々に**書き込む(読み取り単位を割るため)
+        Stream(Vec<Vec<u8>>),
+    }
+
+    /// 台本どおりに答える OpenAI 互換の擬似サーバー。
+    ///
+    /// 受けたリクエストの本文を記録する。**台本が尽きたら 500 を返す** —
+    /// 想定より多く投げた(=二重実行)ときに、テストが必ず落ちるようにするため。
+    struct Mock {
+        base_url: String,
+        bodies: Arc<std::sync::Mutex<Vec<String>>>,
+    }
+
+    impl Mock {
+        fn count(&self) -> usize {
+            self.bodies.lock().unwrap().len()
+        }
+        fn body(&self, i: usize) -> String {
+            self.bodies.lock().unwrap()[i].clone()
+        }
+    }
+
+    fn mock(script: Vec<Reply>) -> Mock {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let bodies = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let seen = bodies.clone();
+        std::thread::spawn(move || {
+            let mut script = script.into_iter();
+            for conn in listener.incoming() {
+                let Ok(mut conn) = conn else { break };
+                let body = read_request(&mut conn);
+                seen.lock().unwrap().push(body);
+                match script.next() {
+                    Some(Reply::Json(json)) => respond(&mut conn, 200, &json),
+                    Some(Reply::Status(code)) => {
+                        respond(&mut conn, code, r#"{"error":"unsupported"}"#)
+                    }
+                    Some(Reply::Stream(parts)) => {
+                        let head = "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\nconnection: close\r\n\r\n";
+                        let _ = conn.write_all(head.as_bytes());
+                        for p in parts {
+                            let _ = conn.write_all(&p);
+                            let _ = conn.flush();
+                            std::thread::sleep(std::time::Duration::from_millis(40));
+                        }
+                    }
+                    None => respond(
+                        &mut conn,
+                        500,
+                        r#"{"error":"台本切れ(想定より多く呼ばれた)"}"#,
+                    ),
+                }
+            }
+        });
+        Mock {
+            base_url: format!("http://{addr}/v1"),
+            bodies,
+        }
+    }
+
+    fn read_request(conn: &mut TcpStream) -> String {
+        let mut buf = Vec::new();
+        let mut tmp = [0u8; 8192];
+        let header_end = loop {
+            let n = conn.read(&mut tmp).unwrap_or(0);
+            if n == 0 {
+                return String::new();
+            }
+            buf.extend_from_slice(&tmp[..n]);
+            if let Some(i) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+                break i + 4;
+            }
+        };
+        let head = String::from_utf8_lossy(&buf[..header_end]).to_lowercase();
+        let len = head
+            .lines()
+            .find_map(|l| l.strip_prefix("content-length:"))
+            .and_then(|v| v.trim().parse::<usize>().ok())
+            .unwrap_or(0);
+        while buf.len() < header_end + len {
+            let n = conn.read(&mut tmp).unwrap_or(0);
+            if n == 0 {
+                break;
+            }
+            buf.extend_from_slice(&tmp[..n]);
+        }
+        String::from_utf8_lossy(&buf[header_end..]).into_owned()
+    }
+
+    fn respond(conn: &mut TcpStream, code: u16, body: &str) {
+        let head = format!(
+            "HTTP/1.1 {code} X\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
+            body.len()
+        );
+        let _ = conn.write_all(head.as_bytes());
+        let _ = conn.write_all(body.as_bytes());
+        let _ = conn.flush();
+    }
+
+    /// chat/completions の応答。content が None なら `null`(OpenAIの拒否の形)
+    fn chat(content: Option<&str>, finish: &str) -> Reply {
+        Reply::Json(
+            serde_json::json!({
+                "choices": [{
+                    "message": {"role": "assistant", "content": content},
+                    "finish_reason": finish
+                }],
+                "usage": {"prompt_tokens": 10, "completion_tokens": 5}
+            })
+            .to_string(),
+        )
+    }
+
+    fn sse_delta(text: &str) -> String {
+        let v = serde_json::json!({"choices": [{"delta": {"content": text}}]});
+        format!("data: {v}\n\n")
+    }
+
+    fn settings(m: &Mock) -> AiSettings {
+        AiSettings {
+            base_url: m.base_url.clone(),
+            api_key: None,
+            model: "test-model".into(),
+            temperature: 0.7,
+            check_chunk_chars: 3_000,
+        }
+    }
+
+    fn never() -> impl Fn() -> bool + Send + Sync {
+        || false
+    }
+
+    fn no_log() -> impl Fn(&str, &[ChatMessage], &str, u64, Option<&str>) + Send + Sync {
+        |_, _, _, _, _| {}
+    }
+
+    const TEXT: &str = "　転校初日の朝は、雨だった。佐藤架純は昇降口で靴を履き替える。";
+
+    /// 数塊に分かれる長さの本文(分割字数 500 で使う)
+    fn long_text() -> String {
+        (0..40)
+            .map(|i| format!("{i}行目。これは分割の試験に使う本文で、それなりの長さがある。"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    // ===== 校正 =====
+
+    /// **誤字が無い本文で2回投げないこと**(外部レビュー指摘6の回帰)。
+    /// 正常な「指摘なし」(`{"issues":[]}`)で測り直すと、誤字の無い本文ほど時間が倍かかる
+    #[tokio::test]
+    async fn proofread_asks_once_when_the_answer_is_no_issues() {
+        let m = mock(vec![chat(Some(r#"{"issues":[]}"#), "stop")]);
+        let (c, l) = (never(), no_log());
+        let h = AiHooks { cancelled: &c, log: &l };
+        let r = run_proofread(&settings(&m), TEXT, &[], &h).await.unwrap();
+        assert_eq!(m.count(), 1, "誤字なしの応答で測り直している");
+        assert!(r.issues.is_empty());
+        assert!(r.warning.is_none(), "{:?}", r.warning);
+        assert_eq!(r.path, "schema");
+    }
+
+    /// 散文で返されたら経路Bで1回だけ測り直し、読めたらそれを採る
+    #[tokio::test]
+    async fn proofread_retries_once_when_the_answer_is_prose() {
+        let m = mock(vec![
+            chat(Some("誤字は見当たりませんでした。"), "stop"),
+            chat(Some(r#"{"issues":[]}"#), "stop"),
+        ]);
+        let (c, l) = (never(), no_log());
+        let h = AiHooks { cancelled: &c, log: &l };
+        let r = run_proofread(&settings(&m), TEXT, &[], &h).await.unwrap();
+        assert_eq!(m.count(), 2);
+        assert!(r.warning.is_none(), "測り直しで読めたのに警告している: {:?}", r.warning);
+        assert_eq!(r.path, "fallback");
+        // 測り直しは構造化出力を付けない(経路B)
+        assert!(m.body(0).contains("response_format"));
+        assert!(!m.body(1).contains("response_format"));
+    }
+
+    /// 測り直しても読めなければ、**「誤りなし」ではなく**読み取れなかったと伝える
+    #[tokio::test]
+    async fn proofread_reports_unreadable_answers_instead_of_no_issues() {
+        let m = mock(vec![
+            chat(Some("全体的に良い文章です。"), "stop"),
+            chat(Some("特に問題はありません。"), "stop"),
+        ]);
+        let (c, l) = (never(), no_log());
+        let h = AiHooks { cancelled: &c, log: &l };
+        let r = run_proofread(&settings(&m), TEXT, &[], &h).await.unwrap();
+        let w = r.warning.expect("読めなかったのに警告が無い");
+        assert!(w.contains("読み取れませんでした"), "{w}");
+        assert!(!w.contains("**"), "警告は文字のまま出るので強調記号を書かない: {w}");
+    }
+
+    /// **空応答(検閲による拒否)を「コンテキスト長が不足」と誤診しないこと。**
+    /// 終了理由 stop の空応答は、打ち切りとは対処が逆(04-design §7.1)
+    #[tokio::test]
+    async fn proofread_tells_refusal_from_truncation() {
+        let m = mock(vec![chat(Some(""), "stop"), chat(Some(""), "stop")]);
+        let (c, l) = (never(), no_log());
+        let h = AiHooks { cancelled: &c, log: &l };
+        let r = run_proofread(&settings(&m), TEXT, &[], &h).await.unwrap();
+        let w = r.warning.expect("拒否なのに警告が無い(=「誤りなし」と誤報告)");
+        assert!(w.contains("検閲"), "{w}");
+        assert!(!w.contains("コンテキスト長"), "拒否を打ち切りと誤診している: {w}");
+    }
+
+    /// OpenAI は拒否すると `content: null` を返す。解析エラー(=接続の問題)ではなく拒否として扱う
+    #[tokio::test]
+    async fn proofread_treats_null_content_as_refusal() {
+        let m = mock(vec![chat(None, "stop"), chat(None, "stop")]);
+        let (c, l) = (never(), no_log());
+        let h = AiHooks { cancelled: &c, log: &l };
+        let r = run_proofread(&settings(&m), TEXT, &[], &h)
+            .await
+            .expect("null を解析エラーにして、接続の失敗と誤診している");
+        assert!(r.warning.unwrap_or_default().contains("検閲"));
+    }
+
+    /// 打ち切りは測り直さない(原因はコンテキスト長で、投げ直しても同じになる)
+    #[tokio::test]
+    async fn proofread_does_not_retry_after_truncation() {
+        let m = mock(vec![chat(Some(r#"{"issues":[{"quote":"#), "length")]);
+        let (c, l) = (never(), no_log());
+        let h = AiHooks { cancelled: &c, log: &l };
+        let r = run_proofread(&settings(&m), TEXT, &[], &h).await.unwrap();
+        assert_eq!(m.count(), 1, "打ち切りで測り直している");
+        assert!(r.warning.unwrap_or_default().contains("打ち切られました"));
+    }
+
+    /// 構造化出力を受け付けない接続先では経路Bへ落ちる
+    #[tokio::test]
+    async fn proofread_falls_back_when_the_schema_is_rejected() {
+        let m = mock(vec![Reply::Status(400), chat(Some(r#"{"issues":[]}"#), "stop")]);
+        let (c, l) = (never(), no_log());
+        let h = AiHooks { cancelled: &c, log: &l };
+        let r = run_proofread(&settings(&m), TEXT, &[], &h).await.unwrap();
+        assert_eq!(m.count(), 2);
+        assert_eq!(r.path, "fallback");
+        assert!(r.warning.is_none(), "{:?}", r.warning);
+    }
+
+    /// 中止されたら次の塊へ進まず、ここまでの結果を「中止しました」付きで返す
+    #[tokio::test]
+    async fn proofread_stops_at_the_next_chunk_when_cancelled() {
+        let m = mock(vec![
+            chat(Some(r#"{"issues":[]}"#), "stop"),
+            chat(Some(r#"{"issues":[]}"#), "stop"),
+            chat(Some(r#"{"issues":[]}"#), "stop"),
+            chat(Some(r#"{"issues":[]}"#), "stop"),
+        ]);
+        let mut s = settings(&m);
+        s.check_chunk_chars = 500;
+        let text = long_text();
+        assert!(
+            proofread::split_for_check_with(&text, 500).len() >= 2,
+            "テストの前提: 複数の塊に分かれること"
+        );
+        let sent = m.bodies.clone();
+        // 1塊目を投げた後で中止された、という状況
+        let c = move || !sent.lock().unwrap().is_empty();
+        let l = no_log();
+        let h = AiHooks { cancelled: &c, log: &l };
+        let r = run_proofread(&s, &text, &[], &h).await.unwrap();
+        assert_eq!(m.count(), 1, "中止の後も投げている");
+        assert!(r.warning.unwrap_or_default().contains("中止しました"));
+    }
+
+    /// 測り直しも含めて、**呼び出しのたびに記録が残ること**(T-06)。
+    /// 測り直しの記録が無いと、形式不備の調査に要るやりとりが残らない
+    #[tokio::test]
+    async fn proofread_logs_every_call_including_the_retry() {
+        let m = mock(vec![
+            chat(Some("散文の応答"), "stop"),
+            chat(Some(r#"{"issues":[]}"#), "stop"),
+        ]);
+        let logged = Arc::new(AtomicUsize::new(0));
+        let n = logged.clone();
+        let c = never();
+        let l = move |feature: &str, _: &[ChatMessage], _: &str, _: u64, _: Option<&str>| {
+            assert_eq!(feature, "proofread");
+            n.fetch_add(1, Ordering::SeqCst);
+        };
+        let h = AiHooks { cancelled: &c, log: &l };
+        run_proofread(&settings(&m), TEXT, &[], &h).await.unwrap();
+        assert_eq!(logged.load(Ordering::SeqCst), 2, "測り直しが記録されていない");
+    }
+
+    // ===== レビュー =====
+
+    fn review_json(overall: &str) -> String {
+        serde_json::json!({"comments": [], "overall": overall}).to_string()
+    }
+
+    async fn review_with(m: &Mock) -> AiReviewResult {
+        let (c, l) = (never(), no_log());
+        let h = AiHooks { cancelled: &c, log: &l };
+        let picked = review::selected_aspects(&[]);
+        run_review(&settings(m), TEXT, &picked, &[], vec![], &h)
+            .await
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn review_asks_once_when_the_answer_reads() {
+        let m = mock(vec![chat(Some(&review_json("よく書けています")), "stop")]);
+        let r = review_with(&m).await;
+        assert_eq!(m.count(), 1);
+        assert!(!r.refused && !r.unparsed);
+        assert!(r.warning.is_none(), "{:?}", r.warning);
+    }
+
+    /// **経路Aが空でも、測り直しで読めたなら拒否ではない。**
+    /// 以前は最初の空応答で「拒否」を数えたまま残し、結果が出ているのに
+    /// 「検閲で拒否されました」と警告していた
+    #[tokio::test]
+    async fn review_is_not_a_refusal_when_the_retry_reads() {
+        let m = mock(vec![
+            chat(Some(""), "stop"),
+            chat(Some(&review_json("測り直しで読めた講評")), "stop"),
+        ]);
+        let r = review_with(&m).await;
+        assert_eq!(m.count(), 2);
+        assert!(!r.refused, "読めたのに拒否として数えている");
+        assert!(r.warning.is_none(), "{:?}", r.warning);
+        assert!(r.overall.contains("測り直しで読めた講評"));
+    }
+
+    #[tokio::test]
+    async fn review_reports_refusal_when_nothing_comes_back() {
+        let m = mock(vec![chat(Some(""), "stop"), chat(Some(""), "stop")]);
+        let r = review_with(&m).await;
+        assert!(r.refused);
+        assert!(r.warning.unwrap_or_default().contains("検閲"));
+    }
+
+    /// 読めない応答は捨てずに、生のまま講評として見せる(§6.3 の最後の受け皿)
+    #[tokio::test]
+    async fn review_shows_unreadable_answers_as_they_are() {
+        let m = mock(vec![
+            chat(Some("全体として冗長な部分があります。"), "stop"),
+            chat(Some("全体として冗長な部分があります。"), "stop"),
+        ]);
+        let r = review_with(&m).await;
+        assert!(r.unparsed);
+        assert!(!r.refused);
+        assert!(r.overall.contains("冗長な部分"));
+        let w = r.warning.unwrap_or_default();
+        assert!(w.contains("「指摘なし」ではありません"), "{w}");
+        assert!(!w.contains("**"), "{w}");
+    }
+
+    // ===== 抽出 =====
+
+    async fn extract_with(s: &AiSettings, text: &str) -> ExtractResult {
+        let (c, l) = (never(), no_log());
+        let h = AiHooks { cancelled: &c, log: &l };
+        run_extract(s, text, &[], &h).await.unwrap()
+    }
+
+    /// 散文で返されたら「候補なし」ではなく読み取れなかったと伝える
+    #[tokio::test]
+    async fn extract_reports_unreadable_instead_of_no_candidates() {
+        let m = mock(vec![chat(Some("登場人物は佐藤架純です。"), "stop")]);
+        let r = extract_with(&settings(&m), TEXT).await;
+        assert!(r.candidates.is_empty());
+        let w = r.warning.expect("読めなかったのに警告が無い");
+        assert!(w.contains("読み取れませんでした"), "{w}");
+    }
+
+    #[tokio::test]
+    async fn extract_tells_refusal_from_truncation() {
+        let m = mock(vec![chat(Some(""), "stop")]);
+        let r = extract_with(&settings(&m), TEXT).await;
+        let w = r.warning.expect("拒否なのに警告が無い");
+        assert!(w.contains("検閲"), "{w}");
+        assert!(!w.contains("打ち切られ"), "拒否を打ち切りと誤診している: {w}");
+    }
+
+    #[tokio::test]
+    async fn extract_reads_an_empty_list_as_no_candidates() {
+        let m = mock(vec![chat(Some(r#"{"entities":[]}"#), "stop")]);
+        let r = extract_with(&settings(&m), TEXT).await;
+        assert!(r.warning.is_none(), "{:?}", r.warning);
+    }
+
+    /// **見ていない末尾を黙らないこと。** 校正・レビューは未検査の字数を出していたが、
+    /// 抽出だけ黙っており、長い原稿で「候補なし」と「見ていない」が区別できなかった
+    #[tokio::test]
+    async fn extract_says_so_when_the_tail_was_not_read() {
+        let replies = (0..proofread::MAX_CHUNKS)
+            .map(|_| chat(Some(r#"{"entities":[]}"#), "stop"))
+            .collect();
+        let m = mock(replies);
+        let mut s = settings(&m);
+        s.check_chunk_chars = 500;
+        let text = (0..6).map(|_| long_text()).collect::<Vec<_>>().join("\n");
+        assert!(proofread::split_for_check_with(&text, 500).len() > proofread::MAX_CHUNKS);
+        let r = extract_with(&s, &text).await;
+        let w = r.warning.expect("末尾を見ていないのに黙っている");
+        assert!(w.contains("見ていません"), "{w}");
+    }
+
+    // ===== 相談(ストリーミング) =====
+
+    async fn stream_with(
+        m: &Mock,
+        cancelled: &(dyn Fn() -> bool + Send + Sync),
+    ) -> (Result<(StreamEnd, String), (String, String)>, Vec<String>) {
+        let l = no_log();
+        let h = AiHooks { cancelled, log: &l };
+        let resp = ai::stream_request(&m.base_url, &None, "test-model", &[], 0.7)
+            .send()
+            .await
+            .unwrap();
+        let mut got = Vec::new();
+        let mut push = |d: String| got.push(d);
+        let r = consume_stream(resp, &h, &mut push).await;
+        (r, got)
+    }
+
+    /// **読み取りの切れ目が日本語1文字の途中に落ちても化けないこと**(外部レビュー指摘3)
+    #[tokio::test]
+    async fn stream_keeps_a_character_split_across_reads() {
+        let line = sse_delta("あい").into_bytes();
+        let cut = line
+            .windows(3)
+            .position(|w| w == "あ".as_bytes())
+            .unwrap()
+            + 1;
+        let m = mock(vec![Reply::Stream(vec![
+            line[..cut].to_vec(),
+            line[cut..].to_vec(),
+            b"data: [DONE]\n\n".to_vec(),
+        ])]);
+        let c = never();
+        let (r, got) = stream_with(&m, &c).await;
+        let (end, answer) = r.unwrap();
+        assert_eq!(end, StreamEnd::Done);
+        assert_eq!(answer, "あい");
+        assert!(!answer.contains(char::REPLACEMENT_CHARACTER));
+        assert_eq!(got.concat(), "あい");
+    }
+
+    /// 改行で終わらずに切れた最後の行も捨てない
+    #[tokio::test]
+    async fn stream_keeps_the_last_line_without_a_newline() {
+        let last = sse_delta("最後").trim_end().as_bytes().to_vec();
+        let m = mock(vec![Reply::Stream(vec![sse_delta("最初と").into_bytes(), last])]);
+        let c = never();
+        let (r, _) = stream_with(&m, &c).await;
+        assert_eq!(r.unwrap().1, "最初と最後");
+    }
+
+    /// 中止されたら `Cancelled` で返し、**それ以降の増分は流さない**。
+    /// `Done` で返すと、画面は「検閲で拒否された」と誤表示し、会話の履歴に途中の応答が積まれる
+    #[tokio::test]
+    async fn stream_reports_cancel_as_cancelled_not_done() {
+        let m = mock(vec![Reply::Stream(vec![
+            sse_delta("一").into_bytes(),
+            sse_delta("二").into_bytes(),
+            sse_delta("三").into_bytes(),
+            b"data: [DONE]\n\n".to_vec(),
+        ])]);
+        let checks = Arc::new(AtomicUsize::new(0));
+        let n = checks.clone();
+        // 最初の読み取りを処理した後で中止された、という状況
+        let c = move || n.fetch_add(1, Ordering::SeqCst) >= 1;
+        let (r, got) = stream_with(&m, &c).await;
+        let (end, answer) = r.unwrap();
+        assert_eq!(end, StreamEnd::Cancelled);
+        assert_eq!(answer, "一");
+        assert_eq!(got, vec!["一".to_string()], "中止の後も流している");
+    }
 }

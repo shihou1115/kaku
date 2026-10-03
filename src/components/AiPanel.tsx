@@ -180,6 +180,9 @@ export function AiPanel({
     let received = 0;
     // 積むのは**確定した応答**。setAnswer は非同期なので、ここで別に持つ
     let full = "";
+    // 中止されたか。**完了と区別する** — 区別しないと、1文字目が届く前に止めた相談が
+    // 「検閲で拒否」と表示され、途中で止めた応答が完結した往復として履歴に積まれる
+    let stopped = false;
     try {
       await api.askAi(ctx, question, history, (ev) => {
         if (ev.kind === "Delta") {
@@ -187,13 +190,18 @@ export function AiPanel({
           full += ev.value;
           setAnswer((a) => a + ev.value);
           answerRef.current?.scrollTo(0, answerRef.current.scrollHeight);
+        } else if (ev.kind === "Cancelled") {
+          stopped = true;
         } else if (ev.kind === "Error") {
           setError(ev.value);
         }
       });
-      // 応答が1文字も返らないことがある。多くは検閲による拒否(§8.1)。
-      // 画面が無反応に見えて原因が分からないので、明示して次の手を示す
-      if (received === 0) {
+      if (stopped) {
+        // 途中の応答は画面に残すが、往復としては積まない。依頼欄も残す(送り直せるように)
+        setError("中止しました。ここまでの応答だけを表示しています");
+      } else if (received === 0) {
+        // 応答が1文字も返らないことがある。多くは検閲による拒否(§8.1)。
+        // 画面が無反応に見えて原因が分からないので、明示して次の手を示す
         setEmptyAnswer(true);
       } else if (conversation) {
         // 往復として積み、依頼欄を空ける(次の問いを書く場所にする)。
