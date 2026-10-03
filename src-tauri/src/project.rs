@@ -276,14 +276,6 @@ fn decode(bytes: &[u8], label: &str) -> Result<String, ProjectError> {
     }
 }
 
-/// 保存する。**保存前に1世代のバックアップを取る**(M-01 / MVP要素5)。
-///
-/// 履歴管理はしない。同じファイルの前回内容だけを `.app/backups/` に残す。
-/// アプリ専用領域(`.app/`)を指しているか。
-///
-/// ここはバックアップ・ゴミ箱・ログ・索引の置き場で、**アプリが書き込むのは
-/// それぞれの専用処理からだけ**である。原稿の保存経路がここへ届いてはいけない。
-/// 特にゴミ箱は「消さずに取っておいたもの」なので、上書きされると退避の意味が消える。
 /// 相対パスを正規化する(`./` を落として区切りを `/` に揃える)。
 ///
 /// **判定の前に必ずこれを通す。** `./.app/x` のような書き方で
@@ -297,9 +289,22 @@ fn normalize_rel(relative: &str) -> String {
         .join("/")
 }
 
+/// アプリ専用領域(`.app/`)を指しているか。
+///
+/// ここはバックアップ・ゴミ箱・ログ・索引の置き場で、**アプリが書き込むのは
+/// それぞれの専用処理からだけ**である。原稿の保存経路がここへ届いてはいけない。
+/// 特にゴミ箱は「消さずに取っておいたもの」なので、上書きされると退避の意味が消える。
+///
+/// **名前は Windows が解決するとおりに比べる。** 大文字小文字を区別せず(`.APP` も同じ
+/// フォルダー)、名前の末尾の点と空白を無視する(`.app.` も同じ)。文字列のまま比べて
+/// いた間は、改名で `.APP/backups/x.md` と打てば原稿を専用領域へ押し込めた。
+/// 8.3形式の短い名前(`APP~1` 等)までは見ない。人が打ち間違えて届く形ではない。
 pub fn is_app_area(relative: &str) -> bool {
     let p = normalize_rel(relative);
-    p == APP_DIR || p.starts_with(&format!("{APP_DIR}/"))
+    let first = p.split('/').next().unwrap_or("");
+    first
+        .trim_end_matches(['.', ' '])
+        .eq_ignore_ascii_case(APP_DIR)
 }
 
 fn reject_app_area(relative: &str) -> Result<(), ProjectError> {
@@ -311,6 +316,9 @@ fn reject_app_area(relative: &str) -> Result<(), ProjectError> {
     Ok(())
 }
 
+/// 保存する。**保存前に1世代のバックアップを取る**(M-01 / MVP要素5)。
+///
+/// 履歴管理はしない。同じファイルの前回内容だけを `.app/backups/` に残す。
 pub fn write_text(root: &Path, relative: &str, content: &str) -> Result<(), ProjectError> {
     reject_app_area(relative)?;
     let path = resolve(root, relative)?;
@@ -657,9 +665,6 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
     (if m <= 2 { y + 1 } else { y }, m, d)
 }
 
-/// 外部編集の検知に使う更新時刻(エポックからのミリ秒)。
-///
-/// 常駐監視はしない。フロントがフォーカス復帰時に問い合わせる(§5-1)。
 /// 読み込んだ後に外部で書き換えられたか(楽観ロック=T-08)。
 ///
 /// `expected` が無ければ照合しない(新規作成直後など、まだ時刻を持たない経路)。
@@ -669,6 +674,10 @@ pub fn is_stale(actual_ms: u64, expected_ms: Option<u64>) -> bool {
     matches!(expected_ms, Some(e) if e != 0 && e != actual_ms)
 }
 
+/// 外部編集の検知に使う更新時刻(エポックからのミリ秒)。
+///
+/// 常駐監視はしない。読み込み時に控え、保存時に照合する(`is_stale`)。
+/// フォーカス復帰時の確認は、フロントが読み直した中身と見比べる(03 §5-1)。
 pub fn modified_ms(root: &Path, relative: &str) -> Result<u64, ProjectError> {
     let path = resolve(root, relative)?;
     let meta = fs::metadata(path)?;
@@ -1049,6 +1058,22 @@ mod tests {
         assert!(!is_app_area("manuscript/.app風/x.md"));
     }
 
+    /// Windows は名前の大文字小文字を区別せず、末尾の点と空白を無視する。
+    /// 文字列のまま比べると `.APP/...` や `.app./...` が同じフォルダーへ届く
+    #[test]
+    fn app_area_is_detected_the_way_windows_resolves_names() {
+        assert!(is_app_area(".APP/trash/x.md"));
+        assert!(is_app_area(".App/backups/x.md"));
+        assert!(is_app_area(".app./trash/x.md"));
+        assert!(is_app_area(".app /trash/x.md"));
+        assert!(is_app_area("./.APP"));
+        assert!(is_app_area(".APP\\backups\\x.md"));
+        // 似ているだけの名前と、下の階層にある同名は巻き込まない
+        assert!(!is_app_area("..app/x.md"));
+        assert!(!is_app_area(".apps/x.md"));
+        assert!(!is_app_area("manuscript/.APP/x.md"));
+    }
+
     /// 改名・複製・フォルダー作成もアプリ専用領域を触れないこと。
     /// **保存経路だけ塞いでも、別の呼び出しから抜けられては意味がない**
     #[test]
@@ -1067,6 +1092,11 @@ mod tests {
         // 原稿をアプリ専用領域へ押し込めない(`./` で回り込むのも塞ぐ)
         assert!(rename(&root, "manuscript/02.md", ".app/backups/02.md").is_err());
         assert!(rename(&root, "manuscript/02.md", "./.app/backups/02.md").is_err());
+        // 大文字や末尾の点で書いても、Windows では同じ場所を指す
+        assert!(rename(&root, "manuscript/02.md", ".APP/backups/02.md").is_err());
+        assert!(rename(&root, "manuscript/02.md", ".app./backups/02.md").is_err());
+        assert!(create_file(&root, ".APP/trash/新しい.md", "x").is_err());
+        assert!(write_text(&root, ".App/settings.json", "{}").is_err());
         // 退避したものを取り出す・複製する・その中にフォルダーを作る、も塞ぐ
         assert!(rename(&root, &rel, "manuscript/戻し.md").is_err());
         assert!(duplicate(&root, &rel).is_err());
