@@ -5,7 +5,8 @@
  * 自動マージはしない。ここはその二択を出すためだけの窓である。
  *
  * 「あとで決める」も残す。決めるまでアプリ側の本文には手を触れない
- * (勝手に上書きも破棄もしない=D-5)。
+ * (勝手に上書きも破棄もしない=D-5)。**閉じても行き止まりにはしない。**
+ * 保存・切替・終了などを試みるたびに、この窓へ戻ってくる(saveFlow.shouldPrompt)。
  */
 
 type Props = {
@@ -31,7 +32,8 @@ export function ConflictDialog({ path, onSaveAs, onDiscard, onLater }: Props) {
         </p>
         <p className="hint">
           どちらを残すかはあなたが決めてください。<strong>自動では混ぜません。</strong>
-          決めるまで、アプリ側の本文はそのまま残ります。
+          決めるまで、アプリ側の本文はそのまま残ります(保存はしません)。
+          「あとで決める」を選んでも、ヘッダーの「競合」からここへ戻れます。
         </p>
         <div className="modal-actions">
           <button onClick={onLater}>あとで決める</button>

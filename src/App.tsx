@@ -14,9 +14,20 @@ import {
   api,
   type AiSettings,
   type CodexEntry,
+  type FileContent,
   type OpenedProject,
   type TreeNode,
 } from "./api";
+import {
+  blockedMessage,
+  canProceed,
+  conflictCopyPath,
+  createSaver,
+  diskChange,
+  shouldPrompt,
+  type FlushReason,
+  type FlushResult,
+} from "./saveFlow";
 import { Editor, type EditorHandle } from "./editor/Editor";
 import { findMentions } from "./editor/mentions";
 import { FileTree } from "./components/FileTree";
@@ -165,6 +176,11 @@ export default function App() {
     path: string;
     actualMs: number;
   } | null>(null);
+  /**
+   * 競合が解決していないファイル。ダイアログを閉じても(「あとで決める」)残し、
+   * ヘッダーの印から二択へ戻れるようにする
+   */
+  const [conflictPath, setConflictPath] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   /** 本文で選択して右クリックしたときのメニュー位置 */
   const [selMenu, setSelMenu] = useState<{ x: number; y: number } | null>(null);
@@ -335,6 +351,8 @@ export default function App() {
    */
   const inTrash = currentPath !== null && isTrashPath(currentPath);
   const dirty = text !== savedText;
+  /** 開いているファイルに未解決の競合があり、保存できていない */
+  const conflictHere = dirty && conflictPath !== null && conflictPath === currentPath;
   // 毎描画で新しい配列を作ると、これを依存に持つ言及検出などが毎回走り直す
   const codex: CodexEntry[] = useMemo(
     () => project?.codex ?? [],
@@ -389,76 +407,129 @@ export default function App() {
   const live = useRef({ currentPath, text, savedText, modifiedMs });
   live.current = { currentPath, text, savedText, modifiedMs };
   /**
-   * 外部編集との競合。**同じ変更について二度は聞かない**ための控え。
+   * 外部編集との競合で、最後に二択を出した相手の更新時刻。
    *
-   * 自動保存は入力が止まるたびに走るので、聞き直す作りにすると
-   * 打つたびにダイアログが出る。「あとで決める」を選んだら、
-   * 次に外部が変わるまで黙る。
+   * 自動保存は入力が止まるたびに走るので、毎回聞き直すと打つたびにダイアログが出る。
+   * 自動保存では同じ変更について二度は聞かない。**本人の操作(保存・切替・終了など)
+   * では毎回出す**(saveFlow.shouldPrompt)
    */
   const conflictSeen = useRef(0);
-  /** 実行中の保存。切替時はこれを待ってから次に進む */
-  const inflight = useRef<Promise<boolean> | null>(null);
 
   /**
-   * 未保存なら保存する。silent=true なら控えめに通知する。
-   *
-   * **戻り値は「このあと本文を捨ててよいか」。** 保存に失敗したまま切替・削除・終了へ
-   * 進むと、編集内容はどこにも残らない(`.app/backups/` に入るのは**保存前のディスクの
-   * 内容**であって、未保存の編集ではない)。保存するものが無い場合は true。
+   * 保存を1本ずつ流す(saveFlow.createSaver)。**1つだけ作って使い回す。**
+   * 実行中の保存を覚えているので、作り直すと待つべき保存を見失う
    */
-  const flushSave = useCallback(async (silent: boolean): Promise<boolean> => {
-    // 実行中の保存があれば必ず待つ(待たずに切り替えると保存が取りこぼされる)
-    let ok = true;
-    if (inflight.current) ok = await inflight.current;
-    const { currentPath: p, text: t, savedText: s } = live.current;
-    // 保存するものが無いときは、直前の保存の成否をそのまま返す
-    if (!p || t === s) return ok;
+  const [saver] = useState(() =>
+    createSaver({
+      current: () => ({
+        path: live.current.currentPath,
+        text: live.current.text,
+        savedText: live.current.savedText,
+        modifiedMs: live.current.modifiedMs,
+      }),
+      save: api.saveFile,
+      saved: (path, t, ms) => {
+        setSavedText(t);
+        setModifiedMs(ms);
+        // **再描画を待たずに箱も更新する。** live.current は描画のたびに
+        // 作り直されるので、次の自動保存が描画より先に走ると古い時刻で
+        // 照合してしまい、自分が書いた変更を競合と誤判定する
+        live.current.modifiedMs = ms;
+        live.current.savedText = t;
+        setConflictPath((c) => (c === path ? null : c));
+      },
+    }),
+  );
 
-    const expected = live.current.modifiedMs;
-    const task = (async () => {
-      try {
-        const r = await api.saveFile(p, t, expected || null);
-        if (r.kind === "Conflict") {
-          // **書いていない。** 外部の変更を踏み潰さずに、どうするかを人へ渡す
-          setStatus(
-            "アプリの外で変更されているため保存していません。どうするか選んでください",
-          );
-          if (conflictSeen.current !== r.actual_ms) {
-            conflictSeen.current = r.actual_ms;
-            setConflict({ path: p, actualMs: r.actual_ms });
-          }
-          return false;
-        }
-        // 保存中に別ファイルへ移っていたら、その画面の状態は触らない
-        if (live.current.currentPath === p) {
-          setSavedText(t);
-          setModifiedMs(r.modified_ms);
-          // **再描画を待たずに ref も更新する。** live.current は描画のたびに
-          // 作り直されるので、次の自動保存が描画より先に走ると古い時刻で
-          // 照合してしまい、自分が書いた変更を競合と誤判定する
-          live.current.modifiedMs = r.modified_ms;
-          live.current.savedText = t;
-        }
+  /** 競合を受け取ったとき。二択を出し直すかは理由で変わる(saveFlow.shouldPrompt) */
+  const noteConflict = useCallback(
+    (path: string, actualMs: number, reason: FlushReason) => {
+      setConflictPath(path);
+      if (shouldPrompt(reason, actualMs, conflictSeen.current)) {
+        conflictSeen.current = actualMs;
+        setConflict({ path, actualMs });
         setStatus(
-          `${silent ? "自動保存" : "保存"}しました(${new Date().toLocaleTimeString()})`,
+          "アプリの外で変更されています。こちらにも保存していない変更があるため、どちらを残すか選んでください",
         );
-        return true;
-      } catch (e) {
-        setStatus(`保存に失敗しました: ${e}`);
-        return false;
+      } else {
+        setStatus(
+          "アプリの外で変更されているため保存していません。ヘッダーの「競合」から選び直せます",
+        );
       }
-    })();
-    inflight.current = task;
-    try {
-      return await task;
-    } finally {
-      if (inflight.current === task) inflight.current = null;
-    }
+    },
+    [],
+  );
+
+  /**
+   * 未保存なら保存する。
+   *
+   * **結果で「このあと本文を手放してよいか」を決める**(saveFlow.canProceed)。
+   * 保存に失敗したまま切替・削除・終了へ進むと、編集内容はどこにも残らない
+   * (`.app/backups/` に入るのは**保存前のディスクの内容**であって、未保存の編集ではない)。
+   */
+  const flushSave = useCallback(
+    async (reason: FlushReason): Promise<FlushResult> => {
+      const r = await saver.flush();
+      if (r.kind === "saved") {
+        setStatus(
+          `${reason === "save" ? "保存" : "自動保存"}しました(${new Date().toLocaleTimeString()})`,
+        );
+      } else if (r.kind === "conflict") {
+        // **書いていない。** 外部の変更を踏み潰さずに、どうするかを人へ渡す
+        noteConflict(r.path, r.actualMs, reason);
+      } else if (r.kind === "error") {
+        setStatus(`保存に失敗しました: ${r.message}`);
+      }
+      return r;
+    },
+    [saver, noteConflict],
+  );
+
+  /**
+   * 本文を手放す(またはディスク側を書き換える)操作の前に通す門。
+   * 保存できなければ止めて理由を出す。競合なら二択も出し直す
+   */
+  const gate = useCallback(
+    async (what: string): Promise<boolean> => {
+      const blocked = blockedMessage(await flushSave("proceed"), what);
+      if (blocked) setStatus(blocked);
+      return blocked === null;
+    },
+    [flushSave],
+  );
+
+  /** 読み込んだファイルを表示する。保存済みの印と競合の控えもここで揃える */
+  const showFile = useCallback((f: FileContent) => {
+    setCurrentPath(f.path);
+    setText(f.text);
+    setSavedText(f.text);
+    setModifiedMs(f.modified_ms);
+    // 次の保存が描画より先に走っても、新しい状態で判断させる
+    live.current = {
+      currentPath: f.path,
+      text: f.text,
+      savedText: f.text,
+      modifiedMs: f.modified_ms,
+    };
+    handleRef.current.load(f.text);
+    setConflictPath(null);
+    conflictSeen.current = 0;
+  }, []);
+
+  /** 開いているファイルを閉じる(削除・分割・プロジェクトの切り替え) */
+  const closeFile = useCallback(() => {
+    setCurrentPath(null);
+    setText("");
+    setSavedText("");
+    setModifiedMs(0);
+    live.current = { currentPath: null, text: "", savedText: "", modifiedMs: 0 };
+    handleRef.current.load("");
+    setConflictPath(null);
   }, []);
 
   /** 明示的な保存。ツリーの表示名やcodexの別名も更新する */
   const saveNow = useCallback(async () => {
-    await flushSave(false);
+    await flushSave("save");
     try {
       setProject(await api.refreshProject());
     } catch {
@@ -469,13 +540,13 @@ export default function App() {
   // 入力が止まったら自動保存する(保存前に1世代のバックアップが残る)
   useEffect(() => {
     if (!currentPath || !dirty) return;
-    const t = setTimeout(() => void flushSave(true), AUTOSAVE_DELAY_MS);
+    const t = setTimeout(() => void flushSave("auto"), AUTOSAVE_DELAY_MS);
     return () => clearTimeout(t);
   }, [text, dirty, currentPath, flushSave]);
 
   // ウィンドウからフォーカスが外れたら保存(別アプリで作業して戻る流れを守る)
   useEffect(() => {
-    const onBlur = () => void flushSave(true);
+    const onBlur = () => void flushSave("auto");
     window.addEventListener("blur", onBlur);
     return () => window.removeEventListener("blur", onBlur);
   }, [flushSave]);
@@ -487,17 +558,18 @@ export default function App() {
       const w = getCurrentWindow();
       void w
         .onCloseRequested(async (e) => {
-          if (live.current.text === live.current.savedText && !inflight.current) {
+          if (live.current.text === live.current.savedText && !saver.busy()) {
             return;
           }
           e.preventDefault();
-          // 保存できていないまま破棄すると、書いたものがどこにも残らない。
-          // 黙って閉じずに、捨てるかどうかを本人に選ばせる
-          if (await flushSave(true)) {
+          const r = await flushSave("proceed");
+          if (canProceed(r)) {
             await w.destroy();
             return;
           }
-          setCloseAsk(true);
+          // 競合なら二択が出ている(どちらかを選べば閉じられる)。
+          // 保存の失敗なら、黙って閉じずに、捨てるかどうかを本人に選ばせる
+          if (r.kind === "error") setCloseAsk(true);
         })
         .then((f) => {
           unlisten = f;
@@ -509,7 +581,7 @@ export default function App() {
       // Tauri 外(ブラウザで開いた開発時)ではウィンドウAPIが無い
     }
     return () => unlisten?.();
-  }, [flushSave]);
+  }, [flushSave, saver]);
 
   /**
    * 起動時に前回のプロジェクトを開き直す。
@@ -539,10 +611,7 @@ export default function App() {
   // ===== ファイル操作 =====
 
   const openProject = useCallback(async () => {
-    if (!(await flushSave(true))) {
-      setStatus("保存に失敗したため、プロジェクトの切り替えを中止しました");
-      return;
-    }
+    if (!(await gate("プロジェクトの切り替え"))) return;
     const picked = await openDialog({
       directory: true,
       title: "小説プロジェクトのフォルダを選ぶ(空フォルダなら新規作成)",
@@ -551,16 +620,15 @@ export default function App() {
     try {
       const p = await api.openProject(picked);
       setProject(p);
-      setCurrentPath(null);
-      setText("");
-      setSavedText("");
+      // 前のプロジェクトの本文をエディタに残さない(読み取り専用で見え続けていた)
+      closeFile();
       setRefPath(null);
       setRefText("");
       setStatus(`「${p.name}」を開きました`);
     } catch (e) {
       setStatus(String(e));
     }
-  }, [flushSave]);
+  }, [gate, closeFile]);
 
   /**
    * サンプルを作って開く(M-08)。
@@ -569,10 +637,7 @@ export default function App() {
    * **AI未接続でも試せる**素材(ハイライトと表記ゆれ検出)を入れてある
    */
   const openSample = useCallback(async () => {
-    if (!(await flushSave(true))) {
-      setStatus("保存に失敗したため、サンプルの作成を中止しました");
-      return;
-    }
+    if (!(await gate("サンプルの作成"))) return;
     const picked = await openDialog({
       directory: true,
       title: "サンプルを作るフォルダを選ぶ(空のフォルダを推奨)",
@@ -581,9 +646,7 @@ export default function App() {
     try {
       const p = await api.createSampleProject(picked);
       setProject(p);
-      setCurrentPath(null);
-      setText("");
-      setSavedText("");
+      closeFile();
       setRefPath(null);
       setRefText("");
       setStatus(
@@ -592,7 +655,7 @@ export default function App() {
     } catch (e) {
       setStatus(String(e));
     }
-  }, [flushSave]);
+  }, [gate, closeFile]);
 
   /** ファイルを開く。開いた本文を返す(検索から一致箇所へ飛ぶのに使う) */
   const openFile = useCallback(
@@ -600,19 +663,10 @@ export default function App() {
       // 切り替え前に必ず保存する(ここが編集内容を失う最大の場面だった)。
       // **保存できていなければ切り替えない** — バッファを差し替えると、
       // 書いたものはディスクにもundo履歴にも残らない
-      if (!(await flushSave(true))) {
-        setStatus(
-          "保存に失敗したため、ファイルの切り替えを中止しました。本文はこのまま残っています",
-        );
-        return null;
-      }
+      if (!(await gate("ファイルの切り替え"))) return null;
       try {
         const f = await api.readFile(path);
-        setCurrentPath(f.path);
-        setText(f.text);
-        setSavedText(f.text);
-        setModifiedMs(f.modified_ms);
-        handleRef.current.load(f.text);
+        showFile(f);
         setStatus("");
         // 別名やタイトルの変更をハイライトへ反映する
         try {
@@ -626,7 +680,7 @@ export default function App() {
         return null;
       }
     },
-    [flushSave],
+    [gate, showFile],
   );
 
   /**
@@ -693,6 +747,11 @@ export default function App() {
           setPrompt({ mode: action, node });
           return;
         case "split":
+          // 分割は**ディスク上の本文**を切り、元をゴミ箱へ送る。開いている本文の
+          // 未保存分を先に出しておかないと、分割後に本文を閉じたときどこにも残らない
+          if (node.path === live.current.currentPath && !(await gate("分割"))) {
+            return;
+          }
           setSplitTarget(node);
           return;
         case "reveal":
@@ -703,6 +762,10 @@ export default function App() {
           }
           return;
         case "duplicate":
+          // 複製もディスク上の内容を写す。開いている本文なら未保存分まで入れる
+          if (node.path === live.current.currentPath && !(await gate("複製"))) {
+            return;
+          }
           try {
             const created = await api.duplicateEntry(node.path);
             setProject(await api.refreshProject());
@@ -721,7 +784,7 @@ export default function App() {
           return;
       }
     },
-    [],
+    [gate],
   );
 
   const doTrash = useCallback(async () => {
@@ -735,16 +798,8 @@ export default function App() {
         (node.is_dir && currentPath?.startsWith(`${node.path}/`));
       if (openedInside) {
         // 保存できていなければ、閉じることも削除もしない
-        if (!(await flushSave(true))) {
-          setStatus(
-            "保存に失敗したため、削除を中止しました。本文はこのまま残っています",
-          );
-          return;
-        }
-        setCurrentPath(null);
-        setText("");
-        setSavedText("");
-        handleRef.current.load("");
+        if (!(await gate("削除"))) return;
+        closeFile();
       }
       const dest = await api.trashEntry(node.path);
       if (refPath === node.path) {
@@ -756,7 +811,7 @@ export default function App() {
     } catch (e) {
       setStatus(String(e));
     }
-  }, [trashTarget, currentPath, refPath, flushSave]);
+  }, [trashTarget, currentPath, refPath, gate, closeFile]);
 
   const doPrompt = useCallback(
     async (value: string) => {
@@ -786,7 +841,7 @@ export default function App() {
         const wasOpen =
           currentPath === node.path ||
           (node.is_dir && currentPath?.startsWith(`${node.path}/`));
-        if (wasOpen) await flushSave(true);
+        if (wasOpen && !(await gate("名前の変更"))) return;
 
         await api.renameEntry(node.path, to);
         setProject(await api.refreshProject());
@@ -801,7 +856,7 @@ export default function App() {
         setStatus(String(e));
       }
     },
-    [prompt, currentPath, flushSave],
+    [prompt, currentPath, gate],
   );
 
   // ===== 参照ペイン =====
@@ -862,7 +917,7 @@ export default function App() {
     const stamp = new Date()
       .toLocaleTimeString("ja-JP", { hour12: false })
       .replace(/:/g, "");
-    const alt = `${c.path.replace(/.md$/, "")}-競合${stamp}.md`;
+    const alt = conflictCopyPath(c.path, stamp);
     try {
       const created = await api.createFile(alt, live.current.text);
       if (!created) {
@@ -871,18 +926,12 @@ export default function App() {
       }
       setProject(await api.refreshProject());
       // 別名の方へ移る(自分が書いていた本文で続けられるように)
-      const f = await api.readFile(alt);
-      setCurrentPath(f.path);
-      setText(f.text);
-      setSavedText(f.text);
-      setModifiedMs(f.modified_ms);
-      handleRef.current.load(f.text);
-      conflictSeen.current = 0;
+      showFile(await api.readFile(alt));
       setStatus(`別名で保存しました: ${alt}(元のファイルは外部の内容のままです)`);
     } catch (e) {
       setStatus(String(e));
     }
-  }, [conflict]);
+  }, [conflict, showFile]);
 
   /** 競合の解決②: **破棄して再読み込み**する(こちらの未保存分は捨てる) */
   const resolveDiscard = useCallback(async () => {
@@ -890,51 +939,53 @@ export default function App() {
     setConflict(null);
     if (!c) return;
     try {
-      const f = await api.readFile(c.path);
-      setText(f.text);
-      setSavedText(f.text);
-      setModifiedMs(f.modified_ms);
-      handleRef.current.load(f.text);
-      conflictSeen.current = 0;
+      showFile(await api.readFile(c.path));
       setStatus("アプリ外の変更を読み込みました(こちらの未保存分は破棄しました)");
     } catch (e) {
       setStatus(String(e));
     }
-  }, [conflict]);
+  }, [conflict, showFile]);
 
   // ===== 外部編集の検知(常駐監視はせず、フォーカス復帰時のみ) =====
 
+  /**
+   * 開いているファイルがディスク上で変わっていたら取り込む(03 §5-1 / §5-2)。
+   * 未保存の変更があれば読み込まずに二択へ回す。戻り値は読み直したかどうか。
+   */
+  const syncOpenFile = useCallback(async (): Promise<boolean> => {
+    const p = live.current.currentPath;
+    if (!p) return false;
+    try {
+      const ms = await api.fileModifiedMs(p);
+      if (live.current.currentPath !== p) return false;
+      const dirty = live.current.text !== live.current.savedText;
+      const act = diskChange(ms, live.current.modifiedMs, dirty);
+      if (act === "same") return false;
+      if (act === "conflict") {
+        noteConflict(p, ms, "auto");
+        return false;
+      }
+      const f = await api.readFile(p);
+      // 読んでいる間に打ち込まれていたら、その分を捨てずに二択へ回す
+      if (live.current.currentPath !== p) return false;
+      if (live.current.text !== live.current.savedText) {
+        noteConflict(p, f.modified_ms, "auto");
+        return false;
+      }
+      showFile(f);
+      return true;
+    } catch {
+      return false; // ファイルが消えた等。次の操作でエラーになる
+    }
+  }, [noteConflict, showFile]);
+
   useEffect(() => {
     const onFocus = async () => {
-      const p = live.current.currentPath;
-      if (!p) return;
-      try {
-        const ms = await api.fileModifiedMs(p);
-        if (ms === modifiedMs) return;
-        if (live.current.text !== live.current.savedText) {
-          // 未保存の変更があるので勝手には読み込まない。二択を出す(03 §5-2)
-          setStatus(
-            "このファイルはアプリ外で変更されました。未保存の変更があるため自動では読み込みません",
-          );
-          if (conflictSeen.current !== ms) {
-            conflictSeen.current = ms;
-            setConflict({ path: p, actualMs: ms });
-          }
-          return;
-        }
-        const f = await api.readFile(p);
-        setText(f.text);
-        setSavedText(f.text);
-        setModifiedMs(f.modified_ms);
-        handleRef.current.load(f.text);
-        setStatus("アプリ外の変更を読み込みました");
-      } catch {
-        /* ファイルが消えた等。次の操作でエラーになる */
-      }
+      if (await syncOpenFile()) setStatus("アプリ外の変更を読み込みました");
     };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, [modifiedMs]);
+  }, [syncOpenFile]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -995,6 +1046,15 @@ export default function App() {
                 >
                   読み取り専用
                 </span>
+              ) : conflictHere ? (
+                // 「あとで決める」を選んだあとも、ここから二択へ戻れる
+                <button
+                  className="savechip dirty"
+                  onClick={saveNow}
+                  title="アプリの外で変更されているため保存していません。クリックで、どちらを残すか選べます"
+                >
+                  競合
+                </button>
               ) : (
                 <button
                   className={`savechip${dirty ? " dirty" : ""}`}
@@ -1358,32 +1418,6 @@ export default function App() {
         />
       )}
 
-      {/* 外部編集との競合。二択を出す(T-08 / 03 §5-2) */}
-      {conflict && (
-        <ConflictDialog
-          path={conflict.path}
-          onSaveAs={() => void resolveSaveAs()}
-          onDiscard={() => void resolveDiscard()}
-          onLater={() => setConflict(null)}
-        />
-      )}
-
-      {/* 保存に失敗したまま閉じようとしたとき。黙って捨てない(§7 指摘1) */}
-      {closeAsk && (
-        <ConfirmDialog
-          title="保存できていません"
-          message="このまま閉じると、保存できていない編集内容は失われます。"
-          note="閉じずに戻れば、本文はそのまま残っています。別の場所へコピーするか、原因(ファイルが読み取り専用・同期ソフトのロック・空き容量)を取り除いてから保存し直せます。"
-          confirmLabel="保存せずに閉じる"
-          danger
-          onConfirm={() => {
-            setCloseAsk(false);
-            void getCurrentWindow().destroy();
-          }}
-          onCancel={() => setCloseAsk(false)}
-        />
-      )}
-
       {helpOpen && <HelpDialog onClose={() => setHelpOpen(false)} />}
 
       {settingsOpen && (
@@ -1431,18 +1465,21 @@ export default function App() {
           title={splitTarget.title || splitTarget.name.replace(/\.md$/, "")}
           onBusy={busy.split}
           onClose={() => setSplitTarget(null)}
+          // 切る直前にもう一度保存する。開いたときに保存していても、
+          // 提案を待つ間に自動保存が失敗していることはある
+          prepare={() =>
+            splitTarget.path === live.current.currentPath
+              ? gate("分割")
+              : Promise.resolve(true)
+          }
           onDone={async (created, err) => {
             if (err || !created) {
               setStatus(err ?? "分割できませんでした");
               return;
             }
-            // 元ファイルを開いていたら閉じる(ゴミ箱へ移っている)
-            if (currentPath === splitTarget.path) {
-              setCurrentPath(null);
-              setText("");
-              setSavedText("");
-              handleRef.current.load("");
-            }
+            // 元ファイルを開いていたら閉じる(ゴミ箱へ移っている)。
+            // 未保存分は prepare で書き出してあるので、閉じても失われない
+            if (live.current.currentPath === splitTarget.path) closeFile();
             try {
               setProject(await api.refreshProject());
             } catch {
@@ -1464,6 +1501,38 @@ export default function App() {
             setNewFileDir(null);
             void createFile(dir, fileName, genre, kind);
           }}
+        />
+      )}
+
+      {/* 外部編集との競合。二択を出す(T-08 / 03 §5-2)。
+          自動保存から出ることもあるので、ほかの窓より手前に重ねる */}
+      {conflict && (
+        <ConflictDialog
+          path={conflict.path}
+          onSaveAs={() => void resolveSaveAs()}
+          onDiscard={() => void resolveDiscard()}
+          onLater={() => {
+            setConflict(null);
+            setStatus(
+              "まだ保存していません。ヘッダーの「競合」から、どちらを残すか選び直せます",
+            );
+          }}
+        />
+      )}
+
+      {/* 保存に失敗したまま閉じようとしたとき。黙って捨てない(§7 指摘1) */}
+      {closeAsk && (
+        <ConfirmDialog
+          title="保存できていません"
+          message="このまま閉じると、保存できていない編集内容は失われます。"
+          note="閉じずに戻れば、本文はそのまま残っています。別の場所へコピーするか、原因(ファイルが読み取り専用・同期ソフトのロック・空き容量)を取り除いてから保存し直せます。"
+          confirmLabel="保存せずに閉じる"
+          danger
+          onConfirm={() => {
+            setCloseAsk(false);
+            void getCurrentWindow().destroy();
+          }}
+          onCancel={() => setCloseAsk(false)}
         />
       )}
 

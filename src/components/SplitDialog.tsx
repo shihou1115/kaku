@@ -19,11 +19,23 @@ type Props = {
   /** 分割前のファイルの表示名。最初の場面の見出しの初期値になる */
   title: string;
   onBusy: (label: string | null) => void;
+  /**
+   * 切る直前に呼ぶ。**分割はディスク上の本文を切る**ので、この文書を開いていれば
+   * 未保存の編集を先に書き出してもらう。false なら切らない
+   */
+  prepare: () => Promise<boolean>;
   onDone: (created: string[] | null, error?: string) => void;
   onClose: () => void;
 };
 
-export function SplitDialog({ path, title, onBusy, onDone, onClose }: Props) {
+export function SplitDialog({
+  path,
+  title,
+  onBusy,
+  prepare,
+  onDone,
+  onClose,
+}: Props) {
   const [points, setPoints] = useState<SplitPoint[] | null>(null);
   const [meta, setMeta] = useState<{
     totalChars: number;
@@ -49,8 +61,8 @@ export function SplitDialog({ path, title, onBusy, onDone, onClose }: Props) {
    * という**無限ループ**になり、LM Studio へリクエストを撃ち続ける
    * (2026-08-03 に実際に踏んだ)。ref に逃がして identity を固定する。
    */
-  const cb = useRef({ onBusy, onDone });
-  cb.current = { onBusy, onDone };
+  const cb = useRef({ onBusy, prepare, onDone });
+  cb.current = { onBusy, prepare, onDone };
   /** 実行中の多重発火よけ。押しっぱなしでも1本しか投げない */
   const inflight = useRef(false);
 
@@ -96,6 +108,15 @@ export function SplitDialog({ path, title, onBusy, onDone, onClose }: Props) {
     setBusy(true);
     setError(null);
     try {
+      if (!(await cb.current.prepare())) {
+        // 理由(競合か保存の失敗か)は画面下の表示と、競合なら二択の窓で伝わる
+        inflight.current = false;
+        setError(
+          "開いている本文を保存できなかったため、分割しませんでした。本文はそのまま残っています",
+        );
+        setBusy(false);
+        return;
+      }
       const created = await api.applySceneSplit(
         path,
         firstTitle.trim() || title,
