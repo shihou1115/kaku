@@ -232,16 +232,59 @@ describe("保存できなかったときに操作を止める", () => {
 });
 
 describe("ディスク側の変化の扱い(03 §5-1 / §5-2)", () => {
+  const known = { ms: 1000, savedText: "保存した本文" };
+
   it("変わっていなければ何もしない", () => {
-    expect(diskChange(1000, 1000, true)).toBe("same");
+    expect(diskChange({ ms: 1000, text: "保存した本文" }, known, true)).toBe("same");
   });
 
-  it("未保存の変更が無ければ読み直す", () => {
-    expect(diskChange(2000, 1000, false)).toBe("reload");
+  it("中身が同じで時刻だけ違えば、読み直さずに時刻を合わせる", () => {
+    // 同期ソフトが触っただけ。合わせないと次の保存が競合と誤判定する。
+    // 未保存の変更があっても二択は出さない(混ぜる相手がいない)
+    expect(diskChange({ ms: 2000, text: "保存した本文" }, known, true)).toBe("adopt");
+    expect(diskChange({ ms: 2000, text: "保存した本文" }, known, false)).toBe(
+      "adopt",
+    );
   });
 
-  it("未保存の変更があれば、勝手に読み直さず二択へ回す", () => {
-    expect(diskChange(2000, 1000, true)).toBe("conflict");
+  it("中身が違い、未保存の変更が無ければ読み直す", () => {
+    expect(diskChange({ ms: 2000, text: "書き換え" }, known, false)).toBe("reload");
+  });
+
+  it("中身が違い、未保存の変更があれば、勝手に読み直さず二択へ回す", () => {
+    expect(diskChange({ ms: 2000, text: "書き換え" }, known, true)).toBe("conflict");
+  });
+
+  it("時刻が同じでも中身が違えば読み直す(同じミリ秒の書き込み)", () => {
+    // 改名前の保存とリンクの書き換えが同じミリ秒に入ると、時刻では区別できない
+    expect(diskChange({ ms: 1000, text: "リンクを書き換えた本文" }, known, false)).toBe(
+      "reload",
+    );
+  });
+});
+
+describe("保存の完了待ち(ディスクと見比べる前)", () => {
+  it("実行中の保存が終わるまで待ち、自分では書かない", async () => {
+    const disk = fakeDisk();
+    const app = fakeApp({ text: "本文+1" });
+    const saver = createSaver({ ...app, save: disk.save });
+
+    const a = saver.flush();
+    await settle();
+    let done = false;
+    const s = saver.settled().then(() => {
+      done = true;
+    });
+    await settle();
+    expect(done).toBe(false);
+
+    disk.calls[0].finish({ kind: "Saved", modified_ms: 2000 });
+    await Promise.all([a, s]);
+    expect(done).toBe(true);
+    expect(disk.calls).toHaveLength(1);
+    // 待ち終えた時点で、見比べる相手(保存した本文と時刻)は新しくなっている
+    expect(app.state.savedText).toBe("本文+1");
+    expect(app.state.modifiedMs).toBe(2000);
   });
 });
 

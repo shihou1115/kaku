@@ -72,17 +72,24 @@ export function blockedMessage(r: FlushResult, what: string): string | null {
 }
 
 /**
- * 開いているファイルがディスク上で変わっていたときの扱い(03 §5-1 / §5-2)。
+ * 開いているファイルとディスク上の内容が食い違ったときの扱い(03 §5-1 / §5-2)。
  *
- * 未保存の変更が無ければ黙って読み直し、あれば二択へ回す。
- * **勝手に混ぜも捨てもしない。**
+ * - 中身が同じなら読み直さない。時刻だけ違えば合わせる(同期ソフトが触っただけ等。
+ *   合わせないと、次の保存が自分の知らない時刻と照合して競合と誤判定する)
+ * - 中身が違い、未保存の変更が無ければ黙って読み直す
+ * - 中身が違い、未保存の変更があれば二択へ回す。**勝手に混ぜも捨てもしない**
+ *
+ * 時刻だけで比べないのは、**同じミリ秒の2回の書き込みを区別できない**ため。
+ * 改名に伴うリンクの書き換えは、改名前の保存の直後に走る。
  */
 export function diskChange(
-  diskMs: number,
-  knownMs: number,
+  disk: { ms: number; text: string },
+  known: { ms: number; savedText: string },
   dirty: boolean,
-): "same" | "reload" | "conflict" {
-  if (diskMs === knownMs) return "same";
+): "same" | "adopt" | "reload" | "conflict" {
+  if (disk.text === known.savedText) {
+    return disk.ms === known.ms ? "same" : "adopt";
+  }
   return dirty ? "conflict" : "reload";
 }
 
@@ -166,5 +173,12 @@ export function createSaver(deps: {
     flush,
     /** 保存の途中か(閉じる操作で待つべきものがあるか) */
     busy: () => inflight !== null,
+    /**
+     * 実行中の保存が終わるまで待つ(書かない)。ディスクと見比べる前に呼ぶ。
+     * 保存の途中で読むと、書き終えた自分の本文を外部の変更と取り違える
+     */
+    settled: async () => {
+      while (inflight) await inflight;
+    },
   };
 }

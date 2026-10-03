@@ -254,8 +254,6 @@ export const api = {
     invoke<SaveOutcome>("save_file", { path, text, expectedMs }),
   createFile: (path: string, text: string) =>
     invoke<boolean>("create_file", { path, text }),
-  fileModifiedMs: (path: string) =>
-    invoke<number>("file_modified_ms", { path }),
   checkNotation: (text: string) =>
     invoke<NotationHit[]>("check_notation", { text }),
   extractEntities: (text: string) =>

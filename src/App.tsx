@@ -527,6 +527,52 @@ export default function App() {
     setConflictPath(null);
   }, []);
 
+  /**
+   * 開いているファイルを、ディスク上の内容と揃える(03 §5-1 / §5-2)。
+   *
+   * フォーカス復帰時(アプリ外の編集)と、**アプリ自身が開いているファイルへ書いた後**
+   * (改名に伴うリンクの書き換え・設定への別名の追加)に呼ぶ。後者を読み直さないと、
+   * 画面は古い本文のままになり、次の自動保存が自分の書き換えを
+   * 「アプリの外で変更された」と誤判定する。
+   * 未保存の変更があれば読み込まずに二択へ回す。戻り値は読み直したかどうか。
+   */
+  const syncOpenFile = useCallback(async (): Promise<boolean> => {
+    // 保存の途中で読むと、書き終えた自分の本文を外部の変更と取り違える
+    await saver.settled();
+    const p = live.current.currentPath;
+    if (!p) return false;
+    let f: FileContent;
+    try {
+      f = await api.readFile(p);
+    } catch {
+      return false; // ファイルが消えた等。次の操作でエラーになる
+    }
+    // 読んでいる間に別のファイルへ移っていたら触らない。
+    // 打ち込まれていた場合は、その分を捨てないよう dirty として扱う
+    const l = live.current;
+    if (l.currentPath !== p) return false;
+    switch (
+      diskChange(
+        { ms: f.modified_ms, text: f.text },
+        { ms: l.modifiedMs, savedText: l.savedText },
+        l.text !== l.savedText,
+      )
+    ) {
+      case "same":
+        return false;
+      case "adopt":
+        setModifiedMs(f.modified_ms);
+        live.current.modifiedMs = f.modified_ms;
+        return false;
+      case "conflict":
+        noteConflict(p, f.modified_ms, "auto");
+        return false;
+      case "reload":
+        showFile(f);
+        return true;
+    }
+  }, [saver, noteConflict, showFile]);
+
   /** 明示的な保存。ツリーの表示名やcodexの別名も更新する */
   const saveNow = useCallback(async () => {
     await flushSave("save");
@@ -838,25 +884,37 @@ export default function App() {
         const to = dir ? `${dir}/${name}` : name;
         if (to === node.path) return;
 
-        const wasOpen =
-          currentPath === node.path ||
-          (node.is_dir && currentPath?.startsWith(`${node.path}/`));
-        if (wasOpen && !(await gate("名前の変更"))) return;
+        // 改名はリンクの書き換えで、**開いている別のファイルにも書き込みうる**(03 §5-6)。
+        // 未保存の編集を先にディスクへ出しておき、改名後に読み直す。
+        // 出せなければ改名しない(読み直すと、出せなかった編集を捨てることになる)
+        if (!(await gate("名前の変更"))) return;
 
         await api.renameEntry(node.path, to);
-        setProject(await api.refreshProject());
 
-        if (currentPath === node.path) {
-          setCurrentPath(to);
-        } else if (node.is_dir && currentPath?.startsWith(`${node.path}/`)) {
-          setCurrentPath(currentPath.replace(node.path, to));
+        // 開いているファイル(またはそれを含むフォルダー)が動いたら、場所を付け替える
+        const follow = (p: string | null) =>
+          p === node.path
+            ? to
+            : p && node.is_dir && p.startsWith(`${node.path}/`)
+              ? to + p.slice(node.path.length)
+              : p;
+        const open = live.current.currentPath;
+        if (follow(open) !== open) {
+          setCurrentPath(follow(open));
+          live.current.currentPath = follow(open);
         }
-        setStatus(`名前を変更しました: ${to}`);
+        setRefPath((r) => follow(r));
+        // 一覧の読み直しより先に揃える(一覧の失敗で、古い本文が残らないように)
+        const reloaded = await syncOpenFile();
+        setProject(await api.refreshProject());
+        setStatus(
+          `名前を変更しました: ${to}${reloaded ? "(開いているファイルのリンクも書き換えました)" : ""}`,
+        );
       } catch (e) {
         setStatus(String(e));
       }
     },
-    [prompt, currentPath, gate],
+    [prompt, gate, syncOpenFile],
   );
 
   // ===== 参照ペイン =====
@@ -947,37 +1005,6 @@ export default function App() {
   }, [conflict, showFile]);
 
   // ===== 外部編集の検知(常駐監視はせず、フォーカス復帰時のみ) =====
-
-  /**
-   * 開いているファイルがディスク上で変わっていたら取り込む(03 §5-1 / §5-2)。
-   * 未保存の変更があれば読み込まずに二択へ回す。戻り値は読み直したかどうか。
-   */
-  const syncOpenFile = useCallback(async (): Promise<boolean> => {
-    const p = live.current.currentPath;
-    if (!p) return false;
-    try {
-      const ms = await api.fileModifiedMs(p);
-      if (live.current.currentPath !== p) return false;
-      const dirty = live.current.text !== live.current.savedText;
-      const act = diskChange(ms, live.current.modifiedMs, dirty);
-      if (act === "same") return false;
-      if (act === "conflict") {
-        noteConflict(p, ms, "auto");
-        return false;
-      }
-      const f = await api.readFile(p);
-      // 読んでいる間に打ち込まれていたら、その分を捨てずに二択へ回す
-      if (live.current.currentPath !== p) return false;
-      if (live.current.text !== live.current.savedText) {
-        noteConflict(p, f.modified_ms, "auto");
-        return false;
-      }
-      showFile(f);
-      return true;
-    } catch {
-      return false; // ファイルが消えた等。次の操作でエラーになる
-    }
-  }, [noteConflict, showFile]);
 
   useEffect(() => {
     const onFocus = async () => {
@@ -1313,9 +1340,18 @@ export default function App() {
                     body={text}
                     disabled={!currentPath}
                     onBusy={busy.extract}
+                    prepare={(paths) => {
+                      const open = live.current.currentPath;
+                      return open && paths.includes(open)
+                        ? gate("設定への反映")
+                        : Promise.resolve(true);
+                    }}
                     onCreated={async (paths) => {
                       try {
                         setProject(await api.refreshProject());
+                        // 開いているファイルに別名を書き足していたら読み直す
+                        const open = live.current.currentPath;
+                        if (open && paths.includes(open)) await syncOpenFile();
                         setStatus(
                           paths.length > 0
                             ? `${paths.length}件を設定に追加しました`

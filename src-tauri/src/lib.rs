@@ -368,13 +368,6 @@ fn create_file(path: String, text: String, state: State<AppState>) -> Result<boo
     project::create_file(&root, &path, &text).map_err(to_msg)
 }
 
-/// 外部編集の検知用(常駐監視はしない。フロントがフォーカス復帰時に呼ぶ)
-#[tauri::command]
-fn file_modified_ms(path: String, state: State<AppState>) -> Result<u64, String> {
-    let root = root_of(&state)?;
-    project::modified_ms(&root, &path).map_err(to_msg)
-}
-
 /// 削除対象の件数(確認ダイアログで「何が消えるか」を見せるため)
 #[tauri::command]
 fn count_files(path: String, state: State<AppState>) -> Result<usize, String> {
@@ -1574,7 +1567,6 @@ pub fn run() {
             read_file,
             save_file,
             create_file,
-            file_modified_ms,
             count_files,
             trash_entry,
             rename_entry,
