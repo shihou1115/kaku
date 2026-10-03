@@ -247,14 +247,15 @@ export default function App() {
     setAiSettings((prev) => (prev ? { ...prev, ...p } : prev));
   }, []);
 
-  // 保存は状態更新と分け、入力が落ち着いてから1回だけ書く。
-  // 接続先URLを打ち直すと数十回の書き込みになっていた
+  // 保存は状態更新と分け、変わった直後に書く。
+  //
+  // **遅らせない。** Rust 側の設定はこの書き込みで初めて変わる。入力が落ち着くまで
+  // 待つ作り(400ms)にしていた間は、接続先を打ち直してすぐ「接続テスト」を押すと
+  // 古い接続先を見に行き、モデルを選んですぐ校正すると古いモデルで走った。
+  // 書き込みは数百バイトの設定ファイル1つで、打鍵ごとでも重くない
   useEffect(() => {
     if (!aiSettings || aiSettings === loadedSettings.current) return;
-    const t = setTimeout(() => {
-      void api.setAiSettings(aiSettings).catch(() => {});
-    }, 400);
-    return () => clearTimeout(t);
+    void api.setAiSettings(aiSettings).catch(() => {});
   }, [aiSettings]);
 
   // ===== AIの状態(ヘッダーに出す) =====
