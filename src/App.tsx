@@ -48,6 +48,7 @@ import { ConflictDialog } from "./components/ConflictDialog";
 import { PromptDialog } from "./components/PromptDialog";
 import { HelpDialog } from "./components/HelpDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
+import { modelMissing } from "./components/modelChoice";
 import { RubyPreview } from "./components/RubyPreview";
 import {
   canWrap as canWrapRuby,
@@ -338,9 +339,12 @@ export default function App() {
       ? { kind: "error" as const, text: "未接続" }
       : !aiSettings?.model
         ? { kind: "warn" as const, text: "モデル未選択" }
-        : aiConn === "ok"
-          ? { kind: "ok" as const, text: "接続OK" }
-          : { kind: "warn" as const, text: "未確認" };
+        : // 保存してあるモデルが接続先に無い。「接続OK」と出すと、使えるように見えてしまう
+          modelMissing(models, aiSettings.model)
+          ? { kind: "warn" as const, text: "モデルが一覧にない" }
+          : aiConn === "ok"
+            ? { kind: "ok" as const, text: "接続OK" }
+            : { kind: "warn" as const, text: "未確認" };
 
   /**
    * ゴミ箱の中を開いているか。**アプリからは読み取り専用**にする。

@@ -14,6 +14,7 @@
 
 import { useEffect } from "react";
 import { api, type AiSettings } from "../api";
+import { modelChoices, modelMissing } from "./modelChoice";
 
 /** 校正で1回に送る字数の候補。上限はコンテキスト長との兼ね合いで決まる(§7.1) */
 const CHUNK_CHOICES = [1000, 2000, 3000, 4000, 6000, 8000, 12000];
@@ -108,9 +109,9 @@ export function SettingsDialog({
                       value={settings.model}
                       onChange={(e) => onPatch({ model: e.target.value })}
                     >
-                      {models.map((m) => (
-                        <option key={m} value={m}>
-                          {m}
+                      {modelChoices(models, settings.model).map((c) => (
+                        <option key={c.value} value={c.value} disabled={c.value === ""}>
+                          {c.label}
                         </option>
                       ))}
                     </select>
@@ -123,6 +124,12 @@ export function SettingsDialog({
                     />
                   )}
                 </label>
+                {modelMissing(models, settings.model) && (
+                  <p className="pf-stale">
+                    保存してあるモデル「{settings.model}」は、接続先の一覧にありません。
+                    このまま使うと、接続先によってはエラーになります。一覧から選び直してください。
+                  </p>
+                )}
               </div>
             ) : (
               <p className="empty">設定を読み込めませんでした。</p>
