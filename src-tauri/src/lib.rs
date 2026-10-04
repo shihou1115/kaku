@@ -2690,6 +2690,105 @@ mod ai_run_tests {
             .expect("打ち切りなのに警告が無い");
         assert!(cut.contains("打ち切られました"), "{cut}");
     }
+
+    /// テスト計画 H3: AI 呼び出しのログ(`.app/logs/`)が1回でどれだけ増えるかを測る。
+    /// **ふだんは走らない**。本物の組み立て(校正・レビュー・抽出の run_*、相談の
+    /// build_chat_messages)と本物の書き出し(ailog::write)を通して、約1万字の場面で測る:
+    ///
+    /// ```text
+    /// cargo test --lib log_volume_probe -- --ignored --nocapture
+    /// ```
+    #[tokio::test]
+    #[ignore]
+    async fn log_volume_probe() {
+        let root = std::env::temp_dir().join(format!("kaku-logprobe-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        let log_dir = root.join(project::APP_DIR).join("logs");
+        let logged = || -> u64 {
+            std::fs::read_dir(&log_dir)
+                .map(|d| d.flatten().map(|e| e.metadata().unwrap().len()).sum())
+                .unwrap_or(0)
+        };
+        let scene = "　転校初日の朝は、雨だった。佐藤架純は昇降口で靴を履き替える。\n".repeat(320);
+        let chars = scene.chars().count();
+        let materials: Vec<(String, String)> = (0..5)
+            .map(|i| (format!("人物{i}"), "設定の説明。".repeat(100)))
+            .collect();
+        let log = |feature: &str, messages: &[ChatMessage], response: &str, ms: u64, note: Option<&str>| {
+            ailog::write(&root, feature, "test-model", "http://localhost:1234/v1", messages, response, ms, note);
+        };
+        let c = never();
+        let h = AiHooks { cancelled: &c, log: &log };
+        let replies = |json: &str| (0..8).map(|_| chat(Some(json), "stop")).collect::<Vec<_>>();
+
+        let issues = r#"{"issues":[{"quote":"雨だった","suggestion":"雨だった。","kind":"脱字","reason":"句点が抜けている可能性"}]}"#;
+        let m = mock(replies(issues));
+        let b0 = logged();
+        run_proofread(&settings(&m), &scene, &[], &h).await.unwrap();
+        let proofread = (logged() - b0, m.count());
+
+        let comment = serde_json::json!({
+            "comments": [{"aspect": "style", "quote": "雨だった",
+                "comment": "書き出しの一文が短く印象に残る。".repeat(3), "suggestion": "このままでよい"}],
+            "overall": "全体として読みやすい。".repeat(20)
+        })
+        .to_string();
+        let m = mock(replies(&comment));
+        let picked = review::selected_aspects(&[]);
+        let names: Vec<String> = materials.iter().map(|(n, _)| n.clone()).collect();
+        let b0 = logged();
+        run_review(&settings(&m), &scene, &picked, &materials, names, &h).await.unwrap();
+        let review = (logged() - b0, m.count());
+
+        let entities = serde_json::json!({"entities": [{"name": "佐藤架純", "kind": "character",
+            "description": "転校生", "aliases": ["架純"]}]})
+        .to_string();
+        let m = mock(replies(&entities));
+        let b0 = logged();
+        run_extract(&settings(&m), &scene, &[], &h).await.unwrap();
+        let extract = (logged() - b0, m.count());
+
+        let entry = |i: usize, n: usize| context::ContextEntry {
+            path: format!("codex/characters/{i}.md"),
+            title: format!("人物{i}"),
+            source: "mention".into(),
+            text: "設定の説明。".repeat(n / 6),
+            truncated: false,
+        };
+        let answer = "展開案を3つ挙げます。".repeat(100);
+        let ask = |entries: Vec<context::ContextEntry>, history: Vec<context::ChatTurn>| {
+            let ctx = context::ContextPreview {
+                body: scene.chars().take(context::MAX_BODY_CHARS).collect(),
+                body_truncated: false,
+                entries,
+                dropped_entries: 0,
+                total_chars: 0,
+            };
+            let messages = context::build_chat_messages(&ctx, "この場面の展開案を3つ", &history);
+            let b0 = logged();
+            log("chat", &messages, &answer, 1000, None);
+            logged() - b0
+        };
+        let chat_typical = ask((0..5).map(|i| entry(i, 600)).collect(), vec![]);
+        let history: Vec<context::ChatTurn> = (0..4)
+            .map(|_| context::ChatTurn {
+                question: "もう少し暗く".into(),
+                answer: "暗い展開案。".repeat(330),
+            })
+            .collect();
+        let chat_max = ask(
+            (0..context::MAX_ENTRIES).map(|i| entry(i, context::MAX_ENTRY_CHARS)).collect(),
+            history,
+        );
+
+        println!("LOG PROBE: scene {chars} chars, chunk 3000");
+        println!("  proofread {} bytes / run ({} calls)", proofread.0, proofread.1);
+        println!("  review    {} bytes / run ({} calls, 5 materials)", review.0, review.1);
+        println!("  extract   {} bytes / run ({} calls)", extract.0, extract.1);
+        println!("  chat      {chat_typical} bytes / message (5 materials, no history)");
+        println!("  chat max  {chat_max} bytes / message (20 x 1200 materials, history)");
+        std::fs::remove_dir_all(&root).ok();
+    }
 }
 
 /// 保存の結果が、画面(api.ts の SaveOutcome)の見分ける形で届くこと。
