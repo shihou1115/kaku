@@ -5,6 +5,8 @@
 //! なって本文がツリーから消え(この機械で確認)、末尾の点・空白や予約名(`con.md`)は
 //! 多くのツールで開けないファイルになる。
 
+mod common;
+
 use std::fs;
 use std::path::PathBuf;
 
@@ -39,6 +41,10 @@ const BAD: &[&str] = &[
     "aux.txt",
     "Com1.md",
     "lpt9",
+    // 点で始まる名前は隠しファイル扱いで、ツリー・設定・検索に出ない(作れても見失う。テスト計画 P3)
+    ".下書き.md",
+    "...そして誰もいなくなった.md",
+    ".hidden",
 ];
 
 fn names_in(dir: &std::path::Path) -> Vec<String> {
@@ -80,6 +86,8 @@ fn ordinary_names_still_work() {
         "コン.md",
         "a.b.c.md",
         "第一章",
+        "\u{2026}そして誰もいなくなった.md", // 三点リーダー(…)で始まる名前は使える
+        "\u{FF0E}下書き.md",                  // 全角の点(.)で始まる名前も使える
     ] {
         let rel = format!("manuscript/{ok}");
         if ok.ends_with(".md") {
@@ -103,5 +111,41 @@ fn the_reason_is_written_in_words_the_writer_can_act_on() {
         .unwrap_err()
         .to_string();
     assert!(e.contains("予約"), "{e}");
+    let e = project::create_file(&root, "manuscript/...そして.md", "x")
+        .unwrap_err()
+        .to_string();
+    assert!(e.contains("点で始まって") && e.contains("全角"), "{e}");
     fs::remove_dir_all(root).ok();
+}
+
+/// 抽出から設定を作るときの保存先の名前(`safe_file_stem`)は、どんな名前からでも
+/// 名前の検査を通る形になる。以前は使えない文字だけを置き換えていたため、予約名などで
+/// 作成が止まった(テスト計画 P3)
+#[test]
+fn safe_file_stems_always_pass_the_name_check() {
+    const PIECES: &[&str] = &[
+        "CON", "con", "aux", "Com1", "lpt9", "NUL", ".", "..", " ", ":", "?", "*", "\"", "<", ">",
+        "|", "/", "\\", "\u{1}", "\t", "\n", "黒木", "a", "NET", "\u{2026}", "\u{20BB7}",
+    ];
+    let mut rng = common::Rng(20261005);
+    for _ in 0..5000 {
+        let name: String = (0..1 + rng.below(5)).map(|_| rng.pick(PIECES)).collect();
+        let stem = project::safe_file_stem(&name);
+        let rel = format!("codex/terms/{stem}.md");
+        assert!(project::check_name(&rel).is_ok(), "{name:?} -> {stem:?}: {:?}", project::check_name(&rel));
+    }
+    // 長すぎる名前も切って通す
+    let long = "長".repeat(400);
+    assert!(project::check_name(&format!("codex/terms/{}.md", project::safe_file_stem(&long))).is_ok());
+}
+
+#[test]
+fn safe_file_stems_change_only_what_they_must() {
+    assert_eq!(project::safe_file_stem("黒木龍一"), "黒木龍一");
+    assert_eq!(project::safe_file_stem("第1話: 出会い"), "第1話_ 出会い");
+    assert_eq!(project::safe_file_stem("CON"), "CON_");
+    assert_eq!(project::safe_file_stem("con.x"), "con_.x");
+    assert_eq!(project::safe_file_stem(".NET"), "_.NET");
+    assert_eq!(project::safe_file_stem("conquest"), "conquest");
+    assert_eq!(project::safe_file_stem("  "), "無題");
 }

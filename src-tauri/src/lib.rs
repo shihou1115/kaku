@@ -1541,34 +1541,9 @@ async fn run_extract(
 fn create_codex_entries(
     candidates: Vec<extract::Candidate>,
     state: State<AppState>,
-) -> Result<Vec<String>, String> {
+) -> Result<extract::Applied, String> {
     let root = root_of(&state)?;
-    let mut touched = Vec::new();
-    for c in candidates {
-        match &c.existing_path {
-            Some(path) => {
-                let source = project::read_text(&root, path).map_err(to_msg)?;
-                let updated = frontmatter::add_aliases(&source, &c.aliases);
-                if updated != source {
-                    project::write_text(&root, path, &updated).map_err(to_msg)?;
-                    touched.push(path.clone());
-                }
-            }
-            None => {
-                let safe = c
-                    .name
-                    .replace(['\\', '/', ':', '*', '?', '"', '<', '>', '|'], "_");
-                let path = format!("{}/{}.md", extract::folder_for(&c.kind), safe);
-                match project::create_file(&root, &path, &extract::entry_markdown(&c)) {
-                    Ok(true) => touched.push(path),
-                    // 同名が既にある場合は黙って飛ばす(上書きしない)
-                    Ok(false) => {}
-                    Err(e) => return Err(to_msg(e)),
-                }
-            }
-        }
-    }
-    Ok(touched)
+    Ok(extract::apply(&root, &candidates))
 }
 
 // ===== AI =====

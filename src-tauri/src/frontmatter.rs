@@ -145,27 +145,12 @@ pub fn parse_source(source: &str) -> FrontMatter {
 /// - フロントマターが無ければ先頭に作る
 pub fn add_aliases(source: &str, additions: &[String]) -> String {
     let nl = if source.contains("\r\n") { "\r\n" } else { "\n" };
-    let current = parse_source(source);
-
-    let mut merged = current.aliases.clone();
-    for a in additions {
-        // 読み直したときの形にそろえてから比べる(改行は空白・前後の空白は落とす)
-        let a = one_line(a);
-        let a = a.trim();
-        if a.is_empty() {
-            continue;
-        }
-        if current.title.as_deref() == Some(a) {
-            continue;
-        }
-        if merged.iter().any(|m| m == a) {
-            continue;
-        }
-        merged.push(a.to_string());
-    }
-    if merged.len() == current.aliases.len() {
+    let added = new_aliases(source, additions);
+    if added.is_empty() {
         return source.to_string();
     }
+    let mut merged = parse_source(source).aliases;
+    merged.extend(added);
 
     let alias_line = format!(
         "aliases: [{}]",
@@ -249,6 +234,29 @@ pub fn add_aliases(source: &str, additions: &[String]) -> String {
         return source.to_string();
     }
     out
+}
+
+/// 足すと新しく増える別名(読み直したときの形。登録済みのもの・正式名と同じものは除く)。
+///
+/// `add_aliases` が元の文字列を返したとき、これが空でなければ「足せなかった」
+/// (フロントマターが閉じていない等)。空なら「足すものが無かった」
+pub fn new_aliases(source: &str, additions: &[String]) -> Vec<String> {
+    let current = parse_source(source);
+    let mut added: Vec<String> = Vec::new();
+    for a in additions {
+        // 読み直したときの形にそろえてから比べる(改行は空白・前後の空白は落とす)
+        let a = one_line(a);
+        let a = a.trim();
+        if a.is_empty()
+            || current.title.as_deref() == Some(a)
+            || current.aliases.iter().any(|m| m == a)
+            || added.iter().any(|m| m == a)
+        {
+            continue;
+        }
+        added.push(a.to_string());
+    }
+    added
 }
 
 /// `title:` `description:` などの値(1行の文字列)を、読み直して同じに戻る形で書く。

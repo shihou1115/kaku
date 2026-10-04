@@ -1498,10 +1498,11 @@ export default function App() {
                         // 開いているファイルに別名を書き足していたら読み直す
                         const open = live.current.currentPath;
                         if (open && paths.includes(open)) await syncOpenFile();
+                        // 反映できなかったものの理由は、抽出の画面に出している
                         setStatus(
                           paths.length > 0
                             ? `${paths.length}件を設定に追加しました`
-                            : "追加できるものがありませんでした(同名が既にあります)",
+                            : "設定に追加したものはありません",
                         );
                       } catch (e) {
                         setStatus(String(e));

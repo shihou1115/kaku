@@ -13,10 +13,12 @@
 //!  - 抽出は「名前 + 種別 + 一行説明」まで。詳細プロフィールの自動生成はしない
 //!  - **固有名詞らしさの判定は機械側**で行い、LLMの出力を鵜呑みにしない
 
+use std::path::Path;
+
 use serde::{Deserialize, Serialize};
 
 use crate::frontmatter;
-use crate::project::CodexEntry;
+use crate::project::{self, CodexEntry};
 
 /// codexへの追加候補。
 ///
@@ -366,6 +368,68 @@ pub fn entry_markdown(c: &Candidate) -> String {
         aliases,
         frontmatter::yaml_scalar(&c.description)
     )
+}
+
+/// 候補を codex へ反映した結果
+#[derive(Debug, Default, Serialize)]
+pub struct Applied {
+    /// 作った・別名を足したファイル
+    pub touched: Vec<String>,
+    /// 反映できなかった候補の名前(画面の一覧に残す)
+    pub failed: Vec<String>,
+    /// 反映できなかった理由(名前つき。画面に出す)
+    pub reasons: Vec<String>,
+}
+
+/// 選ばれた候補を codex へ反映する(新しいエントリを作る・既存のエントリに別名を足す)。
+///
+/// **1件できなくても残りは進め、できなかったものと理由を返す**(落とし穴22)。以前は最初の
+/// 失敗で止まり、やり直しても同じ候補で止まった(後ろの候補はいつまでも反映されない)。
+/// 同じ名前のファイルが既にある・フロントマターが閉じていない、で反映できなかったときも
+/// 黙らない(以前は一覧から消え、件数だけ減って見えた)
+pub fn apply(root: &Path, candidates: &[Candidate]) -> Applied {
+    let mut out = Applied::default();
+    for c in candidates {
+        let done = match &c.existing_path {
+            Some(path) => add_aliases_to(root, path, &c.aliases),
+            None => create_entry(root, c),
+        };
+        match done {
+            Ok(Some(path)) => out.touched.push(path),
+            Ok(None) => {}
+            Err(reason) => {
+                out.failed.push(c.name.clone());
+                out.reasons.push(format!("{}({reason})", c.name));
+            }
+        }
+    }
+    out
+}
+
+/// 既存のエントリに別名を足す。足すものが無ければ書かない(None)
+fn add_aliases_to(root: &Path, path: &str, aliases: &[String]) -> Result<Option<String>, String> {
+    let source = project::read_text(root, path).map_err(|e| e.to_string())?;
+    let updated = frontmatter::add_aliases(&source, aliases);
+    if updated == source {
+        if frontmatter::new_aliases(&source, aliases).is_empty() {
+            return Ok(None);
+        }
+        return Err(format!(
+            "{path} のフロントマターが閉じていないため、別名を足せませんでした"
+        ));
+    }
+    project::write_text(root, path, &updated).map_err(|e| e.to_string())?;
+    Ok(Some(path.to_string()))
+}
+
+/// 新しいエントリを作る。保存先の名前は使える形にする(名前そのものは title に入る)
+fn create_entry(root: &Path, c: &Candidate) -> Result<Option<String>, String> {
+    let path = format!("{}/{}.md", folder_for(&c.kind), project::safe_file_stem(&c.name));
+    match project::create_file(root, &path, &entry_markdown(c)) {
+        Ok(true) => Ok(Some(path)),
+        Ok(false) => Err(format!("{path} が既にあるので作りませんでした")),
+        Err(e) => Err(e.to_string()),
+    }
 }
 
 /// 種別からcodexの保存先フォルダを決める

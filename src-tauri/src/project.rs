@@ -431,6 +431,14 @@ pub fn check_name(relative: &str) -> Result<(), ProjectError> {
                 "「..」は上のフォルダーを表す記号なので、名前には使えません".to_string(),
             ));
         }
+        // 点で始まる名前は隠しファイルとして扱い、ツリー・設定・検索のどれにも出さない
+        // (.app と同じ扱い)。作れても一覧から消え、アプリからは二度と開けなかった
+        if seg.starts_with('.') {
+            return Err(ProjectError::BadName(format!(
+                "「{seg}」は点で始まっています。点で始まる名前は隠しファイルとして扱われ、一覧に出ません\
+                 (全角の「．」や「…」なら使えます)"
+            )));
+        }
         if let Some(c) = seg
             .chars()
             .find(|c| matches!(c, '<' | '>' | ':' | '"' | '|' | '?' | '*') || c.is_control())
@@ -464,6 +472,38 @@ pub fn check_name(relative: &str) -> Result<(), ProjectError> {
         }
     }
     Ok(())
+}
+
+/// 名前から、ファイル名に使える形を作る(抽出から設定を作るとき)。
+///
+/// 名前そのものはフロントマターの title に入るので、変わるのは保存先の名前だけ。
+/// `check_name` が断る形(使えない文字・制御文字・点で始まる・予約名・長すぎる)を避ける。
+/// 以前は使えない文字だけを `_` にしていたため、予約名などで作成がまとめて止まった
+pub fn safe_file_stem(name: &str) -> String {
+    let mut s: String = name
+        .trim()
+        .chars()
+        .map(|c| {
+            if matches!(c, '\\' | '/' | ':' | '*' | '?' | '"' | '<' | '>' | '|') || c.is_control() {
+                '_'
+            } else {
+                c
+            }
+        })
+        .take(100)
+        .collect();
+    if s.is_empty() {
+        s = "無題".to_string();
+    }
+    if s.starts_with('.') {
+        s.insert(0, '_');
+    }
+    // 予約名は最初の点の前で決まる(`con.x` も予約名)。その直後に `_` を入れる
+    let head = s.find('.').unwrap_or(s.len());
+    if RESERVED.iter().any(|r| r.eq_ignore_ascii_case(s[..head].trim_end())) {
+        s.insert(head, '_');
+    }
+    s
 }
 
 fn reject_app_area(relative: &str) -> Result<(), ProjectError> {

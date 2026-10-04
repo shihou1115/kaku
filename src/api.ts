@@ -204,6 +204,16 @@ export type ExtractResult = {
   warning: string | null;
 };
 
+/** 抽出の候補を設定へ反映した結果。**1件できなくても残りは反映する**(テスト計画 P3) */
+export type CodexApplied = {
+  /** 作った・別名を足したファイル */
+  touched: string[];
+  /** 反映できなかった候補の名前(一覧に残す) */
+  failed: string[];
+  /** 反映できなかった理由(名前つき) */
+  reasons: string[];
+};
+
 export type TemplateInfo = {
   genre: string;
   kind: string;
@@ -286,7 +296,7 @@ export const api = {
   extractEntities: (text: string) =>
     invoke<ExtractResult>("extract_entities", { text }),
   createCodexEntries: (candidates: Candidate[]) =>
-    invoke<string[]>("create_codex_entries", { candidates }),
+    invoke<CodexApplied>("create_codex_entries", { candidates }),
   proofreadAi: (text: string) =>
     invoke<AiProofreadResult>("proofread_ai", { text }),
   suggestSceneSplit: (path: string) =>
