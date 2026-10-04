@@ -27,6 +27,9 @@ pub enum ProjectError {
     Io(#[from] io::Error),
     #[error("文字コードを判別できませんでした: {0}")]
     Encoding(String),
+    /// Windows で名前として使えない(理由は文に含める)
+    #[error("{0}")]
+    BadName(String),
 }
 
 impl serde::Serialize for ProjectError {
@@ -307,6 +310,59 @@ pub fn is_app_area(relative: &str) -> bool {
         .eq_ignore_ascii_case(APP_DIR)
 }
 
+/// Windows の予約名(拡張子が付いていても使えない)
+const RESERVED: &[&str] = &[
+    "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
+    "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+];
+
+/// ファイル名・フォルダー名として使ってよいか。**作る・改名する前に必ず通す。**
+///
+/// 検証せずに書くと、Windows では次が起きた(2026-10-04 テスト計画 B1 でこの機械で確認):
+/// - `第1話: 出会い.md` は「第1話」という空のファイルと**代替データストリーム**になり、
+///   本文はツリーから見えない場所に書かれる
+/// - 末尾の点・空白は、書き方によって残ったり黙って落とされたりする。残ると
+///   エクスプローラーなど多くのツールで開けない
+/// - `con.md`・`aux` などの予約名も、作れてしまうが多くのツールで扱えない
+///
+/// 日本語の原稿では全角の記号(:?)を使う人が多いので、断るときに代わりを示す。
+pub fn check_name(relative: &str) -> Result<(), ProjectError> {
+    for seg in relative.split(['/', '\\']).filter(|s| !s.is_empty() && *s != ".") {
+        if let Some(c) = seg
+            .chars()
+            .find(|c| matches!(c, '<' | '>' | ':' | '"' | '|' | '?' | '*') || c.is_control())
+        {
+            let shown = if c.is_control() {
+                "制御文字".to_string()
+            } else {
+                format!("「{c}」")
+            };
+            return Err(ProjectError::BadName(format!(
+                "「{seg}」に、名前に使えない文字{shown}が含まれています。\
+                 \\ / : * ? \" < > | は使えません(全角の :?などなら使えます)"
+            )));
+        }
+        if seg.ends_with('.') || seg.ends_with(' ') {
+            return Err(ProjectError::BadName(format!(
+                "「{seg}」は末尾が点か空白です。Windows では末尾の点・空白を名前に使えません"
+            )));
+        }
+        let stem = seg.split('.').next().unwrap_or("").trim_end();
+        if RESERVED.iter().any(|r| r.eq_ignore_ascii_case(stem)) {
+            return Err(ProjectError::BadName(format!(
+                "「{seg}」は Windows の予約名({stem})なので使えません"
+            )));
+        }
+        if seg.encode_utf16().count() > 255 {
+            return Err(ProjectError::BadName(format!(
+                "名前が長すぎます({}字)。255字以内にしてください",
+                seg.chars().count()
+            )));
+        }
+    }
+    Ok(())
+}
+
 fn reject_app_area(relative: &str) -> Result<(), ProjectError> {
     if is_app_area(relative) {
         return Err(ProjectError::OutsideProject(format!(
@@ -369,6 +425,7 @@ fn backup(root: &Path, relative: &str, path: &Path) -> Result<(), ProjectError> 
 /// 新規ファイルを作る。既存なら何もしない(上書き事故の防止)。
 pub fn create_file(root: &Path, relative: &str, content: &str) -> Result<bool, ProjectError> {
     reject_app_area(relative)?;
+    check_name(relative)?;
     let path = resolve(root, relative)?;
     if path.exists() {
         return Ok(false);
@@ -463,6 +520,7 @@ pub fn rename(root: &Path, from: &str, to: &str) -> Result<(), ProjectError> {
     // 退避したものを動かすのも、原稿をアプリ専用領域へ押し込むのも塞ぐ
     reject_app_area(from)?;
     reject_app_area(to)?;
+    check_name(to)?;
     let src = resolve(root, from)?;
     let dst = resolve(root, to)?;
     if !src.exists() {
@@ -538,6 +596,7 @@ pub fn duplicate(root: &Path, relative: &str) -> Result<String, ProjectError> {
 
 pub fn create_dir(root: &Path, relative: &str) -> Result<bool, ProjectError> {
     reject_app_area(relative)?;
+    check_name(relative)?;
     let path = resolve(root, relative)?;
     if path.exists() {
         return Ok(false);
