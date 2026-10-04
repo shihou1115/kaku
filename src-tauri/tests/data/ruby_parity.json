@@ -1,0 +1,4770 @@
+{
+  "seed": 20261004,
+  "cases": [
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57"
+    },
+    {
+      "text": "\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [],
+      "stripped": "\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058",
+      "marks": [],
+      "stripped": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u300b",
+      "marks": [],
+      "stripped": "\uff5c\u6f22\u5b57\u300a\u300b"
+    },
+    {
+      "text": "\uff5c\u300a\u304b\u3093\u3058\u300b",
+      "marks": [],
+      "stripped": "\uff5c\u300a\u304b\u3093\u3058\u300b"
+    },
+    {
+      "text": "\uff5c\u6f22\n\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [],
+      "stripped": "\uff5c\u6f22\n\u5b57\u300a\u304b\u3093\u3058\u300b"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\n\u3058\u300b",
+      "marks": [],
+      "stripped": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\n\u3058\u300b"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\r\n\u3058\u300b",
+      "marks": [],
+      "stripped": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\r\n\u3058\u300b"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u300a\u3093\u300b\u3058\u300b",
+      "marks": [],
+      "stripped": "\uff5c\u6f22\u5b57\u300a\u304b\u300a\u3093\u300b\u3058\u300b"
+    },
+    {
+      "text": "\uff5c\u6f22\uff5c\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [
+        {
+          "start": 2,
+          "end": 9,
+          "base": "\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\uff5c\u6f22\u5b57"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300b",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\u300b"
+    },
+    {
+      "text": "\uff5c\u6f22\u300b\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [
+        {
+          "start": 0,
+          "end": 9,
+          "base": "\u6f22\u300b\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u300b\u5b57"
+    },
+    {
+      "text": "\uff5c\u767d\u93e1\u300a\u3057\uff5c\u308d\u304b\u304c\u300a\u3088\u307f\u300b\u307f\u300b",
+      "marks": [
+        {
+          "start": 5,
+          "end": 13,
+          "base": "\u308d\u304b\u304c",
+          "reading": "\u3088\u307f"
+        }
+      ],
+      "stripped": "\uff5c\u767d\u93e1\u300a\u3057\u308d\u304b\u304c\u307f\u300b"
+    },
+    {
+      "text": "|\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [],
+      "stripped": "|\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 8,
+          "end": 16,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\u6f22\u5b57"
+    },
+    {
+      "text": "\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\ud842\udfb7\u3060\u300b",
+      "marks": [
+        {
+          "start": 0,
+          "end": 11,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\ud842\udfb7\u3060"
+        }
+      ],
+      "stripped": "\ud842\udfb7\u7530"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\r\n\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 10,
+          "end": 18,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\r\n\u6f22\u5b57"
+    },
+    {
+      "text": "\uff5c\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [
+        {
+          "start": 1,
+          "end": 9,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\uff5c\u6f22\u5b57"
+    },
+    {
+      "text": "\u300a\u304b\u3093\u3058\u300b\uff5c\u6f22\u5b57",
+      "marks": [],
+      "stripped": "\u300a\u304b\u3093\u3058\u300b\uff5c\u6f22\u5b57"
+    },
+    {
+      "text": "",
+      "marks": [],
+      "stripped": ""
+    },
+    {
+      "text": "a\uff5ca\u845b\udb40\udd00\ud83d\udc68\u200d\ud83d\udc69\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b>>\u845b\udb40\udd00|a\u3002\u3000",
+      "marks": [
+        {
+          "start": 11,
+          "end": 19,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "a\uff5ca\u845b\udb40\udd00\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57>>\u845b\udb40\udd00|a\u3002\u3000"
+    },
+    {
+      "text": "\ud842\udfb7\u300a<<a\u5409\u300b\u300a\u3000\n",
+      "marks": [],
+      "stripped": "\ud842\udfb7\u300a<<a\u5409\u300b\u300a\u3000\n"
+    },
+    {
+      "text": "\u300b>>\u300a\ud842\udfb7\u300b>>",
+      "marks": [],
+      "stripped": "\u300b>>\u300a\ud842\udfb7\u300b>>"
+    },
+    {
+      "text": "",
+      "marks": [],
+      "stripped": ""
+    },
+    {
+      "text": "\u3088\u3057\u304b\u3093\u3058\uff5c\u300b\uff5c\u845b\udb40\udd00\u300b\ud83d\udc68\u200d\ud83d\udc69\u3000\u3002a \u300a>>\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300a\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\r\n\ud83d\udc68\u200d\ud83d\udc69\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300b\u845b\udb40\udd00",
+      "marks": [
+        {
+          "start": 24,
+          "end": 33,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 34,
+          "end": 42,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 42,
+          "end": 51,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 58,
+          "end": 66,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u3088\u3057\u304b\u3093\u3058\uff5c\u300b\uff5c\u845b\udb40\udd00\u300b\ud83d\udc68\u200d\ud83d\udc69\u3000\u3002a \u300a>>\ud842\udfb7\u7530\u300a\u6f22\u5b57\ud842\udfb7\u7530\r\n\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\u300b\u845b\udb40\udd00"
+    },
+    {
+      "text": "\u3002\n\u5409\uff5c\u3000\u300a",
+      "marks": [],
+      "stripped": "\u3002\n\u5409\uff5c\u3000\u300a"
+    },
+    {
+      "text": "a\u300b\uff5c\u300a\r\n\u3002\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b \uff5c\uff5ca\u6f22\u5b57>>aa\n\u3088\u3057",
+      "marks": [
+        {
+          "start": 7,
+          "end": 15,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "a\u300b\uff5c\u300a\r\n\u3002\u6f22\u5b57 \uff5c\uff5ca\u6f22\u5b57>>aa\n\u3088\u3057"
+    },
+    {
+      "text": "|\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300ba|\u300b\u5409>>>>\u6f22\u5b57\u3002\u3088\u3057\u304b\u3093\u3058\u845b\udb40\udd00 \u3002\u3088\u3057 \u3088\u3057\u3002|\uff5c",
+      "marks": [
+        {
+          "start": 1,
+          "end": 10,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "|\ud842\udfb7\u7530a|\u300b\u5409>>>>\u6f22\u5b57\u3002\u3088\u3057\u304b\u3093\u3058\u845b\udb40\udd00 \u3002\u3088\u3057 \u3088\u3057\u3002|\uff5c"
+    },
+    {
+      "text": "\ud83d\udc68\u200d\ud83d\udc69a\u3000 \ud83d\udc68\u200d\ud83d\udc69\u845b\udb40\udd00\u300ba",
+      "marks": [],
+      "stripped": "\ud83d\udc68\u200d\ud83d\udc69a\u3000 \ud83d\udc68\u200d\ud83d\udc69\u845b\udb40\udd00\u300ba"
+    },
+    {
+      "text": "<<a|\u845b\udb40\udd00\u5409\u300ba\r\n\u845b\udb40\udd00\u845b\udb40\udd00\ud842\udfb7\uff5c\u6f22\u5b57\r\n\u300a\u5409",
+      "marks": [],
+      "stripped": "<<a|\u845b\udb40\udd00\u5409\u300ba\r\n\u845b\udb40\udd00\u845b\udb40\udd00\ud842\udfb7\uff5c\u6f22\u5b57\r\n\u300a\u5409"
+    },
+    {
+      "text": "|",
+      "marks": [],
+      "stripped": "|"
+    },
+    {
+      "text": "\u3088\u3057\u300a\n\u3002\ud842\udfb7<<\uff5c\u3088\u3057\u300b",
+      "marks": [],
+      "stripped": "\u3088\u3057\u300a\n\u3002\ud842\udfb7<<\uff5c\u3088\u3057\u300b"
+    },
+    {
+      "text": "",
+      "marks": [],
+      "stripped": ""
+    },
+    {
+      "text": "\ud842\udfb7 \n",
+      "marks": [],
+      "stripped": "\ud842\udfb7 \n"
+    },
+    {
+      "text": "\r\n\u3002\u300b\u304b\u3093\u3058\n\u300a\u304b\u3093\u3058",
+      "marks": [],
+      "stripped": "\r\n\u3002\u300b\u304b\u3093\u3058\n\u300a\u304b\u3093\u3058"
+    },
+    {
+      "text": " ",
+      "marks": [],
+      "stripped": " "
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u6f22\u5b57\u300b\uff5c\u845b\udb40\udd00\u300b\u6f22\u5b57a\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\u5409\u3088\u3057\r\n\uff5c\u304b\u3093\u3058",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 19,
+          "end": 27,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\u6f22\u5b57\u300b\uff5c\u845b\udb40\udd00\u300b\u6f22\u5b57a\u6f22\u5b57\uff5c\u5409\u3088\u3057\r\n\uff5c\u304b\u3093\u3058"
+    },
+    {
+      "text": "\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\uff5c\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b>>\n\u3002\uff5c\u300a\u3002\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b<<a\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\n",
+      "marks": [
+        {
+          "start": 0,
+          "end": 9,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 11,
+          "end": 19,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 26,
+          "end": 34,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 34,
+          "end": 42,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 45,
+          "end": 53,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\ud842\udfb7\u7530\uff5c\uff5c\u6f22\u5b57>>\n\u3002\uff5c\u300a\u3002\u6f22\u5b57\u6f22\u5b57<<a\u6f22\u5b57\n"
+    },
+    {
+      "text": "",
+      "marks": [],
+      "stripped": ""
+    },
+    {
+      "text": "\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u304b\u3093\u3058 \u3000\u5409\u300a\u845b\udb40\udd00\u300b\u300b\uff5c",
+      "marks": [
+        {
+          "start": 0,
+          "end": 9,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\ud842\udfb7\u7530\u304b\u3093\u3058 \u3000\u5409\u300a\u845b\udb40\udd00\u300b\u300b\uff5c"
+    },
+    {
+      "text": "\u300ba\u845b\udb40\udd00\u6f22\u5b57a|\uff5c \uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\n\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u5409\u845b\udb40\udd00a",
+      "marks": [
+        {
+          "start": 11,
+          "end": 20,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 21,
+          "end": 30,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u300ba\u845b\udb40\udd00\u6f22\u5b57a|\uff5c \ud842\udfb7\u7530\n\ud842\udfb7\u7530\u5409\u845b\udb40\udd00a"
+    },
+    {
+      "text": "\u845b\udb40\udd00\n\u6f22\u5b57\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\r\n |\ud83d\udc68\u200d\ud83d\udc69\u845b\udb40\udd00 <<\ud842\udfb7\u300b\ud83d\udc68\u200d\ud83d\udc69\u3088\u3057|\u3088\u3057|\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [
+        {
+          "start": 6,
+          "end": 15,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 16,
+          "end": 24,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 53,
+          "end": 61,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u845b\udb40\udd00\n\u6f22\u5b57\ud842\udfb7\u7530\uff5c\u6f22\u5b57\r\n |\ud83d\udc68\u200d\ud83d\udc69\u845b\udb40\udd00 <<\ud842\udfb7\u300b\ud83d\udc68\u200d\ud83d\udc69\u3088\u3057|\u3088\u3057|\u6f22\u5b57"
+    },
+    {
+      "text": "\uff5c>>\u300a \u300a\r\n\u304b\u3093\u3058a\uff5c\u3088\u3057\u3002>>\uff5c<<\u304b\u3093\u3058\u304b\u3093\u3058",
+      "marks": [],
+      "stripped": "\uff5c>>\u300a \u300a\r\n\u304b\u3093\u3058a\uff5c\u3088\u3057\u3002>>\uff5c<<\u304b\u3093\u3058\u304b\u3093\u3058"
+    },
+    {
+      "text": "\u300a\u3088\u3057\uff5c\u300b\n \uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\u3088\u3057<<\u3088\u3057<<\u3002\uff5c<<\u6f22\u5b57\u300a\u3000\u300b\ud83d\udc68\u200d\ud83d\udc69\u300a",
+      "marks": [
+        {
+          "start": 7,
+          "end": 16,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 26,
+          "end": 34,
+          "base": "<<\u6f22\u5b57",
+          "reading": "\u3000"
+        }
+      ],
+      "stripped": "\u300a\u3088\u3057\uff5c\u300b\n \ud842\udfb7\u7530\uff5c\u3088\u3057<<\u3088\u3057<<\u3002<<\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69\u300a"
+    },
+    {
+      "text": ">>\u300b|<<\u845b\udb40\udd00\u300ba\u300a",
+      "marks": [],
+      "stripped": ">>\u300b|<<\u845b\udb40\udd00\u300ba\u300a"
+    },
+    {
+      "text": "\u300b\u300a\ud842\udfb7|\r\n\ud83d\udc68\u200d\ud83d\udc69\u845b\udb40\udd00\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300a\u300b<<\u845b\udb40\udd00\ud842\udfb7\u304b\u3093\u3058\u300a\uff5c\ud842\udfb7",
+      "marks": [
+        {
+          "start": 15,
+          "end": 24,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u300b\u300a\ud842\udfb7|\r\n\ud83d\udc68\u200d\ud83d\udc69\u845b\udb40\udd00\ud842\udfb7\u7530\u300a\u300b<<\u845b\udb40\udd00\ud842\udfb7\u304b\u3093\u3058\u300a\uff5c\ud842\udfb7"
+    },
+    {
+      "text": "\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300b\u3088\u3057\n\u3000\u3000\r\n\u845b\udb40\udd00\u300b\u5409",
+      "marks": [
+        {
+          "start": 0,
+          "end": 9,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\ud842\udfb7\u7530\u300b\u3088\u3057\n\u3000\u3000\r\n\u845b\udb40\udd00\u300b\u5409"
+    },
+    {
+      "text": "\r\n\uff5c<<\uff5c\u300b\uff5c>>\u3002",
+      "marks": [],
+      "stripped": "\r\n\uff5c<<\uff5c\u300b\uff5c>>\u3002"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300aa\u300a \uff5c",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 8,
+          "end": 16,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\u6f22\u5b57\u300aa\u300a \uff5c"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u3088\u3057\u300a\ud842\udfb7\uff5c\u304b\u3093\u3058a<<>>\uff5c\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b|\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300a\u5409\u304b\u3093\u3058\u6f22\u5b57 \uff5c\u5409",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 23,
+          "end": 31,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 32,
+          "end": 41,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\u3088\u3057\u300a\ud842\udfb7\uff5c\u304b\u3093\u3058a<<>>\uff5c\u6f22\u5b57|\ud842\udfb7\u7530\u300a\u5409\u304b\u3093\u3058\u6f22\u5b57 \uff5c\u5409"
+    },
+    {
+      "text": "\u6f22\u5b57\u845b\udb40\udd00|\n\u3000\u3088\u3057<<\u300a",
+      "marks": [],
+      "stripped": "\u6f22\u5b57\u845b\udb40\udd00|\n\u3000\u3088\u3057<<\u300a"
+    },
+    {
+      "text": "\uff5c\u300b\u3000\uff5ca\ud83d\udc68\u200d\ud83d\udc69\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c<<\u6f22\u5b57",
+      "marks": [
+        {
+          "start": 10,
+          "end": 18,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\uff5c\u300b\u3000\uff5ca\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\uff5c<<\u6f22\u5b57"
+    },
+    {
+      "text": "\r\n>>\ud842\udfb7\u300b\u6f22\u5b57",
+      "marks": [],
+      "stripped": "\r\n>>\ud842\udfb7\u300b\u6f22\u5b57"
+    },
+    {
+      "text": "\r\n\u6f22\u5b57\uff5c>>\u304b\u3093\u3058 ",
+      "marks": [],
+      "stripped": "\r\n\u6f22\u5b57\uff5c>>\u304b\u3093\u3058 "
+    },
+    {
+      "text": "\u845b\udb40\udd00\ud842\udfb7",
+      "marks": [],
+      "stripped": "\u845b\udb40\udd00\ud842\udfb7"
+    },
+    {
+      "text": "|\u3088\u3057\u3088\u3057\u300a\u5409\uff5c",
+      "marks": [],
+      "stripped": "|\u3088\u3057\u3088\u3057\u300a\u5409\uff5c"
+    },
+    {
+      "text": " \ud842\udfb7<<",
+      "marks": [],
+      "stripped": " \ud842\udfb7<<"
+    },
+    {
+      "text": ">>\u300a||\u304b\u3093\u3058 \u3088\u3057\ud842\udfb7\uff5c|a\u3000\u300a",
+      "marks": [],
+      "stripped": ">>\u300a||\u304b\u3093\u3058 \u3088\u3057\ud842\udfb7\uff5c|a\u3000\u300a"
+    },
+    {
+      "text": "\u300b>>\r\n\u845b\udb40\udd00\u3000\u300b",
+      "marks": [],
+      "stripped": "\u300b>>\r\n\u845b\udb40\udd00\u3000\u300b"
+    },
+    {
+      "text": "\uff5c>>\u300a\ud83d\udc68\u200d\ud83d\udc69a\u300b\u300b\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\u5409\ud842\udfb7\uff5c|<<\u845b\udb40\udd00",
+      "marks": [
+        {
+          "start": 0,
+          "end": 11,
+          "base": ">>",
+          "reading": "\ud83d\udc68\u200d\ud83d\udc69a"
+        }
+      ],
+      "stripped": ">>\u300b\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\u5409\ud842\udfb7\uff5c|<<\u845b\udb40\udd00"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300b\u300b\u300a\ud83d\udc68\u200d\ud83d\udc69\u300b",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\u300b\u300b\u300a\ud83d\udc68\u200d\ud83d\udc69\u300b"
+    },
+    {
+      "text": " \u5409>>\u304b\u3093\u3058\u3002\u3002\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5ca\ud842\udfb7\u300b>>\u300a\u300b\u5409",
+      "marks": [
+        {
+          "start": 9,
+          "end": 18,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": " \u5409>>\u304b\u3093\u3058\u3002\u3002\ud842\udfb7\u7530\uff5ca\ud842\udfb7\u300b>>\u300a\u300b\u5409"
+    },
+    {
+      "text": "\u304b\u3093\u3058\ud83d\udc68\u200d\ud83d\udc69 \u5409\u300a\u3088\u3057",
+      "marks": [],
+      "stripped": "\u304b\u3093\u3058\ud83d\udc68\u200d\ud83d\udc69 \u5409\u300a\u3088\u3057"
+    },
+    {
+      "text": ">>\u3000>>\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b<<\r\n\u3000\u3088\u3057\ud842\udfb7a",
+      "marks": [
+        {
+          "start": 5,
+          "end": 13,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": ">>\u3000>>\u6f22\u5b57<<\r\n\u3000\u3088\u3057\ud842\udfb7a"
+    },
+    {
+      "text": "\u300b\u304b\u3093\u3058\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u5409\u845b\udb40\udd00\u304b\u3093\u3058\u300b\u3088\u3057\u304b\u3093\u3058\u5409a>>\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b",
+      "marks": [
+        {
+          "start": 4,
+          "end": 12,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 29,
+          "end": 38,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u300b\u304b\u3093\u3058\u6f22\u5b57\u5409\u845b\udb40\udd00\u304b\u3093\u3058\u300b\u3088\u3057\u304b\u3093\u3058\u5409a>>\ud842\udfb7\u7530"
+    },
+    {
+      "text": "\u5409\u304b\u3093\u3058\uff5c<<|\u6f22\u5b57\u3088\u3057\u304b\u3093\u3058||",
+      "marks": [],
+      "stripped": "\u5409\u304b\u3093\u3058\uff5c<<|\u6f22\u5b57\u3088\u3057\u304b\u3093\u3058||"
+    },
+    {
+      "text": "\ud83d\udc68\u200d\ud83d\udc69\u300a",
+      "marks": [],
+      "stripped": "\ud83d\udc68\u200d\ud83d\udc69\u300a"
+    },
+    {
+      "text": "|\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b>>\u3000\u304b\u3093\u3058\u300a|\u3000\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c a>>a\uff5c|\u300b\u3000\ud83d\udc68\u200d\ud83d\udc69\u300a\ud83d\udc68\u200d\ud83d\udc69\r\n",
+      "marks": [
+        {
+          "start": 1,
+          "end": 10,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 19,
+          "end": 27,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "|\ud842\udfb7\u7530>>\u3000\u304b\u3093\u3058\u300a|\u3000\u6f22\u5b57\uff5c a>>a\uff5c|\u300b\u3000\ud83d\udc68\u200d\ud83d\udc69\u300a\ud83d\udc68\u200d\ud83d\udc69\r\n"
+    },
+    {
+      "text": "\r\n\u300a\u300a\r\n\u3088\u3057\u304b\u3093\u3058\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\ud83d\udc68\u200d\ud83d\udc69 \u300ba\u300a\u300a|\uff5c\u300b\ud83d\udc68\u200d\ud83d\udc69\n",
+      "marks": [
+        {
+          "start": 11,
+          "end": 19,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\r\n\u300a\u300a\r\n\u3088\u3057\u304b\u3093\u3058\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69 \u300ba\u300a\u300a|\uff5c\u300b\ud83d\udc68\u200d\ud83d\udc69\n"
+    },
+    {
+      "text": "",
+      "marks": [],
+      "stripped": ""
+    },
+    {
+      "text": ">>\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u5409\ud83d\udc68\u200d\ud83d\udc69\u304b\u3093\u3058\u300b\u300b \u300b",
+      "marks": [
+        {
+          "start": 2,
+          "end": 11,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": ">>\ud842\udfb7\u7530\u5409\ud83d\udc68\u200d\ud83d\udc69\u304b\u3093\u3058\u300b\u300b \u300b"
+    },
+    {
+      "text": "\u300b\u300b||\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u304b\u3093\u3058\u3000<<\u6f22\u5b57\u6f22\u5b57\n<<",
+      "marks": [
+        {
+          "start": 4,
+          "end": 12,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u300b\u300b||\u6f22\u5b57\u304b\u3093\u3058\u3000<<\u6f22\u5b57\u6f22\u5b57\n<<"
+    },
+    {
+      "text": "\ud842\udfb7\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300a\u3002>>\u300a\ud842\udfb7\u304b\u3093\u3058\u5409\n\u3000\u300a\ud842\udfb7\u3000\u300a\u304b\u3093\u3058|\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\r\n\n",
+      "marks": [
+        {
+          "start": 2,
+          "end": 10,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 32,
+          "end": 41,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\ud842\udfb7\u6f22\u5b57\u300a\u3002>>\u300a\ud842\udfb7\u304b\u3093\u3058\u5409\n\u3000\u300a\ud842\udfb7\u3000\u300a\u304b\u3093\u3058|\ud842\udfb7\u7530\r\n\n"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57"
+    },
+    {
+      "text": "\uff5c\u3088\u3057 \u3000\u304b\u3093\u3058>>a\u3002\u845b\udb40\udd00\u3000\u300a\u3002\n\uff5c\u300a",
+      "marks": [],
+      "stripped": "\uff5c\u3088\u3057 \u3000\u304b\u3093\u3058>>a\u3002\u845b\udb40\udd00\u3000\u300a\u3002\n\uff5c\u300a"
+    },
+    {
+      "text": "\n\u6f22\u5b57>> |\u845b\udb40\udd00\ud842\udfb7\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300b>>a \n\uff5c\uff5c\ud83d\udc68\u200d\ud83d\udc69\u3002\u5409",
+      "marks": [
+        {
+          "start": 12,
+          "end": 20,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\n\u6f22\u5b57>> |\u845b\udb40\udd00\ud842\udfb7\u6f22\u5b57\u300b>>a \n\uff5c\uff5c\ud83d\udc68\u200d\ud83d\udc69\u3002\u5409"
+    },
+    {
+      "text": "",
+      "marks": [],
+      "stripped": ""
+    },
+    {
+      "text": "\n\u300a\n\u3000\ud842\udfb7\ud83d\udc68\u200d\ud83d\udc69|\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u3088\u3057\u3000\ud83d\udc68\u200d\ud83d\udc69",
+      "marks": [
+        {
+          "start": 12,
+          "end": 20,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 20,
+          "end": 28,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\n\u300a\n\u3000\ud842\udfb7\ud83d\udc68\u200d\ud83d\udc69|\u6f22\u5b57\u6f22\u5b57\u3088\u3057\u3000\ud83d\udc68\u200d\ud83d\udc69"
+    },
+    {
+      "text": "\u3088\u3057|\u5409\uff5c\u300a\u845b\udb40\udd00\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69\n\u300ba\u300b\u845b\udb40\udd00\u300b\u5409\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\u845b\udb40\udd00\u5409\n\u3088\u3057",
+      "marks": [
+        {
+          "start": 9,
+          "end": 17,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 34,
+          "end": 43,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u3088\u3057|\u5409\uff5c\u300a\u845b\udb40\udd00\u6f22\u5b57\uff5c\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69\n\u300ba\u300b\u845b\udb40\udd00\u300b\u5409\ud842\udfb7\u7530\uff5c\u845b\udb40\udd00\u5409\n\u3088\u3057"
+    },
+    {
+      "text": "\ud83d\udc68\u200d\ud83d\udc69\uff5c \uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u6f22\u5b57",
+      "marks": [
+        {
+          "start": 7,
+          "end": 16,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 16,
+          "end": 25,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\ud83d\udc68\u200d\ud83d\udc69\uff5c \ud842\udfb7\u7530\ud842\udfb7\u7530\u6f22\u5b57"
+    },
+    {
+      "text": "\u300a\n|\u304b\u3093\u3058|",
+      "marks": [],
+      "stripped": "\u300a\n|\u304b\u3093\u3058|"
+    },
+    {
+      "text": "\u304b\u3093\u3058\u3000 <<\u300b\n\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\ud842\udfb7\u300b\u3000\u5409a\n\uff5c\u6f22\u5b57\uff5c\u6f22\u5b57\u300a\u300a\u6f22\u5b57 \uff5c\u300a",
+      "marks": [
+        {
+          "start": 9,
+          "end": 18,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u304b\u3093\u3058\u3000 <<\u300b\n\ud842\udfb7\u7530\ud842\udfb7\u300b\u3000\u5409a\n\uff5c\u6f22\u5b57\uff5c\u6f22\u5b57\u300a\u300a\u6f22\u5b57 \uff5c\u300a"
+    },
+    {
+      "text": "\u300b\ud842\udfb7>>|\u845b\udb40\udd00\u300b\r\n<<\n\u300a\uff5c|>>a\ud842\udfb7\u300a\uff5c\u300b\u3000\u304b\u3093\u3058\ud842\udfb7a\u300b\u300a",
+      "marks": [
+        {
+          "start": 16,
+          "end": 26,
+          "base": "|>>a\ud842\udfb7",
+          "reading": "\uff5c"
+        }
+      ],
+      "stripped": "\u300b\ud842\udfb7>>|\u845b\udb40\udd00\u300b\r\n<<\n\u300a|>>a\ud842\udfb7\u3000\u304b\u3093\u3058\ud842\udfb7a\u300b\u300a"
+    },
+    {
+      "text": "\u3002a\ud842\udfb7\uff5c\ud83d\udc68\u200d\ud83d\udc69\uff5c>>\r\n|\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b|\u300a\u5409<< \u6f22\u5b57\u300a\u300a",
+      "marks": [
+        {
+          "start": 16,
+          "end": 25,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u3002a\ud842\udfb7\uff5c\ud83d\udc68\u200d\ud83d\udc69\uff5c>>\r\n|\ud842\udfb7\u7530|\u300a\u5409<< \u6f22\u5b57\u300a\u300a"
+    },
+    {
+      "text": ">>\r\n\r\n\uff5c\ud83d\udc68\u200d\ud83d\udc69\ud842\udfb7a|\u845b\udb40\udd00\u5409\u5409",
+      "marks": [],
+      "stripped": ">>\r\n\r\n\uff5c\ud83d\udc68\u200d\ud83d\udc69\ud842\udfb7a|\u845b\udb40\udd00\u5409\u5409"
+    },
+    {
+      "text": "a\u300a\u6f22\u5b57\ud842\udfb7 |\u845b\udb40\udd00",
+      "marks": [],
+      "stripped": "a\u300a\u6f22\u5b57\ud842\udfb7 |\u845b\udb40\udd00"
+    },
+    {
+      "text": "\uff5c\u300a\n\u845b\udb40\udd00|\u3088\u3057>> ",
+      "marks": [],
+      "stripped": "\uff5c\u300a\n\u845b\udb40\udd00|\u3088\u3057>> "
+    },
+    {
+      "text": "\u304b\u3093\u3058|\u845b\udb40\udd00\u6f22\u5b57<<<<\u3000\uff5c\u304b\u3093\u3058",
+      "marks": [],
+      "stripped": "\u304b\u3093\u3058|\u845b\udb40\udd00\u6f22\u5b57<<<<\u3000\uff5c\u304b\u3093\u3058"
+    },
+    {
+      "text": "\u300a<<\u5409\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b|\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u3000\u300a\u300a\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\ud842\udfb7\u300a\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300a\ud83d\udc68\u200d\ud83d\udc69\u300b\uff5c\n|\u300b\u6f22\u5b57\u845b\udb40\udd00\u300aa",
+      "marks": [
+        {
+          "start": 4,
+          "end": 12,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 13,
+          "end": 22,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 25,
+          "end": 33,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 36,
+          "end": 45,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u300a<<\u5409\u6f22\u5b57|\ud842\udfb7\u7530\u3000\u300a\u300a\u6f22\u5b57\ud842\udfb7\u300a\ud842\udfb7\u7530\u300a\ud83d\udc68\u200d\ud83d\udc69\u300b\uff5c\n|\u300b\u6f22\u5b57\u845b\udb40\udd00\u300aa"
+    },
+    {
+      "text": "<<\u5409\uff5c\u5409\u3088\u3057\uff5c\u300b\ud83d\udc68\u200d\ud83d\udc69a\u6f22\u5b57\u300b\uff5c\u300b\uff5c\u3088\u3057\ud842\udfb7\ud83d\udc68\u200d\ud83d\udc69\u845b\udb40\udd00|\ud842\udfb7\uff5c\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [
+        {
+          "start": 37,
+          "end": 45,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "<<\u5409\uff5c\u5409\u3088\u3057\uff5c\u300b\ud83d\udc68\u200d\ud83d\udc69a\u6f22\u5b57\u300b\uff5c\u300b\uff5c\u3088\u3057\ud842\udfb7\ud83d\udc68\u200d\ud83d\udc69\u845b\udb40\udd00|\ud842\udfb7\uff5c\u6f22\u5b57"
+    },
+    {
+      "text": "\u3002<<\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\r\n",
+      "marks": [
+        {
+          "start": 3,
+          "end": 11,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u3002<<\u6f22\u5b57\r\n"
+    },
+    {
+      "text": "\u300ba\uff5c\n\r\n\u300a<<\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300a|\u845b\udb40\udd00\u300a\u3002\r\n\u6f22\u5b57\u300a\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u6f22\u5b57\u3000",
+      "marks": [
+        {
+          "start": 10,
+          "end": 18,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 31,
+          "end": 40,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u300ba\uff5c\n\r\n\u300a<<\u300b\u6f22\u5b57\u300a|\u845b\udb40\udd00\u300a\u3002\r\n\u6f22\u5b57\u300a\u300b\ud842\udfb7\u7530\u6f22\u5b57\u3000"
+    },
+    {
+      "text": "\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u5409\u300b\u300b\uff5c\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b ",
+      "marks": [
+        {
+          "start": 1,
+          "end": 10,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 15,
+          "end": 23,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u300b\ud842\udfb7\u7530\u5409\u300b\u300b\uff5c\u300b\u6f22\u5b57 "
+    },
+    {
+      "text": "\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b<<a\u845b\udb40\udd00\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300aa\u3000\uff5c\ud842\udfb7\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [
+        {
+          "start": 0,
+          "end": 9,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 9,
+          "end": 17,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 23,
+          "end": 31,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 37,
+          "end": 45,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\ud842\udfb7\u7530\u6f22\u5b57<<a\u845b\udb40\udd00\u6f22\u5b57\u300aa\u3000\uff5c\ud842\udfb7\u6f22\u5b57"
+    },
+    {
+      "text": "\n",
+      "marks": [],
+      "stripped": "\n"
+    },
+    {
+      "text": "\uff5c\u3000\u5409>>\u300b\u300b\u304b\u3093\u3058\u3002\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\ud83d\udc68\u200d\ud83d\udc69>>\u3088\u3057 \u300a\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b<<\n\u300a\u300b>> \uff5c>>",
+      "marks": [
+        {
+          "start": 11,
+          "end": 20,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 31,
+          "end": 39,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\uff5c\u3000\u5409>>\u300b\u300b\u304b\u3093\u3058\u3002\ud842\udfb7\u7530\ud83d\udc68\u200d\ud83d\udc69>>\u3088\u3057 \u300a\u6f22\u5b57<<\n\u300a\u300b>> \uff5c>>"
+    },
+    {
+      "text": "\u3088\u3057\u300a\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\u845b\udb40\udd00\ud842\udfb7\ud83d\udc68\u200d\ud83d\udc69>>\u300b\ud842\udfb7\u300b\u3088\u3057|\u300b\u3000\ud842\udfb7\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [
+        {
+          "start": 3,
+          "end": 11,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 35,
+          "end": 43,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u3088\u3057\u300a\u6f22\u5b57\uff5c\u845b\udb40\udd00\ud842\udfb7\ud83d\udc68\u200d\ud83d\udc69>>\u300b\ud842\udfb7\u300b\u3088\u3057|\u300b\u3000\ud842\udfb7\u6f22\u5b57"
+    },
+    {
+      "text": "\u6f22\u5b57\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b|\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b \u300b\u5409\u5409\ud83d\udc68\u200d\ud83d\udc69\r\n\u300b\u6f22\u5b57\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\ud842\udfb7a \r\na\u3002",
+      "marks": [
+        {
+          "start": 2,
+          "end": 10,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 11,
+          "end": 20,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 34,
+          "end": 43,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\u6f22\u5b57|\ud842\udfb7\u7530 \u300b\u5409\u5409\ud83d\udc68\u200d\ud83d\udc69\r\n\u300b\u6f22\u5b57\ud842\udfb7\u7530\ud842\udfb7a \r\na\u3002"
+    },
+    {
+      "text": "\uff5c>>\u6f22\u5b57\u3002\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\r\n\u6f22\u5b57\u3088\u3057",
+      "marks": [
+        {
+          "start": 6,
+          "end": 15,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\uff5c>>\u6f22\u5b57\u3002\ud842\udfb7\u7530\r\n\u6f22\u5b57\u3088\u3057"
+    },
+    {
+      "text": " \r\n\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69\u300a\u300b\uff5c",
+      "marks": [],
+      "stripped": " \r\n\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69\u300a\u300b\uff5c"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b|\u300a<<\u845b\udb40\udd00 \u5409|\ud83d\udc68\u200d\ud83d\udc69\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b<<\u300a >>\u3000\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u845b\udb40\udd00\u300b\u304b\u3093\u3058\u304b\u3093\u3058\u6f22\u5b57<<|",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 23,
+          "end": 31,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 38,
+          "end": 46,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57|\u300a<<\u845b\udb40\udd00 \u5409|\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57<<\u300a >>\u3000\u6f22\u5b57\u845b\udb40\udd00\u300b\u304b\u3093\u3058\u304b\u3093\u3058\u6f22\u5b57<<|"
+    },
+    {
+      "text": "\u300b ",
+      "marks": [],
+      "stripped": "\u300b "
+    },
+    {
+      "text": "\u300b",
+      "marks": [],
+      "stripped": "\u300b"
+    },
+    {
+      "text": "\u845b\udb40\udd00|\u3088\u3057\uff5c\uff5c\r\n\uff5c\u300a\u304b\u3093\u3058\u3002\u300a|\u3088\u3057 \u300a\u304b\u3093\u3058\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u5409\ud842\udfb7",
+      "marks": [
+        {
+          "start": 25,
+          "end": 33,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u845b\udb40\udd00|\u3088\u3057\uff5c\uff5c\r\n\uff5c\u300a\u304b\u3093\u3058\u3002\u300a|\u3088\u3057 \u300a\u304b\u3093\u3058\u6f22\u5b57\u5409\ud842\udfb7"
+    },
+    {
+      "text": ">>\ud842\udfb7\u5409\u3002\u5409\u3000\u845b\udb40\udd00|\u300a\u3088\u3057\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300ba|\u300a\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u6f22\u5b57",
+      "marks": [
+        {
+          "start": 15,
+          "end": 24,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 27,
+          "end": 36,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": ">>\ud842\udfb7\u5409\u3002\u5409\u3000\u845b\udb40\udd00|\u300a\u3088\u3057\ud842\udfb7\u7530a|\u300a\ud842\udfb7\u7530\u6f22\u5b57"
+    },
+    {
+      "text": "\u300b\r\n\u3000\u3000\u3088\u3057\u300b<<\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\u5409\u5409\u6f22\u5b57\u300a\ud842\udfb7\uff5c>>\uff5c\u845b\udb40\udd00\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b>>>>",
+      "marks": [
+        {
+          "start": 31,
+          "end": 39,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u300b\r\n\u3000\u3000\u3088\u3057\u300b<<\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\u5409\u5409\u6f22\u5b57\u300a\ud842\udfb7\uff5c>>\uff5c\u845b\udb40\udd00\u6f22\u5b57>>>>"
+    },
+    {
+      "text": " \u300a\u6f22\u5b57\u3002\u6f22\u5b57\uff5c\u300b>>\u845b\udb40\udd00\u300b\u6f22\u5b57\u3088\u3057\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u5409|",
+      "marks": [
+        {
+          "start": 19,
+          "end": 28,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 28,
+          "end": 36,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 36,
+          "end": 45,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": " \u300a\u6f22\u5b57\u3002\u6f22\u5b57\uff5c\u300b>>\u845b\udb40\udd00\u300b\u6f22\u5b57\u3088\u3057\ud842\udfb7\u7530\u6f22\u5b57\ud842\udfb7\u7530\u5409|"
+    },
+    {
+      "text": "\u300a\u3000<<>>\u3088\u3057",
+      "marks": [],
+      "stripped": "\u300a\u3000<<>>\u3088\u3057"
+    },
+    {
+      "text": "\u5409\u300a \r\n\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69|\ud842\udfb7>>\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b<<\n\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300b<<\u3088\u3057\ud842\udfb7>>",
+      "marks": [
+        {
+          "start": 17,
+          "end": 26,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 29,
+          "end": 38,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u5409\u300a \r\n\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69|\ud842\udfb7>>\ud842\udfb7\u7530<<\n\ud842\udfb7\u7530\u300b<<\u3088\u3057\ud842\udfb7>>"
+    },
+    {
+      "text": "\ud842\udfb7\n\u3002\n\u304b\u3093\u3058a",
+      "marks": [],
+      "stripped": "\ud842\udfb7\n\u3002\n\u304b\u3093\u3058a"
+    },
+    {
+      "text": "\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u304b\u3093\u3058\u6f22\u5b57\u304b\u3093\u3058\u5409\u845b\udb40\udd00\uff5c\ud842\udfb7>>|\u3088\u3057\u845b\udb40\udd00>>\u304b\u3093\u3058\r\n\u300b ",
+      "marks": [
+        {
+          "start": 0,
+          "end": 9,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\ud842\udfb7\u7530\u304b\u3093\u3058\u6f22\u5b57\u304b\u3093\u3058\u5409\u845b\udb40\udd00\uff5c\ud842\udfb7>>|\u3088\u3057\u845b\udb40\udd00>>\u304b\u3093\u3058\r\n\u300b "
+    },
+    {
+      "text": ">>\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u3002>>\u845b\udb40\udd00",
+      "marks": [
+        {
+          "start": 2,
+          "end": 11,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": ">>\ud842\udfb7\u7530\u3002>>\u845b\udb40\udd00"
+    },
+    {
+      "text": "\u3000 \uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300ba\r\n\u3088\u3057",
+      "marks": [
+        {
+          "start": 2,
+          "end": 11,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u3000 \ud842\udfb7\u7530a\r\n\u3088\u3057"
+    },
+    {
+      "text": " >><<\u6f22\u5b57\u3000\u3088\u3057<<\n",
+      "marks": [],
+      "stripped": " >><<\u6f22\u5b57\u3000\u3088\u3057<<\n"
+    },
+    {
+      "text": "\u3088\u3057\uff5c\u5409\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300ba\u3000\u3088\u3057>>\u6f22\u5b57\u5409a\u3002\uff5c \uff5c\ud842\udfb7\ud83d\udc68\u200d\ud83d\udc69\uff5c\u3000",
+      "marks": [
+        {
+          "start": 4,
+          "end": 12,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u3088\u3057\uff5c\u5409\u6f22\u5b57a\u3000\u3088\u3057>>\u6f22\u5b57\u5409a\u3002\uff5c \uff5c\ud842\udfb7\ud83d\udc68\u200d\ud83d\udc69\uff5c\u3000"
+    },
+    {
+      "text": "\u3088\u3057\u5409\uff5c\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\n\u845b\udb40\udd00\u5409\u300b\u6f22\u5b57\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300a\u845b\udb40\udd00",
+      "marks": [
+        {
+          "start": 4,
+          "end": 12,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 20,
+          "end": 29,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u3088\u3057\u5409\uff5c\u6f22\u5b57\n\u845b\udb40\udd00\u5409\u300b\u6f22\u5b57\ud842\udfb7\u7530\u300a\u845b\udb40\udd00"
+    },
+    {
+      "text": "\u845b\udb40\udd00|",
+      "marks": [],
+      "stripped": "\u845b\udb40\udd00|"
+    },
+    {
+      "text": "\u304b\u3093\u3058\u300b|\uff5c\u3002\u300a\uff5c\u300a<<\u6f22\u5b57",
+      "marks": [],
+      "stripped": "\u304b\u3093\u3058\u300b|\uff5c\u3002\u300a\uff5c\u300a<<\u6f22\u5b57"
+    },
+    {
+      "text": "\u300b<<\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u6f22\u5b57\u3000\u845b\udb40\udd00<<a\u300a\u3002 \u300a\u3000\u300a\u304b\u3093\u3058\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u845b\udb40\udd00\u5409\u300b\u300a",
+      "marks": [
+        {
+          "start": 4,
+          "end": 13,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 31,
+          "end": 39,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u300b<<\u300b\ud842\udfb7\u7530\u6f22\u5b57\u3000\u845b\udb40\udd00<<a\u300a\u3002 \u300a\u3000\u300a\u304b\u3093\u3058\u6f22\u5b57\u845b\udb40\udd00\u5409\u300b\u300a"
+    },
+    {
+      "text": "\u3002>>\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\ud842\udfb7\ud83d\udc68\u200d\ud83d\udc69\u304b\u3093\u3058\u6f22\u5b57",
+      "marks": [],
+      "stripped": "\u3002>>\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\ud842\udfb7\ud83d\udc68\u200d\ud83d\udc69\u304b\u3093\u3058\u6f22\u5b57"
+    },
+    {
+      "text": ">>\u845b\udb40\udd00\u5409|\u300b\u300b\u3002\u300a\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\r\n\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\ud842\udfb7",
+      "marks": [
+        {
+          "start": 11,
+          "end": 20,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 22,
+          "end": 30,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": ">>\u845b\udb40\udd00\u5409|\u300b\u300b\u3002\u300a\ud842\udfb7\u7530\r\n\u6f22\u5b57\uff5c\ud842\udfb7"
+    },
+    {
+      "text": "\u3088\u3057\u5409\u304b\u3093\u3058\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u5409 \u300a\u300b\ud83d\udc68\u200d\ud83d\udc69 \u3002\u300aa\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\u304b\u3093\u3058 \u845b\udb40\udd00<<\u3000\uff5c",
+      "marks": [
+        {
+          "start": 6,
+          "end": 14,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u3088\u3057\u5409\u304b\u3093\u3058\u6f22\u5b57\u5409 \u300a\u300b\ud83d\udc68\u200d\ud83d\udc69 \u3002\u300aa\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\u304b\u3093\u3058 \u845b\udb40\udd00<<\u3000\uff5c"
+    },
+    {
+      "text": "\u6f22\u5b57a\u3000\ud842\udfb7a\u3002\uff5c\u300aa\u300b\u3088\u3057\u300b\u300b",
+      "marks": [],
+      "stripped": "\u6f22\u5b57a\u3000\ud842\udfb7a\u3002\uff5c\u300aa\u300b\u3088\u3057\u300b\u300b"
+    },
+    {
+      "text": "\u3088\u3057 \u3002\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b>>\u845b\udb40\udd00 \uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\u3088\u3057\u3002\u3088\u3057\u3002\u3000",
+      "marks": [
+        {
+          "start": 4,
+          "end": 12,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 18,
+          "end": 26,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 26,
+          "end": 35,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u3088\u3057 \u3002\u6f22\u5b57>>\u845b\udb40\udd00 \u6f22\u5b57\ud842\udfb7\u7530\uff5c\u3088\u3057\u3002\u3088\u3057\u3002\u3000"
+    },
+    {
+      "text": "\u3000 \uff5c\ud83d\udc68\u200d\ud83d\udc69\u5409\uff5ca\r\n",
+      "marks": [],
+      "stripped": "\u3000 \uff5c\ud83d\udc68\u200d\ud83d\udc69\u5409\uff5ca\r\n"
+    },
+    {
+      "text": "\u300a\u3002\u300a\u304b\u3093\u3058\n\u3000\ud842\udfb7\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\uff5c\u845b\udb40\udd00\u304b\u3093\u3058\uff5c<<",
+      "marks": [],
+      "stripped": "\u300a\u3002\u300a\u304b\u3093\u3058\n\u3000\ud842\udfb7\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\uff5c\u845b\udb40\udd00\u304b\u3093\u3058\uff5c<<"
+    },
+    {
+      "text": "\u3000\u5409\ud842\udfb7\u3000\uff5c\u300a\u6f22\u5b57\uff5c\uff5c\uff5c|\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\u300a\u300a>>\n\ud83d\udc68\u200d\ud83d\udc69",
+      "marks": [
+        {
+          "start": 13,
+          "end": 21,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u3000\u5409\ud842\udfb7\u3000\uff5c\u300a\u6f22\u5b57\uff5c\uff5c\uff5c|\u6f22\u5b57\uff5c\u300a\u300a>>\n\ud83d\udc68\u200d\ud83d\udc69"
+    },
+    {
+      "text": "\ud83d\udc68\u200d\ud83d\udc69\u3002\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300b\u6f22\u5b57>>\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300ba\n",
+      "marks": [
+        {
+          "start": 6,
+          "end": 14,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 19,
+          "end": 27,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\ud83d\udc68\u200d\ud83d\udc69\u3002\u6f22\u5b57\u300b\u6f22\u5b57>>\u6f22\u5b57a\n"
+    },
+    {
+      "text": "\uff5c|\u300a\n\u3000\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300a",
+      "marks": [
+        {
+          "start": 5,
+          "end": 14,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\uff5c|\u300a\n\u3000\ud842\udfb7\u7530\u300a"
+    },
+    {
+      "text": "\u3002 <<||\u304b\u3093\u3058",
+      "marks": [],
+      "stripped": "\u3002 <<||\u304b\u3093\u3058"
+    },
+    {
+      "text": "\u300b",
+      "marks": [],
+      "stripped": "\u300b"
+    },
+    {
+      "text": "\u304b\u3093\u3058\u300a\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u3002>>\u3088\u3057\u845b\udb40\udd00\ud842\udfb7\u6f22\u5b57|\u300b|\n\n\u845b\udb40\udd00\u3002<<<<\u304b\u3093\u3058\u304b\u3093\u3058",
+      "marks": [
+        {
+          "start": 4,
+          "end": 12,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u304b\u3093\u3058\u300a\u6f22\u5b57\u3002>>\u3088\u3057\u845b\udb40\udd00\ud842\udfb7\u6f22\u5b57|\u300b|\n\n\u845b\udb40\udd00\u3002<<<<\u304b\u3093\u3058\u304b\u3093\u3058"
+    },
+    {
+      "text": "|a\u3088\u3057a\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\r\n \ud842\udfb7\r\n \u300a\u3088\u3057\n\n\u6f22\u5b57\u3088\u3057\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b",
+      "marks": [
+        {
+          "start": 5,
+          "end": 14,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 32,
+          "end": 40,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 42,
+          "end": 51,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "|a\u3088\u3057a\ud842\udfb7\u7530\uff5c\r\n \ud842\udfb7\r\n \u300a\u3088\u3057\n\n\u6f22\u5b57\u3088\u3057\u6f22\u5b57\uff5c\u300b\ud842\udfb7\u7530"
+    },
+    {
+      "text": ">>\u300a\u304b\u3093\u3058\u300ba\u5409a\u3000\n\u300a\ud83d\udc68\u200d\ud83d\udc69\ud83d\udc68\u200d\ud83d\udc69\u3088\u3057\r\n\u300a\u300b\u300a",
+      "marks": [],
+      "stripped": ">>\u300a\u304b\u3093\u3058\u300ba\u5409a\u3000\n\u300a\ud83d\udc68\u200d\ud83d\udc69\ud83d\udc68\u200d\ud83d\udc69\u3088\u3057\r\n\u300a\u300b\u300a"
+    },
+    {
+      "text": "\u300a\r\n|\r\n\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u3088\u3057\n\ud842\udfb7\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\ud83d\udc68\u200d\ud83d\udc69\u3002|a<<\r\n\u304b\u3093\u3058 ",
+      "marks": [
+        {
+          "start": 6,
+          "end": 15,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 20,
+          "end": 29,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u300a\r\n|\r\n\ud842\udfb7\u7530\u3088\u3057\n\ud842\udfb7\ud842\udfb7\u7530\ud83d\udc68\u200d\ud83d\udc69\u3002|a<<\r\n\u304b\u3093\u3058 "
+    },
+    {
+      "text": "\ud842\udfb7\u300a\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69\u300b \u3088\u3057\uff5c",
+      "marks": [
+        {
+          "start": 3,
+          "end": 12,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\ud842\udfb7\u300a\ud842\udfb7\u7530\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69\u300b \u3088\u3057\uff5c"
+    },
+    {
+      "text": "<<\u300b\u300b\ud842\udfb7\u845b\udb40\udd00\u5409\u6f22\u5b57\u5409\ud842\udfb7|",
+      "marks": [],
+      "stripped": "<<\u300b\u300b\ud842\udfb7\u845b\udb40\udd00\u5409\u6f22\u5b57\u5409\ud842\udfb7|"
+    },
+    {
+      "text": "a<<>>\u300b\uff5c \u300a>>\u300b\u304b\u3093\u3058\u300b\ud83d\udc68\u200d\ud83d\udc69",
+      "marks": [
+        {
+          "start": 6,
+          "end": 12,
+          "base": " ",
+          "reading": ">>"
+        }
+      ],
+      "stripped": "a<<>>\u300b \u304b\u3093\u3058\u300b\ud83d\udc68\u200d\ud83d\udc69"
+    },
+    {
+      "text": "<<a\u300a\u5409\r\n\ud83d\udc68\u200d\ud83d\udc69\u845b\udb40\udd00<<\u3088\u3057|>><<",
+      "marks": [],
+      "stripped": "<<a\u300a\u5409\r\n\ud83d\udc68\u200d\ud83d\udc69\u845b\udb40\udd00<<\u3088\u3057|>><<"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\n\u300a\u6f22\u5b57\u6f22\u5b57>>\u5409\u304b\u3093\u3058\r\n|",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\n\u300a\u6f22\u5b57\u6f22\u5b57>>\u5409\u304b\u3093\u3058\r\n|"
+    },
+    {
+      "text": "\uff5c\u300b \u3088\u3057\uff5c\r\n|\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300a\u5409\u300a>>\u6f22\u5b57|\ud83d\udc68\u200d\ud83d\udc69\ud83d\udc68\u200d\ud83d\udc69\u304b\u3093\u3058\u300a\uff5c",
+      "marks": [
+        {
+          "start": 9,
+          "end": 17,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 17,
+          "end": 25,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\uff5c\u300b \u3088\u3057\uff5c\r\n|\u6f22\u5b57\u6f22\u5b57\u300a\u5409\u300a>>\u6f22\u5b57|\ud83d\udc68\u200d\ud83d\udc69\ud83d\udc68\u200d\ud83d\udc69\u304b\u3093\u3058\u300a\uff5c"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u3000\ud83d\udc68\u200d\ud83d\udc69>>\u3002\u845b\udb40\udd00\u3000\u6f22\u5b57\uff5c\u3088\u3057",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\u3000\ud83d\udc68\u200d\ud83d\udc69>>\u3002\u845b\udb40\udd00\u3000\u6f22\u5b57\uff5c\u3088\u3057"
+    },
+    {
+      "text": ">>\u300b\u845b\udb40\udd00<<\u300b\u6f22\u5b57\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\u3002<<\u3000\u6f22\u5b57>>\u3002\u3002\u304b\u3093\u3058\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u3088\u3057",
+      "marks": [
+        {
+          "start": 11,
+          "end": 19,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 33,
+          "end": 42,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": ">>\u300b\u845b\udb40\udd00<<\u300b\u6f22\u5b57\u6f22\u5b57\uff5c\u3002<<\u3000\u6f22\u5b57>>\u3002\u3002\u304b\u3093\u3058\ud842\udfb7\u7530\u3088\u3057"
+    },
+    {
+      "text": "\ud83d\udc68\u200d\ud83d\udc69\u300a>>\u3002\r\n\u300a \ud842\udfb7\u5409 \r\n\ud842\udfb7\u300a\u3002\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b",
+      "marks": [
+        {
+          "start": 24,
+          "end": 33,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\ud83d\udc68\u200d\ud83d\udc69\u300a>>\u3002\r\n\u300a \ud842\udfb7\u5409 \r\n\ud842\udfb7\u300a\u3002\u300b\ud842\udfb7\u7530"
+    },
+    {
+      "text": "\u300ba\u3088\u3057\u300b\ud842\udfb7 \u300b\uff5c>>\u300a\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u6f22\u5b57",
+      "marks": [
+        {
+          "start": 13,
+          "end": 21,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u300ba\u3088\u3057\u300b\ud842\udfb7 \u300b\uff5c>>\u300a\u6f22\u5b57\u6f22\u5b57"
+    },
+    {
+      "text": "",
+      "marks": [],
+      "stripped": ""
+    },
+    {
+      "text": "\r\n\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\ud83d\udc68\u200d\ud83d\udc69<<\uff5c\u3000\u304b\u3093\u3058\r\n",
+      "marks": [
+        {
+          "start": 2,
+          "end": 10,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 10,
+          "end": 19,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\r\n\u6f22\u5b57\ud842\udfb7\u7530\uff5c\ud83d\udc68\u200d\ud83d\udc69<<\uff5c\u3000\u304b\u3093\u3058\r\n"
+    },
+    {
+      "text": "\r\n\ud842\udfb7\u300aa\uff5c\ud842\udfb7",
+      "marks": [],
+      "stripped": "\r\n\ud842\udfb7\u300aa\uff5c\ud842\udfb7"
+    },
+    {
+      "text": "\u5409\ud83d\udc68\u200d\ud83d\udc69\uff5c\u300a\u300a\u300b\u3088\u3057\ud83d\udc68\u200d\ud83d\udc69 \u3002\u300a\u300b",
+      "marks": [],
+      "stripped": "\u5409\ud83d\udc68\u200d\ud83d\udc69\uff5c\u300a\u300a\u300b\u3088\u3057\ud83d\udc68\u200d\ud83d\udc69 \u3002\u300a\u300b"
+    },
+    {
+      "text": "\u3002\ud842\udfb7\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300ba\u6f22\u5b57\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300a\u300b\u845b\udb40\udd00\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u5409",
+      "marks": [
+        {
+          "start": 4,
+          "end": 12,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 15,
+          "end": 23,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 28,
+          "end": 36,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u3002\ud842\udfb7\u300b\u6f22\u5b57a\u6f22\u5b57\u6f22\u5b57\u300a\u300b\u845b\udb40\udd00\u6f22\u5b57\u5409"
+    },
+    {
+      "text": "",
+      "marks": [],
+      "stripped": ""
+    },
+    {
+      "text": "\uff5c\u300b\u300b<<a\u5409\u845b\udb40\udd00\ud842\udfb7\u5409\u5409\u845b\udb40\udd00\u3002<<\u3002\uff5c\u300a\u3000",
+      "marks": [],
+      "stripped": "\uff5c\u300b\u300b<<a\u5409\u845b\udb40\udd00\ud842\udfb7\u5409\u5409\u845b\udb40\udd00\u3002<<\u3002\uff5c\u300a\u3000"
+    },
+    {
+      "text": "\uff5c\u5409 \u300a\u3002\u3088\u3057\u300b\r\n\ud842\udfb7\u3002\u300b\u5409\uff5c<<\uff5c\u3088\u3057\uff5c\u5409\u300ba",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u5409 ",
+          "reading": "\u3002\u3088\u3057"
+        }
+      ],
+      "stripped": "\u5409 \r\n\ud842\udfb7\u3002\u300b\u5409\uff5c<<\uff5c\u3088\u3057\uff5c\u5409\u300ba"
+    },
+    {
+      "text": "\u300b\u304b\u3093\u3058",
+      "marks": [],
+      "stripped": "\u300b\u304b\u3093\u3058"
+    },
+    {
+      "text": "\u5409\u300a<<",
+      "marks": [],
+      "stripped": "\u5409\u300a<<"
+    },
+    {
+      "text": "\uff5c\u300b",
+      "marks": [],
+      "stripped": "\uff5c\u300b"
+    },
+    {
+      "text": "\r\n\ud83d\udc68\u200d\ud83d\udc69\uff5c\uff5c\u300b\u845b\udb40\udd00\uff5c\u6f22\u5b57|>>\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u304b\u3093\u3058\u6f22\u5b57a\u6f22\u5b57\uff5c\u300b \u845b\udb40\udd00 \u300a\u3002\u300a\u300b",
+      "marks": [
+        {
+          "start": 19,
+          "end": 28,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\r\n\ud83d\udc68\u200d\ud83d\udc69\uff5c\uff5c\u300b\u845b\udb40\udd00\uff5c\u6f22\u5b57|>>\ud842\udfb7\u7530\u304b\u3093\u3058\u6f22\u5b57a\u6f22\u5b57\uff5c\u300b \u845b\udb40\udd00 \u300a\u3002\u300a\u300b"
+    },
+    {
+      "text": "\uff5c>><< >>>>\u304b\u3093\u3058",
+      "marks": [],
+      "stripped": "\uff5c>><< >>>>\u304b\u3093\u3058"
+    },
+    {
+      "text": "\u3002\u3002\u300a>>\u3002\uff5c\u300a",
+      "marks": [],
+      "stripped": "\u3002\u3002\u300a>>\u3002\uff5c\u300a"
+    },
+    {
+      "text": "\u3000\u300a",
+      "marks": [],
+      "stripped": "\u3000\u300a"
+    },
+    {
+      "text": "\u5409\u845b\udb40\udd00\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u6f22\u5b57\r\n\u3088\u3057\u845b\udb40\udd00\u300b\u300b\u6f22\u5b57\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b>>\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b|\u300a\u6f22\u5b57||",
+      "marks": [
+        {
+          "start": 4,
+          "end": 13,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 26,
+          "end": 34,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 36,
+          "end": 44,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u5409\u845b\udb40\udd00\ud842\udfb7\u7530\u6f22\u5b57\r\n\u3088\u3057\u845b\udb40\udd00\u300b\u300b\u6f22\u5b57\u6f22\u5b57>>\u6f22\u5b57|\u300a\u6f22\u5b57||"
+    },
+    {
+      "text": "a\uff5c\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57",
+      "marks": [
+        {
+          "start": 2,
+          "end": 10,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "a\uff5c\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57"
+    },
+    {
+      "text": "\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u3000\u300a\r\n \r\n\u6f22\u5b57\u5409\u3088\u3057\u3000\u300b\na\u6f22\u5b57\ud842\udfb7\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\r\n|\u300a>>\u300b\uff5c|",
+      "marks": [
+        {
+          "start": 0,
+          "end": 9,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 29,
+          "end": 37,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\ud842\udfb7\u7530\u3000\u300a\r\n \r\n\u6f22\u5b57\u5409\u3088\u3057\u3000\u300b\na\u6f22\u5b57\ud842\udfb7\u6f22\u5b57\r\n|\u300a>>\u300b\uff5c|"
+    },
+    {
+      "text": "\ud842\udfb7\u3002\u3002",
+      "marks": [],
+      "stripped": "\ud842\udfb7\u3002\u3002"
+    },
+    {
+      "text": "",
+      "marks": [],
+      "stripped": ""
+    },
+    {
+      "text": "\u300a>>a\uff5c\n\ud83d\udc68\u200d\ud83d\udc69\u3000\uff5c\u5409>>\u6f22\u5b57\u3002",
+      "marks": [],
+      "stripped": "\u300a>>a\uff5c\n\ud83d\udc68\u200d\ud83d\udc69\u3000\uff5c\u5409>>\u6f22\u5b57\u3002"
+    },
+    {
+      "text": "",
+      "marks": [],
+      "stripped": ""
+    },
+    {
+      "text": "|\ud842\udfb7<<\r\n\u300b",
+      "marks": [],
+      "stripped": "|\ud842\udfb7<<\r\n\u300b"
+    },
+    {
+      "text": ">>\u300b\ud842\udfb7\ud842\udfb7\u300a\u304b\u3093\u3058\u300a\r\n\u845b\udb40\udd00",
+      "marks": [],
+      "stripped": ">>\u300b\ud842\udfb7\ud842\udfb7\u300a\u304b\u3093\u3058\u300a\r\n\u845b\udb40\udd00"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57"
+    },
+    {
+      "text": " \u845b\udb40\udd00",
+      "marks": [],
+      "stripped": " \u845b\udb40\udd00"
+    },
+    {
+      "text": "\u300b\u845b\udb40\udd00\u845b\udb40\udd00\r\n\ud83d\udc68\u200d\ud83d\udc69\u300a<<\u300b<<\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [
+        {
+          "start": 20,
+          "end": 28,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u300b\u845b\udb40\udd00\u845b\udb40\udd00\r\n\ud83d\udc68\u200d\ud83d\udc69\u300a<<\u300b<<\u6f22\u5b57"
+    },
+    {
+      "text": "<<|\u300a |\uff5c<<a\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300a",
+      "marks": [
+        {
+          "start": 10,
+          "end": 18,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "<<|\u300a |\uff5c<<a\u6f22\u5b57\u300a"
+    },
+    {
+      "text": "a\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u304b\u3093\u3058\u5409\ud83d\udc68\u200d\ud83d\udc69\u3002\u3088\u3057\u300a\u3088\u3057",
+      "marks": [
+        {
+          "start": 1,
+          "end": 10,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "a\ud842\udfb7\u7530\u304b\u3093\u3058\u5409\ud83d\udc68\u200d\ud83d\udc69\u3002\u3088\u3057\u300a\u3088\u3057"
+    },
+    {
+      "text": " |\u3000\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b<<\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u304b\u3093\u3058\uff5c>>\n\u300a\u3000a\u300a\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u845b\udb40\udd00\uff5ca",
+      "marks": [
+        {
+          "start": 3,
+          "end": 11,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 11,
+          "end": 20,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 22,
+          "end": 30,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 42,
+          "end": 51,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": " |\u3000\u6f22\u5b57\ud842\udfb7\u7530<<\u6f22\u5b57\u304b\u3093\u3058\uff5c>>\n\u300a\u3000a\u300a\u300b\ud842\udfb7\u7530\u845b\udb40\udd00\uff5ca"
+    },
+    {
+      "text": "\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u845b\udb40\udd00\u3002\r\n\uff5c\n\u300b\uff5c\ud842\udfb7a\u300b\ud842\udfb7 a\uff5c\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u3088\u3057\u304b\u3093\u3058\u304b\u3093\u3058",
+      "marks": [
+        {
+          "start": 0,
+          "end": 9,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 28,
+          "end": 36,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\ud842\udfb7\u7530\u845b\udb40\udd00\u3002\r\n\uff5c\n\u300b\uff5c\ud842\udfb7a\u300b\ud842\udfb7 a\uff5c\u6f22\u5b57\u3088\u3057\u304b\u3093\u3058\u304b\u3093\u3058"
+    },
+    {
+      "text": "\uff5c\u5409\u300a\u300a \u6f22\u5b57\uff5c\uff5c\n\ud842\udfb7\uff5c<<\u300a\n\uff5c",
+      "marks": [],
+      "stripped": "\uff5c\u5409\u300a\u300a \u6f22\u5b57\uff5c\uff5c\n\ud842\udfb7\uff5c<<\u300a\n\uff5c"
+    },
+    {
+      "text": "<<\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u3002<<a\u6f22\u5b57\u300a\uff5c\u304b\u3093\u3058\u3002",
+      "marks": [
+        {
+          "start": 2,
+          "end": 11,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "<<\ud842\udfb7\u7530\u3002<<a\u6f22\u5b57\u300a\uff5c\u304b\u3093\u3058\u3002"
+    },
+    {
+      "text": "\u300a\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300b\u300b\u300b\uff5c\u3088\u3057\r\n\r\n\uff5c\u304b\u3093\u3058 \uff5c\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b<<\u5409",
+      "marks": [
+        {
+          "start": 1,
+          "end": 9,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 25,
+          "end": 33,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 33,
+          "end": 42,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u300a\u6f22\u5b57\u300b\u300b\u300b\uff5c\u3088\u3057\r\n\r\n\uff5c\u304b\u3093\u3058 \uff5c\u6f22\u5b57\ud842\udfb7\u7530<<\u5409"
+    },
+    {
+      "text": "\u3002\r\n\u3002\u845b\udb40\udd00|\u845b\udb40\udd00\u304b\u3093\u3058",
+      "marks": [],
+      "stripped": "\u3002\r\n\u3002\u845b\udb40\udd00|\u845b\udb40\udd00\u304b\u3093\u3058"
+    },
+    {
+      "text": "\ud83d\udc68\u200d\ud83d\udc69",
+      "marks": [],
+      "stripped": "\ud83d\udc68\u200d\ud83d\udc69"
+    },
+    {
+      "text": "\u3002",
+      "marks": [],
+      "stripped": "\u3002"
+    },
+    {
+      "text": "|\u6f22\u5b57>>\u300a\u300a\u300b\n>>\ud83d\udc68\u200d\ud83d\udc69\u845b\udb40\udd00\u845b\udb40\udd00|\u300b>>|\u6f22\u5b57\uff5c\u5409\u300b\n\u5409\uff5c\uff5c\ud842\udfb7",
+      "marks": [],
+      "stripped": "|\u6f22\u5b57>>\u300a\u300a\u300b\n>>\ud83d\udc68\u200d\ud83d\udc69\u845b\udb40\udd00\u845b\udb40\udd00|\u300b>>|\u6f22\u5b57\uff5c\u5409\u300b\n\u5409\uff5c\uff5c\ud842\udfb7"
+    },
+    {
+      "text": "\uff5c \u300b\u6f22\u5b57a\u6f22\u5b57",
+      "marks": [],
+      "stripped": "\uff5c \u300b\u6f22\u5b57a\u6f22\u5b57"
+    },
+    {
+      "text": "a\n\r\n\u3002 >>\n\u5409\u300a |\u5409\u300b\u3088\u3057\u304b\u3093\u3058\u5409<<>>",
+      "marks": [],
+      "stripped": "a\n\r\n\u3002 >>\n\u5409\u300a |\u5409\u300b\u3088\u3057\u304b\u3093\u3058\u5409<<>>"
+    },
+    {
+      "text": " \u300b\u3000\u300a\u3000\u300a\u300b|\u845b\udb40\udd00\u304b\u3093\u3058",
+      "marks": [],
+      "stripped": " \u300b\u3000\u300a\u3000\u300a\u300b|\u845b\udb40\udd00\u304b\u3093\u3058"
+    },
+    {
+      "text": "\u845b\udb40\udd00\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\r\n\u300a\u300b\u300a\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\ud83d\udc68\u200d\ud83d\udc69<<\u5409\r\n\u304b\u3093\u3058\uff5c\u5409\u300a\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [
+        {
+          "start": 4,
+          "end": 13,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 14,
+          "end": 22,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 27,
+          "end": 36,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 52,
+          "end": 60,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u845b\udb40\udd00\u300b\ud842\udfb7\u7530\u300b\u6f22\u5b57\r\n\u300a\u300b\u300a\ud842\udfb7\u7530\ud83d\udc68\u200d\ud83d\udc69<<\u5409\r\n\u304b\u3093\u3058\uff5c\u5409\u300a\u6f22\u5b57"
+    },
+    {
+      "text": "\r\n\u304b\u3093\u3058\u845b\udb40\udd00\u3002>>\u304b\u3093\u3058\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u5409<<\u300b<<\u3088\u3057 \ud842\udfb7\r\n\ud83d\udc68\u200d\ud83d\udc69\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u845b\udb40\udd00",
+      "marks": [
+        {
+          "start": 14,
+          "end": 23,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 41,
+          "end": 50,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\r\n\u304b\u3093\u3058\u845b\udb40\udd00\u3002>>\u304b\u3093\u3058\ud842\udfb7\u7530\u5409<<\u300b<<\u3088\u3057 \ud842\udfb7\r\n\ud83d\udc68\u200d\ud83d\udc69\ud842\udfb7\u7530\u845b\udb40\udd00"
+    },
+    {
+      "text": "\u5409\u300b\ud842\udfb7\uff5c\n\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u845b\udb40\udd00 \u300a\r\n\u3002",
+      "marks": [
+        {
+          "start": 6,
+          "end": 14,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u5409\u300b\ud842\udfb7\uff5c\n\u6f22\u5b57\u845b\udb40\udd00 \u300a\r\n\u3002"
+    },
+    {
+      "text": "\r\na\u300a\uff5c\u6f22\u5b57\u845b\udb40\udd00|\uff5c\u845b\udb40\udd00",
+      "marks": [],
+      "stripped": "\r\na\u300a\uff5c\u6f22\u5b57\u845b\udb40\udd00|\uff5c\u845b\udb40\udd00"
+    },
+    {
+      "text": "\u300b\u300b\u6f22\u5b57\u845b\udb40\udd00\uff5c|\u300a\u3002\uff5c\u3000\u300a\u300a",
+      "marks": [],
+      "stripped": "\u300b\u300b\u6f22\u5b57\u845b\udb40\udd00\uff5c|\u300a\u3002\uff5c\u3000\u300a\u300a"
+    },
+    {
+      "text": "\u300b\u300a\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\u304b\u3093\u3058\u300a \ud842\udfb7>>\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b<<<<\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b",
+      "marks": [
+        {
+          "start": 18,
+          "end": 26,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 30,
+          "end": 39,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u300b\u300a\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\u304b\u3093\u3058\u300a \ud842\udfb7>>\u6f22\u5b57<<<<\ud842\udfb7\u7530"
+    },
+    {
+      "text": "|\u300a\u845b\udb40\udd00\u3088\u3057\u5409 \u845b\udb40\udd00|>>\uff5c\u5409\n\u304b\u3093\u3058\u300a>>",
+      "marks": [],
+      "stripped": "|\u300a\u845b\udb40\udd00\u3088\u3057\u5409 \u845b\udb40\udd00|>>\uff5c\u5409\n\u304b\u3093\u3058\u300a>>"
+    },
+    {
+      "text": "\u300a\n\n>>\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300a\u3002\u5409\uff5c \u300b\u304b\u3093\u3058\u300b\ud842\udfb7\r\n ",
+      "marks": [
+        {
+          "start": 5,
+          "end": 13,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u300a\n\n>>\u6f22\u5b57\u300a\u3002\u5409\uff5c \u300b\u304b\u3093\u3058\u300b\ud842\udfb7\r\n "
+    },
+    {
+      "text": "\u300a\u6f22\u5b57\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u3000\ud83d\udc68\u200d\ud83d\udc69",
+      "marks": [
+        {
+          "start": 3,
+          "end": 11,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u300a\u6f22\u5b57\u6f22\u5b57\u3000\ud83d\udc68\u200d\ud83d\udc69"
+    },
+    {
+      "text": "\u3088\u3057\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b>>a\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u304b\u3093\u3058\u6f22\u5b57 \uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300b\u5409",
+      "marks": [
+        {
+          "start": 2,
+          "end": 10,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 13,
+          "end": 22,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 28,
+          "end": 37,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u3088\u3057\u6f22\u5b57>>a\ud842\udfb7\u7530\u304b\u3093\u3058\u6f22\u5b57 \ud842\udfb7\u7530\u300b\u5409"
+    },
+    {
+      "text": "\r\n\u300a\u300a\r\n\n\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300b\n\ud83d\udc68\u200d\ud83d\udc69\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b|\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300a ",
+      "marks": [
+        {
+          "start": 7,
+          "end": 16,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 16,
+          "end": 25,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 32,
+          "end": 40,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 42,
+          "end": 51,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\r\n\u300a\u300a\r\n\n\ud842\udfb7\u7530\ud842\udfb7\u7530\u300b\n\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57|\u300b\ud842\udfb7\u7530\u300a "
+    },
+    {
+      "text": "\u3000\uff5c\u845b\udb40\udd00a\u845b\udb40\udd00\r\n\u6f22\u5b57<<\u300b\u6f22\u5b57\u3000a\u6f22\u5b57\u300a",
+      "marks": [],
+      "stripped": "\u3000\uff5c\u845b\udb40\udd00a\u845b\udb40\udd00\r\n\u6f22\u5b57<<\u300b\u6f22\u5b57\u3000a\u6f22\u5b57\u300a"
+    },
+    {
+      "text": "\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u304b\u3093\u3058\u300b\u300a \u300b\u3002\ud842\udfb7\u300a \u845b\udb40\udd00\u3088\u3057\n\u845b\udb40\udd00>>\u3088\u3057\u300a\u300a\r\n\ud83d\udc68\u200d\ud83d\udc69\u304b\u3093\u3058\u3000|\r\n",
+      "marks": [
+        {
+          "start": 0,
+          "end": 9,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\ud842\udfb7\u7530\u304b\u3093\u3058\u300b\u300a \u300b\u3002\ud842\udfb7\u300a \u845b\udb40\udd00\u3088\u3057\n\u845b\udb40\udd00>>\u3088\u3057\u300a\u300a\r\n\ud83d\udc68\u200d\ud83d\udc69\u304b\u3093\u3058\u3000|\r\n"
+    },
+    {
+      "text": "\ud83d\udc68\u200d\ud83d\udc69\u300a\uff5c\ud842\udfb7<<\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b>>\u5409a\u6f22\u5b57\u300a\u304b\u3093\u3058>>\r\n\u304b\u3093\u3058\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [
+        {
+          "start": 11,
+          "end": 19,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 36,
+          "end": 44,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\ud83d\udc68\u200d\ud83d\udc69\u300a\uff5c\ud842\udfb7<<\u6f22\u5b57>>\u5409a\u6f22\u5b57\u300a\u304b\u3093\u3058>>\r\n\u304b\u3093\u3058\u6f22\u5b57"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\n\u845b\udb40\udd00\u845b\udb40\udd00\ud83d\udc68\u200d\ud83d\udc69\u3088\u3057\u3002\u5409\u300b",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\n\u845b\udb40\udd00\u845b\udb40\udd00\ud83d\udc68\u200d\ud83d\udc69\u3088\u3057\u3002\u5409\u300b"
+    },
+    {
+      "text": "\ud83d\udc68\u200d\ud83d\udc69a\u300a\ud842\udfb7\ud842\udfb7\u3000",
+      "marks": [],
+      "stripped": "\ud83d\udc68\u200d\ud83d\udc69a\u300a\ud842\udfb7\ud842\udfb7\u3000"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b>>\ud842\udfb7\u300b<<\u3002\u3002\uff5c\ud83d\udc68\u200d\ud83d\udc69\u300a\u5409\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b|\u5409\uff5c \u300a\u3088\u3057\u5409\u845b\udb40\udd00>>\ud83d\udc68\u200d\ud83d\udc69\ud842\udfb7",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 25,
+          "end": 33,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57>>\ud842\udfb7\u300b<<\u3002\u3002\uff5c\ud83d\udc68\u200d\ud83d\udc69\u300a\u5409\u6f22\u5b57|\u5409\uff5c \u300a\u3088\u3057\u5409\u845b\udb40\udd00>>\ud83d\udc68\u200d\ud83d\udc69\ud842\udfb7"
+    },
+    {
+      "text": "\u3088\u3057>>\ud83d\udc68\u200d\ud83d\udc69|\r\n\u5409",
+      "marks": [],
+      "stripped": "\u3088\u3057>>\ud83d\udc68\u200d\ud83d\udc69|\r\n\u5409"
+    },
+    {
+      "text": "a>>\u300b\u3000\n<<\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\r\n<<\r\n\u3000\uff5c\uff5c\u3088\u3057\ud842\udfb7\u3000a\u300b\u300a\r\n\u3088\u3057\u300a\u300a\u300a",
+      "marks": [
+        {
+          "start": 8,
+          "end": 17,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "a>>\u300b\u3000\n<<\ud842\udfb7\u7530\r\n<<\r\n\u3000\uff5c\uff5c\u3088\u3057\ud842\udfb7\u3000a\u300b\u300a\r\n\u3088\u3057\u300a\u300a\u300a"
+    },
+    {
+      "text": "\ud83d\udc68\u200d\ud83d\udc69\ud83d\udc68\u200d\ud83d\udc69|\u300b>>\uff5c| \ud83d\udc68\u200d\ud83d\udc69\ud842\udfb7\ud842\udfb7\u3000>>\uff5c\u3000\u845b\udb40\udd00\u845b\udb40\udd00\u6f22\u5b57",
+      "marks": [],
+      "stripped": "\ud83d\udc68\u200d\ud83d\udc69\ud83d\udc68\u200d\ud83d\udc69|\u300b>>\uff5c| \ud83d\udc68\u200d\ud83d\udc69\ud842\udfb7\ud842\udfb7\u3000>>\uff5c\u3000\u845b\udb40\udd00\u845b\udb40\udd00\u6f22\u5b57"
+    },
+    {
+      "text": "\u304b\u3093\u3058\uff5c\u5409\u300b\ud842\udfb7\n \u300a<<\u300a\u3000\u300b\u300a\u304b\u3093\u3058\u304b\u3093\u3058\u300b\u3002\ud83d\udc68\u200d\ud83d\udc69",
+      "marks": [],
+      "stripped": "\u304b\u3093\u3058\uff5c\u5409\u300b\ud842\udfb7\n \u300a<<\u300a\u3000\u300b\u300a\u304b\u3093\u3058\u304b\u3093\u3058\u300b\u3002\ud83d\udc68\u200d\ud83d\udc69"
+    },
+    {
+      "text": " <<\u300b\uff5c\u3088\u3057<<\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\r\n\u845b\udb40\udd00\u5409<<<<a\n>>>><<\r\na\u3088\u3057\u304b\u3093\u3058",
+      "marks": [
+        {
+          "start": 9,
+          "end": 18,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": " <<\u300b\uff5c\u3088\u3057<<\ud842\udfb7\u7530\r\n\u845b\udb40\udd00\u5409<<<<a\n>>>><<\r\na\u3088\u3057\u304b\u3093\u3058"
+    },
+    {
+      "text": "\uff5c\uff5c<<\ud842\udfb7\r\n\u300a\u3088\u3057|\u300a\u3002\u300a\u304b\u3093\u3058\ud842\udfb7\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u3000\u3002\uff5c\u300a",
+      "marks": [
+        {
+          "start": 21,
+          "end": 29,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\uff5c\uff5c<<\ud842\udfb7\r\n\u300a\u3088\u3057|\u300a\u3002\u300a\u304b\u3093\u3058\ud842\udfb7\u300b\u6f22\u5b57\u3000\u3002\uff5c\u300a"
+    },
+    {
+      "text": "\u3002\n\ud842\udfb7\u300b\u6f22\u5b57\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300b\u3088\u3057",
+      "marks": [
+        {
+          "start": 7,
+          "end": 16,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u3002\n\ud842\udfb7\u300b\u6f22\u5b57\ud842\udfb7\u7530\u300b\u3088\u3057"
+    },
+    {
+      "text": "\u300ba",
+      "marks": [],
+      "stripped": "\u300ba"
+    },
+    {
+      "text": ">>",
+      "marks": [],
+      "stripped": ">>"
+    },
+    {
+      "text": "\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69",
+      "marks": [],
+      "stripped": "\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69"
+    },
+    {
+      "text": ">>|\u3000\r\n\u3088\u3057>>\u6f22\u5b57\r\n\uff5c\u3002>>\u3000>>\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u845b\udb40\udd00\u300a |<<\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300a<<\u6f22\u5b57",
+      "marks": [
+        {
+          "start": 21,
+          "end": 30,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 38,
+          "end": 46,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": ">>|\u3000\r\n\u3088\u3057>>\u6f22\u5b57\r\n\uff5c\u3002>>\u3000>>\ud842\udfb7\u7530\u845b\udb40\udd00\u300a |<<\u6f22\u5b57\u300a<<\u6f22\u5b57"
+    },
+    {
+      "text": "\r\n\uff5c\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [
+        {
+          "start": 3,
+          "end": 11,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\r\n\uff5c\u6f22\u5b57"
+    },
+    {
+      "text": "\uff5c",
+      "marks": [],
+      "stripped": "\uff5c"
+    },
+    {
+      "text": "\u6f22\u5b57\u300a",
+      "marks": [],
+      "stripped": "\u6f22\u5b57\u300a"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b \uff5c\ud842\udfb7a\u3000\u304b\u3093\u3058\ud842\udfb7\u3088\u3057\ud842\udfb7\u300a\n\u845b\udb40\udd00\uff5c\u300b\u845b\udb40\udd00\u3002\u3000\u300b\ud83d\udc68\u200d\ud83d\udc69\ud83d\udc68\u200d\ud83d\udc69\u3002",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 8,
+          "end": 16,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\u6f22\u5b57 \uff5c\ud842\udfb7a\u3000\u304b\u3093\u3058\ud842\udfb7\u3088\u3057\ud842\udfb7\u300a\n\u845b\udb40\udd00\uff5c\u300b\u845b\udb40\udd00\u3002\u3000\u300b\ud83d\udc68\u200d\ud83d\udc69\ud83d\udc68\u200d\ud83d\udc69\u3002"
+    },
+    {
+      "text": "\u300a\ud842\udfb7\u304b\u3093\u3058\uff5c>> \u300a\u6f22\u5b57\u5409\u300a\u3000|",
+      "marks": [],
+      "stripped": "\u300a\ud842\udfb7\u304b\u3093\u3058\uff5c>> \u300a\u6f22\u5b57\u5409\u300a\u3000|"
+    },
+    {
+      "text": "\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300a\uff5c\u300a\u3002\uff5c\u300b\u3088\u3057\u300b\u300a\uff5c",
+      "marks": [
+        {
+          "start": 0,
+          "end": 9,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\ud842\udfb7\u7530\u300a\uff5c\u300a\u3002\uff5c\u300b\u3088\u3057\u300b\u300a\uff5c"
+    },
+    {
+      "text": "|\u3000",
+      "marks": [],
+      "stripped": "|\u3000"
+    },
+    {
+      "text": "<<\n\ud83d\udc68\u200d\ud83d\udc69\u3088\u3057a\u6f22\u5b57\u3088\u3057\uff5c\u300b\uff5c>>a\u300a\u845b\udb40\udd00\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [
+        {
+          "start": 25,
+          "end": 33,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "<<\n\ud83d\udc68\u200d\ud83d\udc69\u3088\u3057a\u6f22\u5b57\u3088\u3057\uff5c\u300b\uff5c>>a\u300a\u845b\udb40\udd00\u6f22\u5b57"
+    },
+    {
+      "text": "\u5409\u3002\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b",
+      "marks": [
+        {
+          "start": 2,
+          "end": 11,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u5409\u3002\ud842\udfb7\u7530"
+    },
+    {
+      "text": "\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300ba\ud83d\udc68\u200d\ud83d\udc69\ud842\udfb7\u845b\udb40\udd00",
+      "marks": [
+        {
+          "start": 1,
+          "end": 10,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u300b\ud842\udfb7\u7530a\ud83d\udc68\u200d\ud83d\udc69\ud842\udfb7\u845b\udb40\udd00"
+    },
+    {
+      "text": "\u3000\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b|\u3002<<<<\uff5c",
+      "marks": [
+        {
+          "start": 1,
+          "end": 9,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u3000\u6f22\u5b57|\u3002<<<<\uff5c"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\ud842\udfb7\uff5c|\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\ud842\udfb7\uff5c|\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69"
+    },
+    {
+      "text": "a>>\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300a\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u845b\udb40\udd00\u3002\u304b\u3093\u3058\u300a\u3000\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u3002\u300aa\ud83d\udc68\u200d\ud83d\udc69>> \u3088\u3057\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300b",
+      "marks": [
+        {
+          "start": 3,
+          "end": 11,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 12,
+          "end": 21,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 30,
+          "end": 38,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 51,
+          "end": 60,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "a>>\u6f22\u5b57\u300a\ud842\udfb7\u7530\u845b\udb40\udd00\u3002\u304b\u3093\u3058\u300a\u3000\u6f22\u5b57\u3002\u300aa\ud83d\udc68\u200d\ud83d\udc69>> \u3088\u3057\ud842\udfb7\u7530\u300b"
+    },
+    {
+      "text": "\uff5c\u3088\u3057\n\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69\u3088\u3057\uff5c\u300aa\u300b\uff5c\u3002\uff5c|\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b>>>>\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b|>>\ud83d\udc68\u200d\ud83d\udc69",
+      "marks": [
+        {
+          "start": 21,
+          "end": 30,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 34,
+          "end": 43,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\uff5c\u3088\u3057\n\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69\u3088\u3057\uff5c\u300aa\u300b\uff5c\u3002\uff5c|\ud842\udfb7\u7530>>>>\ud842\udfb7\u7530|>>\ud83d\udc68\u200d\ud83d\udc69"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b<<\u300a\r\n\u845b\udb40\udd00\u304b\u3093\u3058 \u300a \u300a\r\n>>",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57<<\u300a\r\n\u845b\udb40\udd00\u304b\u3093\u3058 \u300a \u300a\r\n>>"
+    },
+    {
+      "text": "\u3000\u300b \u3088\u3057\u845b\udb40\udd00\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u6f22\u5b57\u300a\u300a\u6f22\u5b57<<",
+      "marks": [
+        {
+          "start": 8,
+          "end": 17,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u3000\u300b \u3088\u3057\u845b\udb40\udd00\ud842\udfb7\u7530\u6f22\u5b57\u300a\u300a\u6f22\u5b57<<"
+    },
+    {
+      "text": "\u304b\u3093\u3058\u845b\udb40\udd00\u304b\u3093\u3058|\u845b\udb40\udd00\u304b\u3093\u3058\u845b\udb40\udd00 \u6f22\u5b57\r\n\u845b\udb40\udd00\u845b\udb40\udd00\r\n",
+      "marks": [],
+      "stripped": "\u304b\u3093\u3058\u845b\udb40\udd00\u304b\u3093\u3058|\u845b\udb40\udd00\u304b\u3093\u3058\u845b\udb40\udd00 \u6f22\u5b57\r\n\u845b\udb40\udd00\u845b\udb40\udd00\r\n"
+    },
+    {
+      "text": "\u300a\n\u300b\u300a\u3000\uff5c>>\r\n\u300a\ud83d\udc68\u200d\ud83d\udc69a\u300b<<\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\ud842\udfb7>>",
+      "marks": [
+        {
+          "start": 20,
+          "end": 28,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u300a\n\u300b\u300a\u3000\uff5c>>\r\n\u300a\ud83d\udc68\u200d\ud83d\udc69a\u300b<<\u6f22\u5b57\ud842\udfb7>>"
+    },
+    {
+      "text": "\u3000\u3088\u3057\u845b\udb40\udd00\uff5c\r\n\r\n \u300a\u300b\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\u300a\u3000\u300b<<",
+      "marks": [],
+      "stripped": "\u3000\u3088\u3057\u845b\udb40\udd00\uff5c\r\n\r\n \u300a\u300b\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\u300a\u3000\u300b<<"
+    },
+    {
+      "text": "\ud83d\udc68\u200d\ud83d\udc69\u5409\u6f22\u5b57",
+      "marks": [],
+      "stripped": "\ud83d\udc68\u200d\ud83d\udc69\u5409\u6f22\u5b57"
+    },
+    {
+      "text": "\r\na\u300a",
+      "marks": [],
+      "stripped": "\r\na\u300a"
+    },
+    {
+      "text": "\r\n\uff5c\uff5c\u845b\udb40\udd00",
+      "marks": [],
+      "stripped": "\r\n\uff5c\uff5c\u845b\udb40\udd00"
+    },
+    {
+      "text": "\u3000\uff5c\u300b\u3088\u3057\u3000<<",
+      "marks": [],
+      "stripped": "\u3000\uff5c\u300b\u3088\u3057\u3000<<"
+    },
+    {
+      "text": "\ud842\udfb7\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300ba\u845b\udb40\udd00\u6f22\u5b57\n",
+      "marks": [
+        {
+          "start": 2,
+          "end": 11,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\ud842\udfb7\ud842\udfb7\u7530a\u845b\udb40\udd00\u6f22\u5b57\n"
+    },
+    {
+      "text": ">>\u5409\u304b\u3093\u3058\u5409|\u6f22\u5b57\u845b\udb40\udd00\u300a\uff5c\u5409\u845b\udb40\udd00\r\n>> |\ud842\udfb7 \uff5c\u300b\ud83d\udc68\u200d\ud83d\udc69\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b",
+      "marks": [
+        {
+          "start": 35,
+          "end": 44,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": ">>\u5409\u304b\u3093\u3058\u5409|\u6f22\u5b57\u845b\udb40\udd00\u300a\uff5c\u5409\u845b\udb40\udd00\r\n>> |\ud842\udfb7 \uff5c\u300b\ud83d\udc68\u200d\ud83d\udc69\ud842\udfb7\u7530"
+    },
+    {
+      "text": "\u300a\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b<<\ud83d\udc68\u200d\ud83d\udc69\r\n",
+      "marks": [
+        {
+          "start": 1,
+          "end": 10,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u300a\ud842\udfb7\u7530<<\ud83d\udc68\u200d\ud83d\udc69\r\n"
+    },
+    {
+      "text": "\u6f22\u5b57>>\u300b",
+      "marks": [],
+      "stripped": "\u6f22\u5b57>>\u300b"
+    },
+    {
+      "text": "\u300a\u3000\u5409\r\n |\uff5c\u300b\u3088\u3057\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c|\ud83d\udc68\u200d\ud83d\udc69",
+      "marks": [
+        {
+          "start": 11,
+          "end": 19,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u300a\u3000\u5409\r\n |\uff5c\u300b\u3088\u3057\u6f22\u5b57\uff5c|\ud83d\udc68\u200d\ud83d\udc69"
+    },
+    {
+      "text": "\u300a\uff5c\uff5c\ud842\udfb7\u845b\udb40\udd00\uff5c\u300a\n\r\n|",
+      "marks": [],
+      "stripped": "\u300a\uff5c\uff5c\ud842\udfb7\u845b\udb40\udd00\uff5c\u300a\n\r\n|"
+    },
+    {
+      "text": "\u300a\u6f22\u5b57\u300a>>\u5409\r\n\u3000\u6f22\u5b57",
+      "marks": [],
+      "stripped": "\u300a\u6f22\u5b57\u300a>>\u5409\r\n\u3000\u6f22\u5b57"
+    },
+    {
+      "text": "\u3002\n >><<\ud83d\udc68\u200d\ud83d\udc69|\ud842\udfb7\r\n\u304b\u3093\u3058\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u3088\u3057>>\uff5ca\u5409\u5409\u300a\u5409\u3000\u304b\u3093\u3058\u3000",
+      "marks": [
+        {
+          "start": 20,
+          "end": 28,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u3002\n >><<\ud83d\udc68\u200d\ud83d\udc69|\ud842\udfb7\r\n\u304b\u3093\u3058\u6f22\u5b57\u3088\u3057>>\uff5ca\u5409\u5409\u300a\u5409\u3000\u304b\u3093\u3058\u3000"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u6f22\u5b57\u300b\r\n\u3002\u3088\u3057|",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\u6f22\u5b57\u300b\r\n\u3002\u3088\u3057|"
+    },
+    {
+      "text": "\u845b\udb40\udd00\u300aa\u3002\r\n\u3002<<\u300b\n\u300b\u300b\ud83d\udc68\u200d\ud83d\udc69\r\n\r\n \u300a\u845b\udb40\udd00\r\n\uff5c|\uff5c\u300b",
+      "marks": [],
+      "stripped": "\u845b\udb40\udd00\u300aa\u3002\r\n\u3002<<\u300b\n\u300b\u300b\ud83d\udc68\u200d\ud83d\udc69\r\n\r\n \u300a\u845b\udb40\udd00\r\n\uff5c|\uff5c\u300b"
+    },
+    {
+      "text": "\n\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300b\u3000\ud842\udfb7\u845b\udb40\udd00\u300ba\n\ud842\udfb7\u300b\ud83d\udc68\u200d\ud83d\udc69\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u5409",
+      "marks": [
+        {
+          "start": 1,
+          "end": 10,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 28,
+          "end": 36,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\n\ud842\udfb7\u7530\u300b\u3000\ud842\udfb7\u845b\udb40\udd00\u300ba\n\ud842\udfb7\u300b\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\u5409"
+    },
+    {
+      "text": ">>\n\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u5409\u300a\ud83d\udc68\u200d\ud83d\udc69\r\n\u5409\u3002\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\ud83d\udc68\u200d\ud83d\udc69\u300a",
+      "marks": [
+        {
+          "start": 3,
+          "end": 11,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 22,
+          "end": 30,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": ">>\n\u6f22\u5b57\u5409\u300a\ud83d\udc68\u200d\ud83d\udc69\r\n\u5409\u3002\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69\u300a"
+    },
+    {
+      "text": "\uff5c\u304b\u3093\u3058\u300ba\u3000\uff5ca\u300a\uff5c\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\ud83d\udc68\u200d\ud83d\udc69>>\ud842\udfb7",
+      "marks": [
+        {
+          "start": 11,
+          "end": 20,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\uff5c\u304b\u3093\u3058\u300ba\u3000\uff5ca\u300a\uff5c\ud842\udfb7\u7530\ud83d\udc68\u200d\ud83d\udc69>>\ud842\udfb7"
+    },
+    {
+      "text": "|\ud83d\udc68\u200d\ud83d\udc69\u3088\u3057\uff5c\u300b\u300b\u3088\u3057\u3002 \ud83d\udc68\u200d\ud83d\udc69\ud842\udfb7\uff5c\uff5c|\uff5c",
+      "marks": [],
+      "stripped": "|\ud83d\udc68\u200d\ud83d\udc69\u3088\u3057\uff5c\u300b\u300b\u3088\u3057\u3002 \ud83d\udc68\u200d\ud83d\udc69\ud842\udfb7\uff5c\uff5c|\uff5c"
+    },
+    {
+      "text": "\r\n\u3002\u304b\u3093\u3058\u6f22\u5b57\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c<<\n",
+      "marks": [
+        {
+          "start": 8,
+          "end": 16,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\r\n\u3002\u304b\u3093\u3058\u6f22\u5b57\u6f22\u5b57\uff5c<<\n"
+    },
+    {
+      "text": "",
+      "marks": [],
+      "stripped": ""
+    },
+    {
+      "text": "\u304b\u3093\u3058 \uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300b\u300a\u6f22\u5b57\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u3002",
+      "marks": [
+        {
+          "start": 4,
+          "end": 13,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 17,
+          "end": 26,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u304b\u3093\u3058 \ud842\udfb7\u7530\u300b\u300a\u6f22\u5b57\ud842\udfb7\u7530\u3002"
+    },
+    {
+      "text": "\r\n<<\u300a\u3088\u3057\u5409\u300b<<\ud83d\udc68\u200d\ud83d\udc69<<\u6f22\u5b57|>>\r\n\u3002\u300b\u300a\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\n\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\ud842\udfb7\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\r\n ",
+      "marks": [
+        {
+          "start": 29,
+          "end": 38,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 39,
+          "end": 47,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 49,
+          "end": 58,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\r\n<<\u300a\u3088\u3057\u5409\u300b<<\ud83d\udc68\u200d\ud83d\udc69<<\u6f22\u5b57|>>\r\n\u3002\u300b\u300a\u300b\ud842\udfb7\u7530\n\u6f22\u5b57\ud842\udfb7\ud842\udfb7\u7530\r\n "
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u5409\u300a\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u3002\r\n\u6f22\u5b57\u5409\u300b\uff5c\r\n<<\uff5ca\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b \u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u3088\u3057\u304b\u3093\u3058\u300b\uff5c\r\n\ud83d\udc68\u200d\ud83d\udc69",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 10,
+          "end": 18,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 32,
+          "end": 40,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 42,
+          "end": 51,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\u5409\u300a\u6f22\u5b57\u3002\r\n\u6f22\u5b57\u5409\u300b\uff5c\r\n<<\uff5ca\u6f22\u5b57 \u300b\ud842\udfb7\u7530\u3088\u3057\u304b\u3093\u3058\u300b\uff5c\r\n\ud83d\udc68\u200d\ud83d\udc69"
+    },
+    {
+      "text": "\u300a\uff5c\uff5c\u3000\uff5c\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u5409\ud842\udfb7|\ud83d\udc68\u200d\ud83d\udc69",
+      "marks": [
+        {
+          "start": 5,
+          "end": 14,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u300a\uff5c\uff5c\u3000\uff5c\ud842\udfb7\u7530\u5409\ud842\udfb7|\ud83d\udc68\u200d\ud83d\udc69"
+    },
+    {
+      "text": "|\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b \n\ud842\udfb7\u300b\u3000",
+      "marks": [
+        {
+          "start": 2,
+          "end": 11,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "|\u300b\ud842\udfb7\u7530 \n\ud842\udfb7\u300b\u3000"
+    },
+    {
+      "text": "\uff5c\u3000\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b>>\u3000\u845b\udb40\udd00",
+      "marks": [
+        {
+          "start": 2,
+          "end": 11,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\uff5c\u3000\ud842\udfb7\u7530>>\u3000\u845b\udb40\udd00"
+    },
+    {
+      "text": ">>\u3000\u304b\u3093\u3058\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c >>\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\n\uff5c>>\u300b\u845b\udb40\udd00\u300b\u3000\u300a>>\r\n\ud842\udfb7\u3088\u3057",
+      "marks": [
+        {
+          "start": 6,
+          "end": 15,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 19,
+          "end": 28,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": ">>\u3000\u304b\u3093\u3058\ud842\udfb7\u7530\uff5c >>\ud842\udfb7\u7530\n\uff5c>>\u300b\u845b\udb40\udd00\u300b\u3000\u300a>>\r\n\ud842\udfb7\u3088\u3057"
+    },
+    {
+      "text": "\u300a\u5409\u300b\u300a\n\u300b|\u300b\u5409\uff5c\u300b\uff5c>>\u3000\u3002\u3000\ud842\udfb7\u5409\u3002\u304b\u3093\u3058\u304b\u3093\u3058<<\ud842\udfb7\u5409",
+      "marks": [],
+      "stripped": "\u300a\u5409\u300b\u300a\n\u300b|\u300b\u5409\uff5c\u300b\uff5c>>\u3000\u3002\u3000\ud842\udfb7\u5409\u3002\u304b\u3093\u3058\u304b\u3093\u3058<<\ud842\udfb7\u5409"
+    },
+    {
+      "text": "\u300b|\uff5c>>\u300ba",
+      "marks": [],
+      "stripped": "\u300b|\uff5c>>\u300ba"
+    },
+    {
+      "text": "\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\u300a\u300a|\u3088\u3057\u3088\u3057>>",
+      "marks": [
+        {
+          "start": 0,
+          "end": 9,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\ud842\udfb7\u7530\uff5c\u300a\u300a|\u3088\u3057\u3088\u3057>>"
+    },
+    {
+      "text": "\u3000\u3002|\u6f22\u5b57\u300a\u3002\u300a \uff5c\uff5c\ud83d\udc68\u200d\ud83d\udc69\u300b|\uff5c \u300b",
+      "marks": [],
+      "stripped": "\u3000\u3002|\u6f22\u5b57\u300a\u3002\u300a \uff5c\uff5c\ud83d\udc68\u200d\ud83d\udc69\u300b|\uff5c \u300b"
+    },
+    {
+      "text": "\ud83d\udc68\u200d\ud83d\udc69\u3088\u3057\uff5caa\u6f22\u5b57\ud842\udfb7\u3088\u3057\u300b\u304b\u3093\u3058\u300b\u845b\udb40\udd00\u3000\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\ud842\udfb7\n",
+      "marks": [
+        {
+          "start": 26,
+          "end": 34,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\ud83d\udc68\u200d\ud83d\udc69\u3088\u3057\uff5caa\u6f22\u5b57\ud842\udfb7\u3088\u3057\u300b\u304b\u3093\u3058\u300b\u845b\udb40\udd00\u3000\u300b\u6f22\u5b57\ud842\udfb7\n"
+    },
+    {
+      "text": "\r\n\u3000\u300a\u3088\u3057\u300a\uff5c\ud83d\udc68\u200d\ud83d\udc69\uff5c\u6f22\u5b57\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u304b\u3093\u3058\u3002\u5409\u300a<<\r\n",
+      "marks": [
+        {
+          "start": 16,
+          "end": 24,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\r\n\u3000\u300a\u3088\u3057\u300a\uff5c\ud83d\udc68\u200d\ud83d\udc69\uff5c\u6f22\u5b57\u6f22\u5b57\u304b\u3093\u3058\u3002\u5409\u300a<<\r\n"
+    },
+    {
+      "text": "\u3088\u3057>>\u3000|\uff5c\ud842\udfb7\u300a\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\u3000\u6f22\u5b57\r\n\u300b",
+      "marks": [],
+      "stripped": "\u3088\u3057>>\u3000|\uff5c\ud842\udfb7\u300a\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\u3000\u6f22\u5b57\r\n\u300b"
+    },
+    {
+      "text": "\uff5c\ud842\udfb7\u3088\u3057\u6f22\u5b57\uff5c \uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b",
+      "marks": [
+        {
+          "start": 9,
+          "end": 18,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\uff5c\ud842\udfb7\u3088\u3057\u6f22\u5b57\uff5c \ud842\udfb7\u7530"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b<<\u6f22\u5b57\u5409\ud842\udfb7\uff5c\ud83d\udc68\u200d\ud83d\udc69\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300a| \r\n\u3002\u300a\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c>>a|\u3088\u3057\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300b",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 21,
+          "end": 29,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 36,
+          "end": 44,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 51,
+          "end": 59,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57<<\u6f22\u5b57\u5409\ud842\udfb7\uff5c\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\u300a| \r\n\u3002\u300a\u6f22\u5b57\uff5c>>a|\u3088\u3057\u6f22\u5b57\u300b"
+    },
+    {
+      "text": "\u300a\r\n\u304b\u3093\u3058>>\ud842\udfb7\u3002\u300a>>\uff5c>><<a<<\r\n\u3088\u3057\ud842\udfb7\r\n\ud842\udfb7",
+      "marks": [],
+      "stripped": "\u300a\r\n\u304b\u3093\u3058>>\ud842\udfb7\u3002\u300a>>\uff5c>><<a<<\r\n\u3088\u3057\ud842\udfb7\r\n\ud842\udfb7"
+    },
+    {
+      "text": " \u845b\udb40\udd00\u300a\uff5c\u6f22\u5b57",
+      "marks": [],
+      "stripped": " \u845b\udb40\udd00\u300a\uff5c\u6f22\u5b57"
+    },
+    {
+      "text": "\u300a\u3088\u3057\u300b\ud842\udfb7\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b<<\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69a<<\u6f22\u5b57\n\r\n\u6f22\u5b57\u3002\ud842\udfb7\u300b\ud842\udfb7",
+      "marks": [
+        {
+          "start": 6,
+          "end": 15,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u300a\u3088\u3057\u300b\ud842\udfb7\ud842\udfb7\u7530<<\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69a<<\u6f22\u5b57\n\r\n\u6f22\u5b57\u3002\ud842\udfb7\u300b\ud842\udfb7"
+    },
+    {
+      "text": "\u304b\u3093\u3058\u6f22\u5b57||\u300a\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\ud842\udfb7\u300a\u6f22\u5b57\uff5c\uff5c \u300b\u300a\u3000|>>\uff5c\u300b",
+      "marks": [
+        {
+          "start": 8,
+          "end": 16,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 22,
+          "end": 32,
+          "base": " \u300b",
+          "reading": "\u3000|>>\uff5c"
+        }
+      ],
+      "stripped": "\u304b\u3093\u3058\u6f22\u5b57||\u300a\u6f22\u5b57\ud842\udfb7\u300a\u6f22\u5b57\uff5c \u300b"
+    },
+    {
+      "text": "\u3000\u6f22\u5b57\u300b\uff5c\uff5c\u3088\u3057<<\u5409\u845b\udb40\udd00\n \u300a\n>>\u6f22\u5b57\n>>\u3002\uff5c\u3000\ud842\udfb7>>",
+      "marks": [],
+      "stripped": "\u3000\u6f22\u5b57\u300b\uff5c\uff5c\u3088\u3057<<\u5409\u845b\udb40\udd00\n \u300a\n>>\u6f22\u5b57\n>>\u3002\uff5c\u3000\ud842\udfb7>>"
+    },
+    {
+      "text": "\ud83d\udc68\u200d\ud83d\udc69\u300a\u300aa\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300a\u304b\u3093\u3058\uff5c\n\u5409<<\uff5c\r\n\u300b\u3002<<>>a\u3000",
+      "marks": [
+        {
+          "start": 8,
+          "end": 17,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\ud83d\udc68\u200d\ud83d\udc69\u300a\u300aa\ud842\udfb7\u7530\u300a\u304b\u3093\u3058\uff5c\n\u5409<<\uff5c\r\n\u300b\u3002<<>>a\u3000"
+    },
+    {
+      "text": "\u304b\u3093\u3058|\uff5c\u300a\uff5c",
+      "marks": [],
+      "stripped": "\u304b\u3093\u3058|\uff5c\u300a\uff5c"
+    },
+    {
+      "text": "\n a\u300aa\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300a",
+      "marks": [
+        {
+          "start": 5,
+          "end": 13,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\n a\u300aa\u6f22\u5b57\u300a"
+    },
+    {
+      "text": "|\uff5c a\u3000\uff5c\u304b\u3093\u3058\u3088\u3057\uff5c\u6f22\u5b57\u300b\u5409\ud842\udfb7\u3088\u3057\u6f22\u5b57\u300b\u3088\u3057\ud83d\udc68\u200d\ud83d\udc69\u300a\u3002",
+      "marks": [],
+      "stripped": "|\uff5c a\u3000\uff5c\u304b\u3093\u3058\u3088\u3057\uff5c\u6f22\u5b57\u300b\u5409\ud842\udfb7\u3088\u3057\u6f22\u5b57\u300b\u3088\u3057\ud83d\udc68\u200d\ud83d\udc69\u300a\u3002"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b|\u3088\u3057\u845b\udb40\udd00\u300a<<\u300a\u3088\u3057\uff5c\u3002\uff5c<<",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57|\u3088\u3057\u845b\udb40\udd00\u300a<<\u300a\u3088\u3057\uff5c\u3002\uff5c<<"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b>>\u304b\u3093\u3058<<||\u6f22\u5b57\u3088\u3057\u6f22\u5b57|\u300b\u300b\ud83d\udc68\u200d\ud83d\udc69\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u3000\u3002\u304b\u3093\u3058>>\u3088\u3057\ud842\udfb7\u6f22\u5b57\n",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 31,
+          "end": 40,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u6f22\u5b57>>\u304b\u3093\u3058<<||\u6f22\u5b57\u3088\u3057\u6f22\u5b57|\u300b\u300b\ud83d\udc68\u200d\ud83d\udc69\ud842\udfb7\u7530\u3000\u3002\u304b\u3093\u3058>>\u3088\u3057\ud842\udfb7\u6f22\u5b57\n"
+    },
+    {
+      "text": "\ud842\udfb7\u300b|\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u304b\u3093\u3058a<<a \u6f22\u5b57\u3002\uff5c\ud842\udfb7\uff5c>>\uff5c\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u6f22\u5b57\u5409\u300b\n\u845b\udb40\udd00\u300b",
+      "marks": [
+        {
+          "start": 4,
+          "end": 13,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 31,
+          "end": 39,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\ud842\udfb7\u300b|\ud842\udfb7\u7530\u304b\u3093\u3058a<<a \u6f22\u5b57\u3002\uff5c\ud842\udfb7\uff5c>>\uff5c\u6f22\u5b57\u6f22\u5b57\u5409\u300b\n\u845b\udb40\udd00\u300b"
+    },
+    {
+      "text": "\u845b\udb40\udd00\ud842\udfb7\u5409\u304b\u3093\u3058a|",
+      "marks": [],
+      "stripped": "\u845b\udb40\udd00\ud842\udfb7\u5409\u304b\u3093\u3058a|"
+    },
+    {
+      "text": "\u3088\u3057<<\u845b\udb40\udd00\u3000\r\n\u845b\udb40\udd00\u300b\u300b<<\u304b\u3093\u3058\uff5c\u300b\ud83d\udc68\u200d\ud83d\udc69>>>>\r\n",
+      "marks": [],
+      "stripped": "\u3088\u3057<<\u845b\udb40\udd00\u3000\r\n\u845b\udb40\udd00\u300b\u300b<<\u304b\u3093\u3058\uff5c\u300b\ud83d\udc68\u200d\ud83d\udc69>>>>\r\n"
+    },
+    {
+      "text": "<<\u304b\u3093\u3058a\n\u304b\u3093\u3058\ud842\udfb7\u300a\u845b\udb40\udd00\n|\u3002\u3002| \uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b<<\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b",
+      "marks": [
+        {
+          "start": 22,
+          "end": 30,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 32,
+          "end": 41,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "<<\u304b\u3093\u3058a\n\u304b\u3093\u3058\ud842\udfb7\u300a\u845b\udb40\udd00\n|\u3002\u3002| \u6f22\u5b57<<\ud842\udfb7\u7530"
+    },
+    {
+      "text": ">>>>\u3000\ud842\udfb7\u6f22\u5b57\u5409\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300a\u300a\u300a \u3002\u304b\u3093\u3058\u300a\u845b\udb40\udd00>>\u304b\u3093\u3058\u300a\u6f22\u5b57\u3002|\ud842\udfb7|",
+      "marks": [
+        {
+          "start": 10,
+          "end": 19,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": ">>>>\u3000\ud842\udfb7\u6f22\u5b57\u5409\ud842\udfb7\u7530\u300a\u300a\u300a \u3002\u304b\u3093\u3058\u300a\u845b\udb40\udd00>>\u304b\u3093\u3058\u300a\u6f22\u5b57\u3002|\ud842\udfb7|"
+    },
+    {
+      "text": "\u300a\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u3002\u300a\u3088\u3057\u3000\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b \u3000\u3000\u300a<< \ud842\udfb7\u845b\udb40\udd00\ud83d\udc68\u200d\ud83d\udc69\u5409a",
+      "marks": [
+        {
+          "start": 1,
+          "end": 9,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 14,
+          "end": 22,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u300a\u6f22\u5b57\u3002\u300a\u3088\u3057\u3000\u6f22\u5b57 \u3000\u3000\u300a<< \ud842\udfb7\u845b\udb40\udd00\ud83d\udc68\u200d\ud83d\udc69\u5409a"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300b |\n\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u3002\ud83d\udc68\u200d\ud83d\udc69a",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 12,
+          "end": 20,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\u300b |\n\u6f22\u5b57\u3002\ud83d\udc68\u200d\ud83d\udc69a"
+    },
+    {
+      "text": "\uff5c\u300a \u3088\u3057\u3000\u300a>>\ud83d\udc68\u200d\ud83d\udc69\u300b\u845b\udb40\udd00\u304b\u3093\u3058\u3088\u3057",
+      "marks": [],
+      "stripped": "\uff5c\u300a \u3088\u3057\u3000\u300a>>\ud83d\udc68\u200d\ud83d\udc69\u300b\u845b\udb40\udd00\u304b\u3093\u3058\u3088\u3057"
+    },
+    {
+      "text": "|\u300a \uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\ud842\udfb7\u3002",
+      "marks": [
+        {
+          "start": 3,
+          "end": 11,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 11,
+          "end": 19,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 19,
+          "end": 27,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "|\u300a \u6f22\u5b57\u6f22\u5b57\u6f22\u5b57\ud842\udfb7\u3002"
+    },
+    {
+      "text": "\u300ba\n\uff5c \u304b\u3093\u3058\ud83d\udc68\u200d\ud83d\udc69\u3000\ud83d\udc68\u200d\ud83d\udc69 \n\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b|\uff5c\u300a",
+      "marks": [
+        {
+          "start": 21,
+          "end": 29,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u300ba\n\uff5c \u304b\u3093\u3058\ud83d\udc68\u200d\ud83d\udc69\u3000\ud83d\udc68\u200d\ud83d\udc69 \n\u6f22\u5b57|\uff5c\u300a"
+    },
+    {
+      "text": ">>\u300a\ud83d\udc68\u200d\ud83d\udc69\u304b\u3093\u3058\u5409\u6f22\u5b57>>\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\ud83d\udc68\u200d\ud83d\udc69\u845b\udb40\udd00\ud842\udfb7\u300a\u845b\udb40\udd00\u3088\u3057\u300a\u3088\u3057\ud83d\udc68\u200d\ud83d\udc69 \u6f22\u5b57\u845b\udb40\udd00\uff5c",
+      "marks": [
+        {
+          "start": 23,
+          "end": 32,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": ">>\u300a\ud83d\udc68\u200d\ud83d\udc69\u304b\u3093\u3058\u5409\u6f22\u5b57>>\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\ud842\udfb7\u7530\ud83d\udc68\u200d\ud83d\udc69\u845b\udb40\udd00\ud842\udfb7\u300a\u845b\udb40\udd00\u3088\u3057\u300a\u3088\u3057\ud83d\udc68\u200d\ud83d\udc69 \u6f22\u5b57\u845b\udb40\udd00\uff5c"
+    },
+    {
+      "text": "\u300a\u300b\u300a\r\n\ud83d\udc68\u200d\ud83d\udc69\u300b\u304b\u3093\u3058\r\n\u5409\uff5c\u300a\u300b\ud842\udfb7",
+      "marks": [],
+      "stripped": "\u300a\u300b\u300a\r\n\ud83d\udc68\u200d\ud83d\udc69\u300b\u304b\u3093\u3058\r\n\u5409\uff5c\u300a\u300b\ud842\udfb7"
+    },
+    {
+      "text": "\u6f22\u5b57\u300b\u5409>>",
+      "marks": [],
+      "stripped": "\u6f22\u5b57\u300b\u5409>>"
+    },
+    {
+      "text": "\u300a\uff5c\u300b\ud842\udfb7\n\r\n\u3088\u3057\u5409\ud83d\udc68\u200d\ud83d\udc69",
+      "marks": [],
+      "stripped": "\u300a\uff5c\u300b\ud842\udfb7\n\r\n\u3088\u3057\u5409\ud83d\udc68\u200d\ud83d\udc69"
+    },
+    {
+      "text": "\u5409\u3088\u3057\u300aa\u3088\u3057\u6f22\u5b57\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b",
+      "marks": [
+        {
+          "start": 10,
+          "end": 19,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u5409\u3088\u3057\u300aa\u3088\u3057\u6f22\u5b57\u300b\ud842\udfb7\u7530"
+    },
+    {
+      "text": "\uff5c\u304b\u3093\u3058\uff5c\uff5c\n\u300b\n\ud842\udfb7\u3088\u3057\u300b\u304b\u3093\u3058\u300b\r\n\n\u3000a\u5409|<<\u300b\u300a\uff5c>><<",
+      "marks": [],
+      "stripped": "\uff5c\u304b\u3093\u3058\uff5c\uff5c\n\u300b\n\ud842\udfb7\u3088\u3057\u300b\u304b\u3093\u3058\u300b\r\n\n\u3000a\u5409|<<\u300b\u300a\uff5c>><<"
+    },
+    {
+      "text": "\u3088\u3057\uff5c\ud83d\udc68\u200d\ud83d\udc69<<\u5409a|\u845b\udb40\udd00\u300b>>\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\u845b\udb40\udd00\uff5c\uff5c\ud842\udfb7\u300a\u300a\u300a\u5409\ud83d\udc68\u200d\ud83d\udc69\u300a",
+      "marks": [
+        {
+          "start": 19,
+          "end": 27,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u3088\u3057\uff5c\ud83d\udc68\u200d\ud83d\udc69<<\u5409a|\u845b\udb40\udd00\u300b>>\u6f22\u5b57\uff5c\u845b\udb40\udd00\uff5c\uff5c\ud842\udfb7\u300a\u300a\u300a\u5409\ud83d\udc68\u200d\ud83d\udc69\u300a"
+    },
+    {
+      "text": "\ud842\udfb7\u300b\r\n<<\u6f22\u5b57\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u6f22\u5b57\u304b\u3093\u3058a\u5409\u5409|\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69\uff5c\u6f22\u5b57\u6f22\u5b57\u300b\u5409\u5409",
+      "marks": [
+        {
+          "start": 9,
+          "end": 18,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\ud842\udfb7\u300b\r\n<<\u6f22\u5b57\ud842\udfb7\u7530\u6f22\u5b57\u304b\u3093\u3058a\u5409\u5409|\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69\uff5c\u6f22\u5b57\u6f22\u5b57\u300b\u5409\u5409"
+    },
+    {
+      "text": "a\u300b\u845b\udb40\udd00\uff5c\uff5c\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u304b\u3093\u3058\ud83d\udc68\u200d\ud83d\udc69\u3002\ud83d\udc68\u200d\ud83d\udc69\u5409\u845b\udb40\udd00\n\u300b\uff5c\r\n\uff5c\u304b\u3093\u3058",
+      "marks": [
+        {
+          "start": 7,
+          "end": 16,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "a\u300b\u845b\udb40\udd00\uff5c\uff5c\ud842\udfb7\u7530\u304b\u3093\u3058\ud83d\udc68\u200d\ud83d\udc69\u3002\ud83d\udc68\u200d\ud83d\udc69\u5409\u845b\udb40\udd00\n\u300b\uff5c\r\n\uff5c\u304b\u3093\u3058"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\u304b\u3093\u3058\u845b\udb40\udd00\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\r\n \u3088\u3057>>\u3088\u3057\ud83d\udc68\u200d\ud83d\udc69\u3002a",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 15,
+          "end": 24,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\uff5c\u304b\u3093\u3058\u845b\udb40\udd00\ud842\udfb7\u7530\r\n \u3088\u3057>>\u3088\u3057\ud83d\udc68\u200d\ud83d\udc69\u3002a"
+    },
+    {
+      "text": "\ud83d\udc68\u200d\ud83d\udc69\n\uff5c\u300a\u5409>>\u3000\u300a\u300a\u300b\uff5c\ud842\udfb7\u3002 >>\u300a\ud83d\udc68\u200d\ud83d\udc69\uff5c\u300b\r\n",
+      "marks": [
+        {
+          "start": 15,
+          "end": 30,
+          "base": "\ud842\udfb7\u3002 >>",
+          "reading": "\ud83d\udc68\u200d\ud83d\udc69\uff5c"
+        }
+      ],
+      "stripped": "\ud83d\udc68\u200d\ud83d\udc69\n\uff5c\u300a\u5409>>\u3000\u300a\u300a\u300b\ud842\udfb7\u3002 >>\r\n"
+    },
+    {
+      "text": "\u6f22\u5b57\ud842\udfb7\r\n\u3088\u3057\u300b\u300a\u5409\uff5c\u3088\u3057\uff5c",
+      "marks": [],
+      "stripped": "\u6f22\u5b57\ud842\udfb7\r\n\u3088\u3057\u300b\u300a\u5409\uff5c\u3088\u3057\uff5c"
+    },
+    {
+      "text": "\u845b\udb40\udd00\u3002\ud842\udfb7\r\n\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300ba\u3000\uff5c\u3000\u300b\ud83d\udc68\u200d\ud83d\udc69\u304b\u3093\u3058\u300a\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b>>\u300a\u300b\u6f22\u5b57\u6f22\u5b57",
+      "marks": [
+        {
+          "start": 8,
+          "end": 17,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 31,
+          "end": 40,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u845b\udb40\udd00\u3002\ud842\udfb7\r\n\ud842\udfb7\u7530a\u3000\uff5c\u3000\u300b\ud83d\udc68\u200d\ud83d\udc69\u304b\u3093\u3058\u300a\ud842\udfb7\u7530>>\u300a\u300b\u6f22\u5b57\u6f22\u5b57"
+    },
+    {
+      "text": "\uff5c\u304b\u3093\u3058<<\u6f22\u5b57\u304b\u3093\u3058\r\n\u6f22\u5b57\uff5c\u6f22\u5b57\u3000\u845b\udb40\udd00\u5409>>",
+      "marks": [],
+      "stripped": "\uff5c\u304b\u3093\u3058<<\u6f22\u5b57\u304b\u3093\u3058\r\n\u6f22\u5b57\uff5c\u6f22\u5b57\u3000\u845b\udb40\udd00\u5409>>"
+    },
+    {
+      "text": "\u300b\ud83d\udc68\u200d\ud83d\udc69\u300b\ud842\udfb7 \uff5c\uff5c\u300b\u300a",
+      "marks": [],
+      "stripped": "\u300b\ud83d\udc68\u200d\ud83d\udc69\u300b\ud842\udfb7 \uff5c\uff5c\u300b\u300a"
+    },
+    {
+      "text": ">>\uff5c\u304b\u3093\u3058a\uff5c>><<\u3002\u845b\udb40\udd00\u300a\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c",
+      "marks": [
+        {
+          "start": 17,
+          "end": 26,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": ">>\uff5c\u304b\u3093\u3058a\uff5c>><<\u3002\u845b\udb40\udd00\u300a\ud842\udfb7\u7530\uff5c"
+    },
+    {
+      "text": "\u3088\u3057\r\n\ud842\udfb7>>\r\n\u300a\ud842\udfb7\u3000\r\n\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u845b\udb40\udd00",
+      "marks": [
+        {
+          "start": 16,
+          "end": 24,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u3088\u3057\r\n\ud842\udfb7>>\r\n\u300a\ud842\udfb7\u3000\r\n\u6f22\u5b57\u845b\udb40\udd00"
+    },
+    {
+      "text": "\u6f22\u5b57\u300b<<\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\ud842\udfb7\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300b\r\n\u300b\ud83d\udc68\u200d\ud83d\udc69\uff5c\u300b\u304b\u3093\u3058\ud842\udfb7\u845b\udb40\udd00",
+      "marks": [
+        {
+          "start": 5,
+          "end": 14,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 14,
+          "end": 23,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 25,
+          "end": 34,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\u300b<<\ud842\udfb7\u7530\ud842\udfb7\u7530\ud842\udfb7\ud842\udfb7\u7530\u300b\r\n\u300b\ud83d\udc68\u200d\ud83d\udc69\uff5c\u300b\u304b\u3093\u3058\ud842\udfb7\u845b\udb40\udd00"
+    },
+    {
+      "text": "<<\u845b\udb40\udd00\uff5c\ud842\udfb7\u300a>>\u300b\u300b<< aa \u3002\ud842\udfb7\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300a\u845b\udb40\udd00\uff5c|\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u6f22\u5b57\u300a",
+      "marks": [
+        {
+          "start": 5,
+          "end": 12,
+          "base": "\ud842\udfb7",
+          "reading": ">>"
+        },
+        {
+          "start": 22,
+          "end": 30,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 36,
+          "end": 44,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "<<\u845b\udb40\udd00\ud842\udfb7\u300b<< aa \u3002\ud842\udfb7\u6f22\u5b57\u300a\u845b\udb40\udd00\uff5c|\u6f22\u5b57\u6f22\u5b57\u300a"
+    },
+    {
+      "text": "\u300b\uff5c\r\n",
+      "marks": [],
+      "stripped": "\u300b\uff5c\r\n"
+    },
+    {
+      "text": "\u300a\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b<<\u3002<<\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b<<\u300b",
+      "marks": [
+        {
+          "start": 1,
+          "end": 10,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 15,
+          "end": 23,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u300a\ud842\udfb7\u7530<<\u3002<<\u6f22\u5b57<<\u300b"
+    },
+    {
+      "text": "\u300a\u6f22\u5b57\u300b\n",
+      "marks": [],
+      "stripped": "\u300a\u6f22\u5b57\u300b\n"
+    },
+    {
+      "text": "\u845b\udb40\udd00\n\u3002\u5409\ud842\udfb7\ud83d\udc68\u200d\ud83d\udc69\u3002\uff5c\r\n",
+      "marks": [],
+      "stripped": "\u845b\udb40\udd00\n\u3002\u5409\ud842\udfb7\ud83d\udc68\u200d\ud83d\udc69\u3002\uff5c\r\n"
+    },
+    {
+      "text": "<<\r\n",
+      "marks": [],
+      "stripped": "<<\r\n"
+    },
+    {
+      "text": "\ud842\udfb7\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b",
+      "marks": [
+        {
+          "start": 2,
+          "end": 11,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\ud842\udfb7\ud842\udfb7\u7530"
+    },
+    {
+      "text": " \u300a\u3088\u3057\u304b\u3093\u3058\ud83d\udc68\u200d\ud83d\udc69|\u5409\u300a \u6f22\u5b57>>\u3000",
+      "marks": [],
+      "stripped": " \u300a\u3088\u3057\u304b\u3093\u3058\ud83d\udc68\u200d\ud83d\udc69|\u5409\u300a \u6f22\u5b57>>\u3000"
+    },
+    {
+      "text": ">>\r\n\u300b\u3000 \uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\n\ud842\udfb7\u845b\udb40\udd00\u304b\u3093\u3058<<\uff5c|\u5409",
+      "marks": [
+        {
+          "start": 7,
+          "end": 15,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": ">>\r\n\u300b\u3000 \u6f22\u5b57\n\ud842\udfb7\u845b\udb40\udd00\u304b\u3093\u3058<<\uff5c|\u5409"
+    },
+    {
+      "text": "\uff5c",
+      "marks": [],
+      "stripped": "\uff5c"
+    },
+    {
+      "text": "\u3002\u300a\uff5c\u300a\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u845b\udb40\udd00\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u5409\u3088\u3057 \uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b",
+      "marks": [
+        {
+          "start": 4,
+          "end": 12,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 15,
+          "end": 24,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 28,
+          "end": 37,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u3002\u300a\uff5c\u300a\u6f22\u5b57\u845b\udb40\udd00\ud842\udfb7\u7530\u5409\u3088\u3057 \ud842\udfb7\u7530"
+    },
+    {
+      "text": "\r\n\u300a<<\uff5c<<\u5409\u845b\udb40\udd00\u3000\r\n",
+      "marks": [],
+      "stripped": "\r\n\u300a<<\uff5c<<\u5409\u845b\udb40\udd00\u3000\r\n"
+    },
+    {
+      "text": "\u3000\n\r\n\ud842\udfb7\r\n\u5409\u845b\udb40\udd00a\u3088\u3057\ud842\udfb7\ud83d\udc68\u200d\ud83d\udc69\u3088\u3057\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\ud83d\udc68\u200d\ud83d\udc69\r\n<<\u3000a\u6f22\u5b57\u3000",
+      "marks": [
+        {
+          "start": 24,
+          "end": 32,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u3000\n\r\n\ud842\udfb7\r\n\u5409\u845b\udb40\udd00a\u3088\u3057\ud842\udfb7\ud83d\udc68\u200d\ud83d\udc69\u3088\u3057\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69\r\n<<\u3000a\u6f22\u5b57\u3000"
+    },
+    {
+      "text": "\u304b\u3093\u3058\u3000\u304b\u3093\u3058<<\ud842\udfb7\ud83d\udc68\u200d\ud83d\udc69a\u300a\ud842\udfb7\ud842\udfb7\u3002\u304b\u3093\u3058\u300a",
+      "marks": [],
+      "stripped": "\u304b\u3093\u3058\u3000\u304b\u3093\u3058<<\ud842\udfb7\ud83d\udc68\u200d\ud83d\udc69a\u300a\ud842\udfb7\ud842\udfb7\u3002\u304b\u3093\u3058\u300a"
+    },
+    {
+      "text": "\u845b\udb40\udd00<<\n|\u3088\u3057\uff5c|",
+      "marks": [],
+      "stripped": "\u845b\udb40\udd00<<\n|\u3088\u3057\uff5c|"
+    },
+    {
+      "text": "\u3002\u3000a\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u3000\uff5c\ud842\udfb7\uff5ca\n\u300b\u6f22\u5b57\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u3088\u3057\u6f22\u5b57<<>>|",
+      "marks": [
+        {
+          "start": 3,
+          "end": 12,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 22,
+          "end": 30,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u3002\u3000a\ud842\udfb7\u7530\u3000\uff5c\ud842\udfb7\uff5ca\n\u300b\u6f22\u5b57\u6f22\u5b57\u3088\u3057\u6f22\u5b57<<>>|"
+    },
+    {
+      "text": "\ud83d\udc68\u200d\ud83d\udc69\uff5c\n\u300ba\u6f22\u5b57\u300a|\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\ud83d\udc68\u200d\ud83d\udc69\n\uff5c\u300a\u3000",
+      "marks": [
+        {
+          "start": 14,
+          "end": 22,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\ud83d\udc68\u200d\ud83d\udc69\uff5c\n\u300ba\u6f22\u5b57\u300a|\u300b\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69\n\uff5c\u300a\u3000"
+    },
+    {
+      "text": "\u304b\u3093\u3058\u6f22\u5b57\u6f22\u5b57>><<\u845b\udb40\udd00\ud842\udfb7\ud842\udfb7\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u845b\udb40\udd00\uff5c\u300b\r\n",
+      "marks": [
+        {
+          "start": 18,
+          "end": 27,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u304b\u3093\u3058\u6f22\u5b57\u6f22\u5b57>><<\u845b\udb40\udd00\ud842\udfb7\ud842\udfb7\ud842\udfb7\u7530\u845b\udb40\udd00\uff5c\u300b\r\n"
+    },
+    {
+      "text": "\u6f22\u5b57>>\u300a\u845b\udb40\udd00",
+      "marks": [],
+      "stripped": "\u6f22\u5b57>>\u300a\u845b\udb40\udd00"
+    },
+    {
+      "text": "\u3088\u3057",
+      "marks": [],
+      "stripped": "\u3088\u3057"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\n\u3002>>\uff5c<<",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\n\u3002>>\uff5c<<"
+    },
+    {
+      "text": "<<\uff5c\u5409\u5409",
+      "marks": [],
+      "stripped": "<<\uff5c\u5409\u5409"
+    },
+    {
+      "text": "  \u3000",
+      "marks": [],
+      "stripped": "  \u3000"
+    },
+    {
+      "text": " \n\r\n\u3002",
+      "marks": [],
+      "stripped": " \n\r\n\u3002"
+    },
+    {
+      "text": " \u3002<<\u3000\u845b\udb40\udd00\u5409\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u3000 |\r\n\u3000\u5409\u300a\u3000\u300a>> >>\u300a",
+      "marks": [
+        {
+          "start": 9,
+          "end": 18,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": " \u3002<<\u3000\u845b\udb40\udd00\u5409\ud842\udfb7\u7530\u3000 |\r\n\u3000\u5409\u300a\u3000\u300a>> >>\u300a"
+    },
+    {
+      "text": "<<\u300a>>aa\uff5c\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u6f22\u5b57\u304b\u3093\u3058\u3000<<|>>\u300aa\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b",
+      "marks": [
+        {
+          "start": 8,
+          "end": 17,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 30,
+          "end": 39,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "<<\u300a>>aa\uff5c\ud842\udfb7\u7530\u6f22\u5b57\u304b\u3093\u3058\u3000<<|>>\u300aa\ud842\udfb7\u7530"
+    },
+    {
+      "text": " \u300b\ud842\udfb7\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300ba\u3002|>>\u304b\u3093\u3058\n\u300b |\uff5c\ud842\udfb7\u300a\u3088\u3057\uff5c\r\n\u3002",
+      "marks": [
+        {
+          "start": 4,
+          "end": 13,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": " \u300b\ud842\udfb7\ud842\udfb7\u7530a\u3002|>>\u304b\u3093\u3058\n\u300b |\uff5c\ud842\udfb7\u300a\u3088\u3057\uff5c\r\n\u3002"
+    },
+    {
+      "text": "a<<\u845b\udb40\udd00a\uff5c\u6f22\u5b57\u300b\u304b\u3093\u3058\ud83d\udc68\u200d\ud83d\udc69\u3002<<\u845b\udb40\udd00\u300a a\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\n\r\n\ud83d\udc68\u200d\ud83d\udc69\ud83d\udc68\u200d\ud83d\udc69\r\n\uff5c<<>>",
+      "marks": [
+        {
+          "start": 28,
+          "end": 36,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "a<<\u845b\udb40\udd00a\uff5c\u6f22\u5b57\u300b\u304b\u3093\u3058\ud83d\udc68\u200d\ud83d\udc69\u3002<<\u845b\udb40\udd00\u300a a\u6f22\u5b57\n\r\n\ud83d\udc68\u200d\ud83d\udc69\ud83d\udc68\u200d\ud83d\udc69\r\n\uff5c<<>>"
+    },
+    {
+      "text": "\u3088\u3057\u3000\r\n>>",
+      "marks": [],
+      "stripped": "\u3088\u3057\u3000\r\n>>"
+    },
+    {
+      "text": "\ud842\udfb7\u300b<<\u300a \u6f22\u5b57\uff5c\uff5c\ud842\udfb7\u300b\ud842\udfb7\n\u3002\ud83d\udc68\u200d\ud83d\udc69\na\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300b\u300a\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b ",
+      "marks": [
+        {
+          "start": 25,
+          "end": 34,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 36,
+          "end": 45,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\ud842\udfb7\u300b<<\u300a \u6f22\u5b57\uff5c\uff5c\ud842\udfb7\u300b\ud842\udfb7\n\u3002\ud83d\udc68\u200d\ud83d\udc69\na\ud842\udfb7\u7530\u300b\u300a\ud842\udfb7\u7530 "
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u3002\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u3088\u3057\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 9,
+          "end": 18,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 19,
+          "end": 28,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 30,
+          "end": 39,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 39,
+          "end": 47,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\u300b\ud842\udfb7\u7530\u3002\ud842\udfb7\u7530\u3088\u3057\ud842\udfb7\u7530\u6f22\u5b57"
+    },
+    {
+      "text": " \u300a\u3002\ud842\udfb7>>\ud83d\udc68\u200d\ud83d\udc69\uff5ca\u3002\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b|\u3002|\u3088\u3057<<<<\ud842\udfb7\u3002|",
+      "marks": [
+        {
+          "start": 15,
+          "end": 24,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": " \u300a\u3002\ud842\udfb7>>\ud83d\udc68\u200d\ud83d\udc69\uff5ca\u3002\ud842\udfb7\u7530|\u3002|\u3088\u3057<<<<\ud842\udfb7\u3002|"
+    },
+    {
+      "text": "\u300a\u304b\u3093\u3058\n\u300b\ud842\udfb7\ud842\udfb7\u3000\uff5c\u300b<<a\u6f22\u5b57\u6f22\u5b57\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\r\n\u304b\u3093\u3058\r\n",
+      "marks": [
+        {
+          "start": 21,
+          "end": 29,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u300a\u304b\u3093\u3058\n\u300b\ud842\udfb7\ud842\udfb7\u3000\uff5c\u300b<<a\u6f22\u5b57\u6f22\u5b57\u300b\u6f22\u5b57\r\n\u304b\u3093\u3058\r\n"
+    },
+    {
+      "text": " \u300b\u300a\u300b\u3088\u3057\u300aa\ud842\udfb7\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u304b\u3093\u3058\u6f22\u5b57\u300a\u3088\u3057\u6f22\u5b57",
+      "marks": [
+        {
+          "start": 10,
+          "end": 18,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": " \u300b\u300a\u300b\u3088\u3057\u300aa\ud842\udfb7\u6f22\u5b57\u304b\u3093\u3058\u6f22\u5b57\u300a\u3088\u3057\u6f22\u5b57"
+    },
+    {
+      "text": "\n\u3088\u3057\ud83d\udc68\u200d\ud83d\udc69 >>\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\n\u304b\u3093\u3058\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69\ud83d\udc68\u200d\ud83d\udc69  \u3088\u3057\u304b\u3093\u3058\uff5c\u845b\udb40\udd00\u300b\n\u300b\u300b\u3088\u3057a\u845b\udb40\udd00",
+      "marks": [
+        {
+          "start": 11,
+          "end": 19,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\n\u3088\u3057\ud83d\udc68\u200d\ud83d\udc69 >>\u6f22\u5b57\n\u304b\u3093\u3058\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69\ud83d\udc68\u200d\ud83d\udc69  \u3088\u3057\u304b\u3093\u3058\uff5c\u845b\udb40\udd00\u300b\n\u300b\u300b\u3088\u3057a\u845b\udb40\udd00"
+    },
+    {
+      "text": "\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\n<<>>\u3088\u3057\n\u300a\ud83d\udc68\u200d\ud83d\udc69\n>>\u3002\uff5c\u300a\u300a\ud842\udfb7",
+      "marks": [
+        {
+          "start": 0,
+          "end": 9,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\ud842\udfb7\u7530\n<<>>\u3088\u3057\n\u300a\ud83d\udc68\u200d\ud83d\udc69\n>>\u3002\uff5c\u300a\u300a\ud842\udfb7"
+    },
+    {
+      "text": "\u300b\u3002\u300a\u3000a\u304b\u3093\u3058\u304b\u3093\u3058\ud842\udfb7\r\n",
+      "marks": [],
+      "stripped": "\u300b\u3002\u300a\u3000a\u304b\u3093\u3058\u304b\u3093\u3058\ud842\udfb7\r\n"
+    },
+    {
+      "text": "\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c<<\u3002\u3088\u3057\u304b\u3093\u3058\naa>>|\u300b\n\u304b\u3093\u3058a\u6f22\u5b57\u300b\u300a\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b|>>\n\u3002",
+      "marks": [
+        {
+          "start": 0,
+          "end": 9,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 9,
+          "end": 17,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 42,
+          "end": 51,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\ud842\udfb7\u7530\u6f22\u5b57\uff5c<<\u3002\u3088\u3057\u304b\u3093\u3058\naa>>|\u300b\n\u304b\u3093\u3058a\u6f22\u5b57\u300b\u300a\ud842\udfb7\u7530|>>\n\u3002"
+    },
+    {
+      "text": "\u6f22\u5b57\u6f22\u5b57\r\n\u6f22\u5b57",
+      "marks": [],
+      "stripped": "\u6f22\u5b57\u6f22\u5b57\r\n\u6f22\u5b57"
+    },
+    {
+      "text": "\u845b\udb40\udd00\u845b\udb40\udd00",
+      "marks": [],
+      "stripped": "\u845b\udb40\udd00\u845b\udb40\udd00"
+    },
+    {
+      "text": "<<\u3002\u300a\u845b\udb40\udd00\uff5c\u300ba\u6f22\u5b57\u304b\u3093\u3058",
+      "marks": [],
+      "stripped": "<<\u3002\u300a\u845b\udb40\udd00\uff5c\u300ba\u6f22\u5b57\u304b\u3093\u3058"
+    },
+    {
+      "text": "\u5409\u3002\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\u3002<<\r\n\ud83d\udc68\u200d\ud83d\udc69\uff5c",
+      "marks": [
+        {
+          "start": 2,
+          "end": 11,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u5409\u3002\ud842\udfb7\u7530\uff5c\u3002<<\r\n\ud83d\udc68\u200d\ud83d\udc69\uff5c"
+    },
+    {
+      "text": "\n\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\na\u3000",
+      "marks": [
+        {
+          "start": 1,
+          "end": 10,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 10,
+          "end": 19,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\n\ud842\udfb7\u7530\ud842\udfb7\u7530\na\u3000"
+    },
+    {
+      "text": "\u6f22\u5b57\u3002>>\u3000\uff5c\u300a\u6f22\u5b57\u3002\u6f22\u5b57>>\u300b<<\u845b\udb40\udd00\uff5c\u3088\u3057\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u5409\uff5c\u3088\u3057\ud83d\udc68\u200d\ud83d\udc69\u300a",
+      "marks": [
+        {
+          "start": 21,
+          "end": 31,
+          "base": "\u3088\u3057\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\u3002>>\u3000\uff5c\u300a\u6f22\u5b57\u3002\u6f22\u5b57>>\u300b<<\u845b\udb40\udd00\u3088\u3057\u6f22\u5b57\u5409\uff5c\u3088\u3057\ud83d\udc68\u200d\ud83d\udc69\u300a"
+    },
+    {
+      "text": "\ud842\udfb7\u300b\uff5c\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b|<<<< \uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u5409\uff5c\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u6f22\u5b57\u3002<<\u300b\u3002\n\ud83d\udc68\u200d\ud83d\udc69\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [
+        {
+          "start": 5,
+          "end": 13,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 19,
+          "end": 28,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 31,
+          "end": 39,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 53,
+          "end": 61,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\ud842\udfb7\u300b\uff5c\u300b\u6f22\u5b57|<<<< \ud842\udfb7\u7530\u5409\uff5c\u300b\u6f22\u5b57\u6f22\u5b57\u3002<<\u300b\u3002\n\ud83d\udc68\u200d\ud83d\udc69\u300b\u6f22\u5b57"
+    },
+    {
+      "text": "\u300b<<\u300b\u3000\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300a\ud842\udfb7\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300a\u304b\u3093\u3058a\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u6f22\u5b57\u300b\uff5c",
+      "marks": [
+        {
+          "start": 5,
+          "end": 14,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 14,
+          "end": 23,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 23,
+          "end": 32,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 35,
+          "end": 44,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 50,
+          "end": 58,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u300b<<\u300b\u3000\ud842\udfb7\u7530\ud842\udfb7\u7530\ud842\udfb7\u7530\u300a\ud842\udfb7\ud842\udfb7\u7530\u300a\u304b\u3093\u3058a\u300b\u6f22\u5b57\u6f22\u5b57\u300b\uff5c"
+    },
+    {
+      "text": ">>\u300b\u845b\udb40\udd00\u6f22\u5b57\r\n\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5ca\u3088\u3057a\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u3000\u3002\u5409\u300b|\u3000",
+      "marks": [
+        {
+          "start": 10,
+          "end": 19,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 25,
+          "end": 34,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": ">>\u300b\u845b\udb40\udd00\u6f22\u5b57\r\n\ud842\udfb7\u7530\uff5ca\u3088\u3057a\u300b\ud842\udfb7\u7530\u3000\u3002\u5409\u300b|\u3000"
+    },
+    {
+      "text": "\n\r\n\u5409",
+      "marks": [],
+      "stripped": "\n\r\n\u5409"
+    },
+    {
+      "text": "\u300a\u300b|\u304b\u3093\u3058\uff5c\u845b\udb40\udd00\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b>>\ud83d\udc68\u200d\ud83d\udc69 \u845b\udb40\udd00\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\ud842\udfb7\u300a\u304b\u3093\u3058\u300a>>\u300b<<a\ud842\udfb7<<\u300a",
+      "marks": [
+        {
+          "start": 10,
+          "end": 19,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 30,
+          "end": 38,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u300a\u300b|\u304b\u3093\u3058\uff5c\u845b\udb40\udd00\ud842\udfb7\u7530>>\ud83d\udc68\u200d\ud83d\udc69 \u845b\udb40\udd00\u6f22\u5b57\uff5c\ud842\udfb7\u300a\u304b\u3093\u3058\u300a>>\u300b<<a\ud842\udfb7<<\u300a"
+    },
+    {
+      "text": "\u6f22\u5b57\u300b\u6f22\u5b57\r\n\u304b\u3093\u3058\ud842\udfb7\u3002\n\uff5c\u5409\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u3088\u3057 \u300b\u300a\u5409\u845b\udb40\udd00\u3000\uff5c\u6f22\u5b57",
+      "marks": [
+        {
+          "start": 16,
+          "end": 25,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\u300b\u6f22\u5b57\r\n\u304b\u3093\u3058\ud842\udfb7\u3002\n\uff5c\u5409\ud842\udfb7\u7530\u3088\u3057 \u300b\u300a\u5409\u845b\udb40\udd00\u3000\uff5c\u6f22\u5b57"
+    },
+    {
+      "text": "\u300a\u5409\u300a\uff5c>>\u304b\u3093\u3058\u3088\u3057 \uff5c\uff5c\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\r\n \n\u300a\u3000|",
+      "marks": [
+        {
+          "start": 14,
+          "end": 22,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u300a\u5409\u300a\uff5c>>\u304b\u3093\u3058\u3088\u3057 \uff5c\uff5c\u6f22\u5b57\r\n \n\u300a\u3000|"
+    },
+    {
+      "text": "\u3088\u3057\u845b\udb40\udd00\ud842\udfb7\u300a\u5409\u6f22\u5b57\u300b\u3000\u304b\u3093\u3058",
+      "marks": [],
+      "stripped": "\u3088\u3057\u845b\udb40\udd00\ud842\udfb7\u300a\u5409\u6f22\u5b57\u300b\u3000\u304b\u3093\u3058"
+    },
+    {
+      "text": "\ud842\udfb7",
+      "marks": [],
+      "stripped": "\ud842\udfb7"
+    },
+    {
+      "text": "",
+      "marks": [],
+      "stripped": ""
+    },
+    {
+      "text": "\uff5c>>\u3002\r\n\u300a|\u845b\udb40\udd00\r\n \u3000>> a\u300b\ud842\udfb7\r\n\u300b\u300a\u300b\uff5ca",
+      "marks": [],
+      "stripped": "\uff5c>>\u3002\r\n\u300a|\u845b\udb40\udd00\r\n \u3000>> a\u300b\ud842\udfb7\r\n\u300b\u300a\u300b\uff5ca"
+    },
+    {
+      "text": "\u304b\u3093\u3058\u3002\n\u304b\u3093\u3058|",
+      "marks": [],
+      "stripped": "\u304b\u3093\u3058\u3002\n\u304b\u3093\u3058|"
+    },
+    {
+      "text": "\uff5c>>\u300a\u300a\u3000\ud83d\udc68\u200d\ud83d\udc69>>>>\u300b\u3000\u5409\u3000\n\u3002\u3000\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\ud842\udfb7\n\u3002\n\u3000\uff5c\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57",
+      "marks": [
+        {
+          "start": 22,
+          "end": 30,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\uff5c>>\u300a\u300a\u3000\ud83d\udc68\u200d\ud83d\udc69>>>>\u300b\u3000\u5409\u3000\n\u3002\u3000\u6f22\u5b57\ud842\udfb7\n\u3002\n\u3000\uff5c\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57"
+    },
+    {
+      "text": "\u3000",
+      "marks": [],
+      "stripped": "\u3000"
+    },
+    {
+      "text": "|>>\u6f22\u5b57\n\u6f22\u5b57\u300a\r\n\uff5c>>\u300b\u300b\u5409\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b|\u3002\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b|\u3088\u3057<<",
+      "marks": [
+        {
+          "start": 17,
+          "end": 25,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 27,
+          "end": 36,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "|>>\u6f22\u5b57\n\u6f22\u5b57\u300a\r\n\uff5c>>\u300b\u300b\u5409\u6f22\u5b57|\u3002\ud842\udfb7\u7530|\u3088\u3057<<"
+    },
+    {
+      "text": "\u3088\u3057 \uff5c\ud842\udfb7\ud83d\udc68\u200d\ud83d\udc69\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b",
+      "marks": [
+        {
+          "start": 11,
+          "end": 20,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u3088\u3057 \uff5c\ud842\udfb7\ud83d\udc68\u200d\ud83d\udc69\ud842\udfb7\u7530"
+    },
+    {
+      "text": "<<a",
+      "marks": [],
+      "stripped": "<<a"
+    },
+    {
+      "text": "<<>>\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300a\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\ud842\udfb7\u300b\u3002\n\ud83d\udc68\u200d\ud83d\udc69<<\n>>a",
+      "marks": [
+        {
+          "start": 4,
+          "end": 13,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 14,
+          "end": 22,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "<<>>\ud842\udfb7\u7530\u300a\u6f22\u5b57\uff5c\ud842\udfb7\u300b\u3002\n\ud83d\udc68\u200d\ud83d\udc69<<\n>>a"
+    },
+    {
+      "text": "\u300b\u300a\u304b\u3093\u3058\uff5c\u304b\u3093\u3058\n\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300ba\u6f22\u5b57\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\ud842\udfb7\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u3088\u3057\n\uff5c\u300a",
+      "marks": [
+        {
+          "start": 11,
+          "end": 20,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 20,
+          "end": 29,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 32,
+          "end": 41,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 44,
+          "end": 53,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u300b\u300a\u304b\u3093\u3058\uff5c\u304b\u3093\u3058\n\u300b\ud842\udfb7\u7530\ud842\udfb7\u7530a\u6f22\u5b57\ud842\udfb7\u7530\ud842\udfb7\u300b\ud842\udfb7\u7530\u3088\u3057\n\uff5c\u300a"
+    },
+    {
+      "text": "\uff5c|\u3000\u5409\u300a\u5409\n\n>>\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b",
+      "marks": [
+        {
+          "start": 10,
+          "end": 19,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\uff5c|\u3000\u5409\u300a\u5409\n\n>>\ud842\udfb7\u7530"
+    },
+    {
+      "text": "\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b \ud842\udfb7\u300b\uff5c\u5409\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\ud842\udfb7\u300a\u5409\u3000",
+      "marks": [
+        {
+          "start": 0,
+          "end": 9,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 9,
+          "end": 18,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 19,
+          "end": 28,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 28,
+          "end": 36,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 42,
+          "end": 51,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\ud842\udfb7\u7530\ud842\udfb7\u7530\uff5c\ud842\udfb7\u7530\u6f22\u5b57 \ud842\udfb7\u300b\uff5c\u5409\ud842\udfb7\u7530\ud842\udfb7\u300a\u5409\u3000"
+    },
+    {
+      "text": "\u3002\ud842\udfb7\u3088\u3057\u3002\uff5c|\u6f22\u5b57\uff5c\uff5c\uff5c>>\u3088\u3057|\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\u300a\uff5c\u6f22\u5b57\u845b\udb40\udd00",
+      "marks": [
+        {
+          "start": 18,
+          "end": 26,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u3002\ud842\udfb7\u3088\u3057\u3002\uff5c|\u6f22\u5b57\uff5c\uff5c\uff5c>>\u3088\u3057|\u6f22\u5b57\uff5c\u300a\uff5c\u6f22\u5b57\u845b\udb40\udd00"
+    },
+    {
+      "text": ">>|\u3088\u3057\u3088\u3057\u300b<<\u300a\u3088\u3057\n\ud842\udfb7 \u300b\u3002\u300a>> \u304b\u3093\u3058|a\uff5c\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u3002\u300a",
+      "marks": [
+        {
+          "start": 29,
+          "end": 38,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": ">>|\u3088\u3057\u3088\u3057\u300b<<\u300a\u3088\u3057\n\ud842\udfb7 \u300b\u3002\u300a>> \u304b\u3093\u3058|a\uff5c\ud842\udfb7\u7530\u3002\u300a"
+    },
+    {
+      "text": "\u300a \u300a\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u3088\u3057|\u300a \u300a\u300b<<<<\uff5c<<",
+      "marks": [
+        {
+          "start": 3,
+          "end": 11,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u300a \u300a\u6f22\u5b57\u3088\u3057|\u300a \u300a\u300b<<<<\uff5c<<"
+    },
+    {
+      "text": "\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [
+        {
+          "start": 1,
+          "end": 9,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u300b\u6f22\u5b57"
+    },
+    {
+      "text": "\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u3088\u3057>>\u300a>>|\u3002\u300ba\uff5c\uff5c \uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\n|\u300a|\u5409\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u3088\u3057\uff5c",
+      "marks": [
+        {
+          "start": 0,
+          "end": 8,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 22,
+          "end": 30,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 30,
+          "end": 39,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 45,
+          "end": 53,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 53,
+          "end": 61,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\u3088\u3057>>\u300a>>|\u3002\u300ba\uff5c\uff5c \u6f22\u5b57\ud842\udfb7\u7530\n|\u300a|\u5409\u300b\u6f22\u5b57\u6f22\u5b57\u3088\u3057\uff5c"
+    },
+    {
+      "text": "\u300a\uff5c<<\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u6f22\u5b57\u300a|\n\u300a\u304b\u3093\u3058\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u3088\u3057\u300aa\u845b\udb40\udd00",
+      "marks": [
+        {
+          "start": 4,
+          "end": 13,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 22,
+          "end": 30,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u300a\uff5c<<\ud842\udfb7\u7530\u6f22\u5b57\u300a|\n\u300a\u304b\u3093\u3058\u6f22\u5b57\u3088\u3057\u300aa\u845b\udb40\udd00"
+    },
+    {
+      "text": "\u300a\ud842\udfb7\u3000\u300a\n\u3088\u3057\u3002\u300b\u300b\u300a\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u6f22\u5b57\r\n\u6f22\u5b57\u5409\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\r\n\u3000\u3088\u3057\u3000\u304b\u3093\u3058",
+      "marks": [
+        {
+          "start": 12,
+          "end": 20,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 27,
+          "end": 36,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u300a\ud842\udfb7\u3000\u300a\n\u3088\u3057\u3002\u300b\u300b\u300a\u6f22\u5b57\u6f22\u5b57\r\n\u6f22\u5b57\u5409\ud842\udfb7\u7530\r\n\u3000\u3088\u3057\u3000\u304b\u3093\u3058"
+    },
+    {
+      "text": ">><<\u300ba\u6f22\u5b57\u300a\n",
+      "marks": [],
+      "stripped": ">><<\u300ba\u6f22\u5b57\u300a\n"
+    },
+    {
+      "text": "\u845b\udb40\udd00\ud83d\udc68\u200d\ud83d\udc69\n\u3002\u3000\ud842\udfb7",
+      "marks": [],
+      "stripped": "\u845b\udb40\udd00\ud83d\udc68\u200d\ud83d\udc69\n\u3002\u3000\ud842\udfb7"
+    },
+    {
+      "text": "\u3000\uff5c\u300a\ud83d\udc68\u200d\ud83d\udc69",
+      "marks": [],
+      "stripped": "\u3000\uff5c\u300a\ud83d\udc68\u200d\ud83d\udc69"
+    },
+    {
+      "text": "\u3002\u3000\u6f22\u5b57\u300a\u5409\u304b\u3093\u3058|\u5409\u3000\u3000\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\ud842\udfb7\n\ud842\udfb7\ud842\udfb7>>\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u5409",
+      "marks": [
+        {
+          "start": 13,
+          "end": 22,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 31,
+          "end": 39,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u3002\u3000\u6f22\u5b57\u300a\u5409\u304b\u3093\u3058|\u5409\u3000\u3000\ud842\udfb7\u7530\ud842\udfb7\n\ud842\udfb7\ud842\udfb7>>\u6f22\u5b57\u5409"
+    },
+    {
+      "text": "\u300b",
+      "marks": [],
+      "stripped": "\u300b"
+    },
+    {
+      "text": "\u5409",
+      "marks": [],
+      "stripped": "\u5409"
+    },
+    {
+      "text": " \uff5c\u3088\u3057\uff5ca\uff5c\n",
+      "marks": [],
+      "stripped": " \uff5c\u3088\u3057\uff5ca\uff5c\n"
+    },
+    {
+      "text": ">>\u3088\u3057\u300b\u845b\udb40\udd00\u6f22\u5b57\ud842\udfb7\u300a",
+      "marks": [],
+      "stripped": ">>\u3088\u3057\u300b\u845b\udb40\udd00\u6f22\u5b57\ud842\udfb7\u300a"
+    },
+    {
+      "text": "\u3088\u3057\na \ud83d\udc68\u200d\ud83d\udc69\ud842\udfb7\u300a<<\u300b>>\uff5c\r\n\uff5c\u6f22\u5b57>>\u5409",
+      "marks": [],
+      "stripped": "\u3088\u3057\na \ud83d\udc68\u200d\ud83d\udc69\ud842\udfb7\u300a<<\u300b>>\uff5c\r\n\uff5c\u6f22\u5b57>>\u5409"
+    },
+    {
+      "text": "\u3002\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b>>\u3002\u3088\u3057\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300aa\u304b\u3093\u3058\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57a\u3002\u3002 \uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b ",
+      "marks": [
+        {
+          "start": 8,
+          "end": 17,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 22,
+          "end": 31,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 47,
+          "end": 56,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u3002\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69\ud842\udfb7\u7530>>\u3002\u3088\u3057\ud842\udfb7\u7530\u300aa\u304b\u3093\u3058\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57a\u3002\u3002 \ud842\udfb7\u7530 "
+    },
+    {
+      "text": "\u3088\u3057\u3002\u304b\u3093\u3058\u300b \u6f22\u5b57\uff5ca\r\n\u300a\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\n\ud83d\udc68\u200d\ud83d\udc69\uff5c\u5409\n\n\ud842\udfb7>>\uff5c",
+      "marks": [
+        {
+          "start": 15,
+          "end": 23,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u3088\u3057\u3002\u304b\u3093\u3058\u300b \u6f22\u5b57\uff5ca\r\n\u300a\u6f22\u5b57\n\ud83d\udc68\u200d\ud83d\udc69\uff5c\u5409\n\n\ud842\udfb7>>\uff5c"
+    },
+    {
+      "text": "\ud83d\udc68\u200d\ud83d\udc69\u845b\udb40\udd00| \u3088\u3057|\u300a\u300a>><<\uff5c",
+      "marks": [],
+      "stripped": "\ud83d\udc68\u200d\ud83d\udc69\u845b\udb40\udd00| \u3088\u3057|\u300a\u300a>><<\uff5c"
+    },
+    {
+      "text": "\ud842\udfb7a\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b",
+      "marks": [
+        {
+          "start": 3,
+          "end": 11,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 11,
+          "end": 20,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\ud842\udfb7a\u6f22\u5b57\ud842\udfb7\u7530"
+    },
+    {
+      "text": ">>\u5409\n\u300b\n\u300a|\u304b\u3093\u3058\u300aa\u3000|>>\u3000\u300a|\u300b\u3000\ud842\udfb7\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b",
+      "marks": [
+        {
+          "start": 24,
+          "end": 33,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": ">>\u5409\n\u300b\n\u300a|\u304b\u3093\u3058\u300aa\u3000|>>\u3000\u300a|\u300b\u3000\ud842\udfb7\ud842\udfb7\u7530"
+    },
+    {
+      "text": "\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\r\n\u300ba\u845b\udb40\udd00",
+      "marks": [
+        {
+          "start": 0,
+          "end": 9,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\ud842\udfb7\u7530\r\n\u300ba\u845b\udb40\udd00"
+    },
+    {
+      "text": "\r\n\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\n\uff5c <<\u3000 \u300b\u3002\u5409\u304b\u3093\u3058\ud83d\udc68\u200d\ud83d\udc69\u3000\u845b\udb40\udd00\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300a\uff5c\u3002\u300b\u5409 ",
+      "marks": [
+        {
+          "start": 2,
+          "end": 11,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 33,
+          "end": 42,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\r\n\ud842\udfb7\u7530\n\uff5c <<\u3000 \u300b\u3002\u5409\u304b\u3093\u3058\ud83d\udc68\u200d\ud83d\udc69\u3000\u845b\udb40\udd00\ud842\udfb7\u7530\u300a\uff5c\u3002\u300b\u5409 "
+    },
+    {
+      "text": "\u300b\u6f22\u5b57\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\u300a\u304b\u3093\u3058<<\u3088\u3057\na<<\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\r\n\u845b\udb40\udd00\n\u300b>>\uff5c\ud83d\udc68\u200d\ud83d\udc69>>",
+      "marks": [
+        {
+          "start": 3,
+          "end": 12,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 25,
+          "end": 33,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u300b\u6f22\u5b57\ud842\udfb7\u7530\uff5c\u300a\u304b\u3093\u3058<<\u3088\u3057\na<<\u6f22\u5b57\r\n\u845b\udb40\udd00\n\u300b>>\uff5c\ud83d\udc68\u200d\ud83d\udc69>>"
+    },
+    {
+      "text": "a\uff5c\u845b\udb40\udd00\u845b\udb40\udd00\u300a\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u845b\udb40\udd00\n>>\n\n\uff5c\u3088\u3057a\u3088\u3057\u845b\udb40\udd00",
+      "marks": [
+        {
+          "start": 9,
+          "end": 17,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "a\uff5c\u845b\udb40\udd00\u845b\udb40\udd00\u300a\u6f22\u5b57\u845b\udb40\udd00\n>>\n\n\uff5c\u3088\u3057a\u3088\u3057\u845b\udb40\udd00"
+    },
+    {
+      "text": "\u6f22\u5b57<<\u845b\udb40\udd00\uff5c\u3000\u845b\udb40\udd00\ud842\udfb7\r\n \u6f22\u5b57\u304b\u3093\u3058a \uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u5409\ud842\udfb7\u5409|",
+      "marks": [
+        {
+          "start": 24,
+          "end": 33,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\u6f22\u5b57<<\u845b\udb40\udd00\uff5c\u3000\u845b\udb40\udd00\ud842\udfb7\r\n \u6f22\u5b57\u304b\u3093\u3058a \ud842\udfb7\u7530\u5409\ud842\udfb7\u5409|"
+    },
+    {
+      "text": "\uff5c\u845b\udb40\udd00\ud83d\udc68\u200d\ud83d\udc69\uff5c\u845b\udb40\udd00\u5409\uff5c \ud842\udfb7\u300a\u3000\u3088\u3057\uff5c\u300a\u304b\u3093\u3058\u304b\u3093\u3058\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b",
+      "marks": [
+        {
+          "start": 30,
+          "end": 39,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\uff5c\u845b\udb40\udd00\ud83d\udc68\u200d\ud83d\udc69\uff5c\u845b\udb40\udd00\u5409\uff5c \ud842\udfb7\u300a\u3000\u3088\u3057\uff5c\u300a\u304b\u3093\u3058\u304b\u3093\u3058\ud842\udfb7\u7530"
+    },
+    {
+      "text": "\u3088\u3057|\u3088\u3057|\u3088\u3057\u3088\u3057",
+      "marks": [],
+      "stripped": "\u3088\u3057|\u3088\u3057|\u3088\u3057\u3088\u3057"
+    },
+    {
+      "text": "|\u845b\udb40\udd00\u3002\u3088\u3057\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u845b\udb40\udd00\u3002\uff5c\u845b\udb40\udd00\u6f22\u5b57\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300ba\r\n\u3088\u3057|\u5409\u3000\u845b\udb40\udd00\u300a",
+      "marks": [
+        {
+          "start": 7,
+          "end": 15,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 25,
+          "end": 34,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "|\u845b\udb40\udd00\u3002\u3088\u3057\u6f22\u5b57\u845b\udb40\udd00\u3002\uff5c\u845b\udb40\udd00\u6f22\u5b57\ud842\udfb7\u7530a\r\n\u3088\u3057|\u5409\u3000\u845b\udb40\udd00\u300a"
+    },
+    {
+      "text": "\u6f22\u5b57\r\n\u300b  \r\n\n\ud83d\udc68\u200d\ud83d\udc69\u3000",
+      "marks": [],
+      "stripped": "\u6f22\u5b57\r\n\u300b  \r\n\n\ud83d\udc68\u200d\ud83d\udc69\u3000"
+    },
+    {
+      "text": "\uff5c|\n\u300a\uff5c\ud842\udfb7\u300a\u300b\ud842\udfb7<<\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u304b\u3093\u3058\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\ud83d\udc68\u200d\ud83d\udc69\u304b\u3093\u3058\uff5c\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b \uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b",
+      "marks": [
+        {
+          "start": 13,
+          "end": 21,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 24,
+          "end": 32,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 41,
+          "end": 50,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 51,
+          "end": 60,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\uff5c|\n\u300a\uff5c\ud842\udfb7\u300a\u300b\ud842\udfb7<<\u6f22\u5b57\u304b\u3093\u3058\u6f22\u5b57\ud83d\udc68\u200d\ud83d\udc69\u304b\u3093\u3058\uff5c\ud842\udfb7\u7530 \ud842\udfb7\u7530"
+    },
+    {
+      "text": "\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u5409\r\n<<\u3002\u6f22\u5b57|a",
+      "marks": [
+        {
+          "start": 0,
+          "end": 9,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\ud842\udfb7\u7530\u5409\r\n<<\u3002\u6f22\u5b57|a"
+    },
+    {
+      "text": "\ud842\udfb7\uff5c\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u3002",
+      "marks": [
+        {
+          "start": 3,
+          "end": 12,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\ud842\udfb7\uff5c\ud842\udfb7\u7530\u3002"
+    },
+    {
+      "text": "",
+      "marks": [],
+      "stripped": ""
+    },
+    {
+      "text": "\uff5c\u300a\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u5409\u300a\u300b\uff5c\u6f22\u5b57\u5409\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\u300b\u845b\udb40\udd00\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\ud83d\udc68\u200d\ud83d\udc69\u5409\n ",
+      "marks": [
+        {
+          "start": 2,
+          "end": 11,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 29,
+          "end": 38,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\uff5c\u300a\ud842\udfb7\u7530\u5409\u300a\u300b\uff5c\u6f22\u5b57\u5409\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57\u300b\u845b\udb40\udd00\ud842\udfb7\u7530\ud83d\udc68\u200d\ud83d\udc69\u5409\n "
+    },
+    {
+      "text": "\u6f22\u5b57\u304b\u3093\u3058\u845b\udb40\udd00\u300b\u6f22\u5b57\u300a\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\uff5c\u300a\u300b\u3000\u5409\ud842\udfb7\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b",
+      "marks": [
+        {
+          "start": 12,
+          "end": 21,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 28,
+          "end": 36,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\u6f22\u5b57\u304b\u3093\u3058\u845b\udb40\udd00\u300b\u6f22\u5b57\u300a\ud842\udfb7\u7530\uff5c\u300a\u300b\u3000\u5409\ud842\udfb7\u6f22\u5b57"
+    },
+    {
+      "text": "\r\n\u3088\u3057\u6f22\u5b57\u6f22\u5b57\ud842\udfb7\u300a\uff5c\n\uff5c\uff5c\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300b",
+      "marks": [
+        {
+          "start": 16,
+          "end": 24,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\r\n\u3088\u3057\u6f22\u5b57\u6f22\u5b57\ud842\udfb7\u300a\uff5c\n\uff5c\uff5c\u300b\u6f22\u5b57\u300b"
+    },
+    {
+      "text": "\ud83d\udc68\u200d\ud83d\udc69a\u304b\u3093\u3058a\ud83d\udc68\u200d\ud83d\udc69\uff5c\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u300a\ud83d\udc68\u200d\ud83d\udc69\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b<<",
+      "marks": [
+        {
+          "start": 16,
+          "end": 25,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 31,
+          "end": 39,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\ud83d\udc68\u200d\ud83d\udc69a\u304b\u3093\u3058a\ud83d\udc68\u200d\ud83d\udc69\uff5c\ud842\udfb7\u7530\u300a\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57<<"
+    },
+    {
+      "text": "\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\n\n\u304b\u3093\u3058\u300a\u845b\udb40\udd00\r\n \n\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300ba|a\u6f22\u5b57\u845b\udb40\udd00\uff5c\u3002\n \u3088\u3057\r\n|",
+      "marks": [
+        {
+          "start": 0,
+          "end": 9,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 22,
+          "end": 31,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\ud842\udfb7\u7530\n\n\u304b\u3093\u3058\u300a\u845b\udb40\udd00\r\n \n\ud842\udfb7\u7530a|a\u6f22\u5b57\u845b\udb40\udd00\uff5c\u3002\n \u3088\u3057\r\n|"
+    },
+    {
+      "text": "\u300a\u6f22\u5b57\r\n\u300b>>\u300a\u300a\u3088\u3057\u3000\u300a\u304b\u3093\u3058\ud83d\udc68\u200d\ud83d\udc69\uff5c\u300b<<\u300b\u300a\u3002a",
+      "marks": [],
+      "stripped": "\u300a\u6f22\u5b57\r\n\u300b>>\u300a\u300a\u3088\u3057\u3000\u300a\u304b\u3093\u3058\ud83d\udc68\u200d\ud83d\udc69\uff5c\u300b<<\u300b\u300a\u3002a"
+    },
+    {
+      "text": ">>\uff5c\u300a\u300b\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b|\u300a\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u5409\u5409\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\r\na|\u300b\ud83d\udc68\u200d\ud83d\udc69\uff5c\u300b\uff5c\r\n",
+      "marks": [
+        {
+          "start": 5,
+          "end": 13,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 15,
+          "end": 24,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 26,
+          "end": 35,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": ">>\uff5c\u300a\u300b\u6f22\u5b57|\u300a\ud842\udfb7\u7530\u5409\u5409\ud842\udfb7\u7530\r\na|\u300b\ud83d\udc68\u200d\ud83d\udc69\uff5c\u300b\uff5c\r\n"
+    },
+    {
+      "text": "\ud842\udfb7\u304b\u3093\u3058\ud842\udfb7\u845b\udb40\udd00\u300a\u300a",
+      "marks": [],
+      "stripped": "\ud842\udfb7\u304b\u3093\u3058\ud842\udfb7\u845b\udb40\udd00\u300a\u300a"
+    },
+    {
+      "text": "\uff5ca\uff5c\u300a\u3000\na\u3002\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b||\u300a\u300b\u6f22\u5b57>>\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b>>",
+      "marks": [
+        {
+          "start": 8,
+          "end": 17,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        },
+        {
+          "start": 25,
+          "end": 33,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        }
+      ],
+      "stripped": "\uff5ca\uff5c\u300a\u3000\na\u3002\ud842\udfb7\u7530||\u300a\u300b\u6f22\u5b57>>\u6f22\u5b57>>"
+    },
+    {
+      "text": "\uff5c ",
+      "marks": [],
+      "stripped": "\uff5c "
+    },
+    {
+      "text": "",
+      "marks": [],
+      "stripped": ""
+    },
+    {
+      "text": "\uff5c\u300a<<\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57>>\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\u304b\u3093\u3058\n|\n<<",
+      "marks": [
+        {
+          "start": 13,
+          "end": 22,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\uff5c\u300a<<\ud83d\udc68\u200d\ud83d\udc69\u6f22\u5b57>>\ud842\udfb7\u7530\u304b\u3093\u3058\n|\n<<"
+    },
+    {
+      "text": "\r\n\u3002\u3088\u3057\u300b\uff5c\uff5ca\u300a\n\uff5c\u6f22\u5b57\u300a\u304b\u3093\u3058\u300b\u300a\u3002\uff5c\ud842\udfb7\u7530\u300a\u3088\u3057\u3060\u300b\ud83d\udc68\u200d\ud83d\udc69",
+      "marks": [
+        {
+          "start": 11,
+          "end": 19,
+          "base": "\u6f22\u5b57",
+          "reading": "\u304b\u3093\u3058"
+        },
+        {
+          "start": 21,
+          "end": 30,
+          "base": "\ud842\udfb7\u7530",
+          "reading": "\u3088\u3057\u3060"
+        }
+      ],
+      "stripped": "\r\n\u3002\u3088\u3057\u300b\uff5c\uff5ca\u300a\n\u6f22\u5b57\u300a\u3002\ud842\udfb7\u7530\ud83d\udc68\u200d\ud83d\udc69"
+    }
+  ]
+}
