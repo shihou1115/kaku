@@ -51,7 +51,8 @@ fn writes_scene_detects_mentions_and_builds_context() {
     assert_eq!(codex.len(), 2);
     let kasumi = codex.iter().find(|c| c.title == "佐藤架純").unwrap();
     assert_eq!(kasumi.aliases, vec!["架純", "かすみん"]);
-    assert_eq!(kasumi.type_.as_deref(), Some("characters"));
+    // type 省略分は種別フォルダから決まる(フロントマターに書くときと同じ単数の名前)
+    assert_eq!(kasumi.type_.as_deref(), Some("character"));
 
     // 5. 本文から言及を検出する(正式名・別名・地名)
     let patterns: Vec<String> = codex.iter().flat_map(|c| c.patterns()).collect();
