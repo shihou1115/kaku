@@ -63,24 +63,85 @@ fn is_variation_selector(c: char) -> bool {
     matches!(c, '\u{FE00}'..='\u{FE0F}' | '\u{E0100}'..='\u{E01EF}')
 }
 
-/// 照合に使う形。**異体字セレクタを除く**(テスト計画 A2)。
-/// 字の形の違いは表記ゆれ(誤変換)ではない。見た目には同じ字なので、
-/// 「1文字違い」と言われても本人には違いが分からない
-fn without_selectors(s: &str) -> String {
-    s.chars().filter(|c| !is_variation_selector(*c)).collect()
+/// 分かれた濁点・半濁点(U+3099・U+309A)。Mac で作った文字列(NFD)では
+/// 「ゴ」が「コ」+濁点の2文字になる(テスト計画 B7)
+fn is_kana_mark(c: char) -> bool {
+    matches!(c, '\u{3099}' | '\u{309A}')
+}
+
+/// 直前の字に付いて1文字を成すもの。語の切れ目にしない
+fn continues_word(c: char) -> bool {
+    is_variation_selector(c) || is_kana_mark(c)
+}
+
+/// 仮名と、分かれた濁点・半濁点を1文字にする(「コ」+濁点 →「ゴ」)。Unicode の NFC と同じ結果。
+/// 付けられない組み合わせは None
+fn compose_kana(base: char, mark: char) -> Option<char> {
+    // 平仮名で、濁点を付けると次の符号位置になる字(か〜こ・さ〜そ・た ち つ て と・は〜ほ・ゝ)。
+    // 片仮名は同じ並びで 0x60 後ろにある
+    fn voices_to_next(b: u32) -> bool {
+        matches!(
+            b,
+            0x304B | 0x304D | 0x304F | 0x3051 | 0x3053 // か〜こ
+                | 0x3055 | 0x3057 | 0x3059 | 0x305B | 0x305D // さ〜そ
+                | 0x305F | 0x3061 | 0x3064 | 0x3066 | 0x3068 // た ち つ て と
+                | 0x306F | 0x3072 | 0x3075 | 0x3078 | 0x307B // は〜ほ
+                | 0x309D // ゝ
+        )
+    }
+    let b = base as u32;
+    let hiragana_of = |b: u32| if (0x30A0..=0x30FF).contains(&b) { b - 0x60 } else { b };
+    let composed = match mark {
+        '\u{3099}' if voices_to_next(hiragana_of(b)) => b + 1,
+        '\u{3099}' => match b {
+            0x3046 => 0x3094, // う → ゔ
+            0x30A6 => 0x30F4, // ウ → ヴ
+            0x30EF..=0x30F2 => b + 8, // ワ ヰ ヱ ヲ → ヷ ヸ ヹ ヺ
+            _ => return None,
+        },
+        // 半濁点は、は行だけ(ぱ・パは2つ後ろ)
+        '\u{309A}' if matches!(hiragana_of(b), 0x306F | 0x3072 | 0x3075 | 0x3078 | 0x307B) => b + 2,
+        _ => return None,
+    };
+    char::from_u32(composed)
+}
+
+/// 照合に使う形(テスト計画 A2・B7)。本文は書き換えず、比べるときだけこの形にする。
+///
+/// - **異体字セレクタを除く**。字の形の違いは表記ゆれ(誤変換)ではない。見た目には同じ字なので、
+///   「1文字違い」と言われても本人には違いが分からない
+/// - **分かれた濁点・半濁点を前の仮名と1文字にする**(NFD → NFC)。Mac で書かれた「ゴロウ」は
+///   見た目も読みも登録名「ゴロウ」と同じ
+fn match_key(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        if is_variation_selector(c) {
+            continue;
+        }
+        if is_kana_mark(c) {
+            if let Some(composed) = out.chars().last().and_then(|prev| compose_kana(prev, c)) {
+                out.pop();
+                out.push(composed);
+                continue;
+            }
+        }
+        out.push(c);
+    }
+    out
 }
 
 /// 本文から候補語(漢字・カタカナの連なり)を位置つきで切り出す。
 ///
-/// 異体字セレクタは語の続きとして含める。以前は語の切れ目にしていたため、
+/// 異体字セレクタと分かれた濁点・半濁点は語の続きとして含める。以前は語の切れ目にしていたため、
 /// 「葛󠄀城悠二」が「葛」と「城悠二」に割れ、「城悠二」が「葛城悠二」の脱字として挙がり、
-/// 置換すると「葛󠄀葛城悠二」になった
+/// 置換すると「葛󠄀葛城悠二」になった。Mac で書かれた「ゴロウ」(コ+濁点+ロウ)でも
+/// 「ロウ」が「ゴロウ」の脱字として挙がり、置換すると「ゴゴロウ」に見える本文になった
 fn candidates(text: &str) -> Vec<(String, usize)> {
     let mut out = Vec::new();
     let mut buf = String::new();
     let mut start = 0usize;
     for (idx, c) in text.char_indices() {
-        if is_name_char(c) || (is_variation_selector(c) && !buf.is_empty()) {
+        if is_name_char(c) || (continues_word(c) && !buf.is_empty()) {
             if buf.is_empty() {
                 start = idx;
             }
@@ -93,7 +154,7 @@ fn candidates(text: &str) -> Vec<(String, usize)> {
         out.push((buf, start));
     }
     out.retain(|(s, _)| {
-        let n = without_selectors(s).chars().count();
+        let n = match_key(s).chars().count();
         (MIN_LEN..=MAX_LEN).contains(&n)
     });
     out
@@ -133,18 +194,18 @@ pub fn check_notation(text: &str, names: &[String]) -> Vec<NotationHit> {
     let known: Vec<String> = names
         .iter()
         .map(|s| s.trim().to_string())
-        .filter(|s| without_selectors(s).chars().count() >= MIN_LEN)
+        .filter(|s| match_key(s).chars().count() >= MIN_LEN)
         .collect();
     if known.is_empty() || text.is_empty() {
         return Vec::new();
     }
-    // 照合は異体字セレクタを除いた形で行う(置き換える名前は登録どおりの形)
-    let known_keys: Vec<String> = known.iter().map(|s| without_selectors(s)).collect();
+    // 照合は match_key の形で行う(置き換える名前は登録どおりの形)
+    let known_keys: Vec<String> = known.iter().map(|s| match_key(s)).collect();
     let known_chars: Vec<Vec<char>> = known_keys.iter().map(|s| s.chars().collect()).collect();
     let to_utf16 = Utf16Map::new(text);
 
-    // 登録名が本文に何回出るか(確度の判定に使う)。字の形の違いは同じ名前として数える
-    let plain_text = without_selectors(text);
+    // 登録名が本文に何回出るか(確度の判定に使う)。字の形や濁点の分かれ方の違いは同じ名前として数える
+    let plain_text = match_key(text);
     let count_of = |needle: &str| -> usize {
         if needle.is_empty() {
             0
@@ -157,7 +218,7 @@ pub fn check_notation(text: &str, names: &[String]) -> Vec<NotationHit> {
     let mut grouped: Vec<(String, Vec<usize>)> = Vec::new();
     for (word, byte_pos) in candidates(text) {
         // 登録名そのもの(字の形だけが違うものを含む)は対象外
-        if known_keys.contains(&without_selectors(&word)) {
+        if known_keys.contains(&match_key(&word)) {
             continue;
         }
         match grouped.iter_mut().find(|(w, _)| *w == word) {
@@ -168,7 +229,7 @@ pub fn check_notation(text: &str, names: &[String]) -> Vec<NotationHit> {
 
     let mut hits = Vec::new();
     for (word, positions) in grouped {
-        let word_key = without_selectors(&word);
+        let word_key = match_key(&word);
         let wchars: Vec<char> = word_key.chars().collect();
         // 最も近い登録名を1つだけ選ぶ(複数該当時は先に登録された方)
         let Some(idx) = known_chars
@@ -748,6 +809,71 @@ mod tests {
     fn compound_word_with_variant_glyph_is_not_a_typo() {
         let text = "悠\u{E0100}二郎が来た。";
         assert!(check_notation(text, &names(&["悠二"])).is_empty());
+    }
+
+    /// 仮名と濁点・半濁点の組み合わせは、Unicode の NFC と同じに1文字になる。
+    /// 期待値は JS の `String.prototype.normalize("NFC")` で U+3040〜U+30FF の全仮名に
+    /// 濁点・半濁点を付けて作った一覧(1文字になる58組。+ は濁点、* は半濁点)
+    #[test]
+    fn compose_kana_agrees_with_unicode_nfc() {
+        const NFC: &str = "3046+3094 304b+304c 304d+304e 304f+3050 3051+3052 3053+3054 3055+3056 \
+            3057+3058 3059+305a 305b+305c 305d+305e 305f+3060 3061+3062 3064+3065 3066+3067 \
+            3068+3069 306f+3070 306f*3071 3072+3073 3072*3074 3075+3076 3075*3077 3078+3079 \
+            3078*307a 307b+307c 307b*307d 309d+309e 30a6+30f4 30ab+30ac 30ad+30ae 30af+30b0 \
+            30b1+30b2 30b3+30b4 30b5+30b6 30b7+30b8 30b9+30ba 30bb+30bc 30bd+30be 30bf+30c0 \
+            30c1+30c2 30c4+30c5 30c6+30c7 30c8+30c9 30cf+30d0 30cf*30d1 30d2+30d3 30d2*30d4 \
+            30d5+30d6 30d5*30d7 30d8+30d9 30d8*30da 30db+30dc 30db*30dd 30ef+30f7 30f0+30f8 \
+            30f1+30f9 30f2+30fa 30fd+30fe";
+        let mut expected = std::collections::HashMap::new();
+        for pair in NFC.split_whitespace() {
+            let (mark, (b, c)) = match pair.split_once('+') {
+                Some(bc) => ('\u{3099}', bc),
+                None => ('\u{309A}', pair.split_once('*').unwrap()),
+            };
+            let ch = |h: &str| char::from_u32(u32::from_str_radix(h, 16).unwrap()).unwrap();
+            expected.insert((ch(b), mark), ch(c));
+        }
+        assert_eq!(expected.len(), 58);
+        for b in 0x3040..=0x30FFu32 {
+            let Some(base) = char::from_u32(b) else { continue };
+            for mark in ['\u{3099}', '\u{309A}'] {
+                assert_eq!(
+                    compose_kana(base, mark),
+                    expected.get(&(base, mark)).copied(),
+                    "U+{b:04X} + U+{:04X}",
+                    mark as u32
+                );
+            }
+        }
+    }
+
+    /// テスト計画 B7: 濁点が分かれた名前(Mac で書かれた NFD)は語を割らず、登録名と同じに扱う。
+    /// 割ると「ロウ」が「ゴロウ」の脱字として挙がり、置換で「ゴゴロウ」に見える本文になった
+    #[test]
+    fn separated_dakuten_does_not_split_or_differ_from_the_name() {
+        let hits = check_notation("コ\u{3099}ロウが来た。", &names(&["ゴロウ"]));
+        assert!(hits.is_empty(), "濁点で語が割れた: {hits:?}");
+        // 半濁点・長い名前・登録名の側が NFD の場合も
+        assert!(check_notation("ハ\u{309A}ンを買う。", &names(&["パン"])).is_empty());
+        assert!(check_notation("カ\u{3099}イト\u{3099}ブックを開く。", &names(&["ガイドブック"])).is_empty());
+        assert!(check_notation("ゴロウが来た。", &names(&["コ\u{3099}ロウ"])).is_empty());
+    }
+
+    /// 濁点が分かれた語でも本当の誤記は拾い、位置は濁点ごと語全体を覆う
+    #[test]
+    fn typo_in_a_word_with_separated_dakuten_is_still_found() {
+        let text = "コ\u{3099}ロオが来た。";
+        let hits = check_notation(text, &names(&["ゴロウ"]));
+        assert_eq!(hits.len(), 1, "{hits:?}");
+        assert_eq!(hits[0].candidate, "コ\u{3099}ロオ");
+        assert_eq!(hits[0].suggestion, "ゴロウ");
+        assert_eq!(
+            hits[0].occurrences,
+            vec![Span {
+                start_utf16: 0,
+                end_utf16: 4
+            }]
+        );
     }
 
     /// 1字の語は候補にしない(誤検出が多すぎる)。異体字セレクタが付いても1字は1字
