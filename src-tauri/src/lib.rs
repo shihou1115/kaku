@@ -237,12 +237,49 @@ struct OpenedProject {
     codex: Vec<CodexEntry>,
 }
 
-/// 指定フォルダをプロジェクトとして開く。空フォルダなら初期構成を作る。
+/// フォルダーを開いた(作った)結果。
+///
+/// **人が置いたものがあるフォルダーに骨組みを作る前は、本人に聞く**(テスト計画 B2)。
+/// `NeedsConfirm` を返したときは何も作っていない。了承を得たら `confirmed: true` で呼び直す
+#[derive(Serialize)]
+#[serde(tag = "kind")]
+enum OpenOutcome {
+    Opened(OpenedProject),
+    NeedsConfirm {
+        existing: usize,
+        will_create: Vec<String>,
+    },
+}
+
+fn needs_confirm(check: project::OpenCheck) -> Option<OpenOutcome> {
+    match check {
+        project::OpenCheck::Ready => None,
+        project::OpenCheck::NeedsConfirm {
+            existing,
+            will_create,
+        } => Some(OpenOutcome::NeedsConfirm {
+            existing,
+            will_create,
+        }),
+    }
+}
+
+/// 指定フォルダをプロジェクトとして開く。プロジェクトでなければ骨組みを作る
+/// (空でないフォルダーなら、先に本人の了承を得る)。
 #[tauri::command]
-fn open_project(path: String, state: State<AppState>) -> Result<OpenedProject, String> {
+fn open_project(
+    path: String,
+    confirmed: bool,
+    state: State<AppState>,
+) -> Result<OpenOutcome, String> {
     let root = PathBuf::from(&path);
     if !root.is_dir() {
         return Err(format!("フォルダが見つかりません: {path}"));
+    }
+    if !confirmed {
+        if let Some(ask) = needs_confirm(project::check_open(&root).map_err(to_msg)?) {
+            return Ok(ask);
+        }
     }
     // manuscript/ が無ければ新規プロジェクトとして初期化する
     if !root.join("manuscript").is_dir() {
@@ -260,12 +297,12 @@ fn open_project(path: String, state: State<AppState>) -> Result<OpenedProject, S
     if let Ok(ai) = state.ai.lock() {
         persist_settings(&ai, Some(root_str.clone()));
     }
-    Ok(OpenedProject {
+    Ok(OpenOutcome::Opened(OpenedProject {
         root: root_str,
         name,
         tree,
         codex,
-    })
+    }))
 }
 
 /// 前回開いたプロジェクトの場所。起動時に開き直すために使う。
@@ -290,10 +327,20 @@ fn last_project() -> Option<String> {
 /// 空のプロジェクトでは何ができるアプリなのか分からないので、
 /// **触りながら学べる素材**を用意する。既存ファイルは上書きしない。
 #[tauri::command]
-fn create_sample_project(path: String, state: State<AppState>) -> Result<OpenedProject, String> {
+fn create_sample_project(
+    path: String,
+    confirmed: bool,
+    state: State<AppState>,
+) -> Result<OpenOutcome, String> {
     let root = PathBuf::from(&path);
     if !root.is_dir() {
         return Err(format!("フォルダが見つかりません: {path}"));
+    }
+    // 空でなければ先に聞く(本人の原稿のフォルダーを選び間違えると、サンプルが混ざる)
+    if !confirmed {
+        if let Some(ask) = needs_confirm(project::check_sample(&root).map_err(to_msg)?) {
+            return Ok(ask);
+        }
     }
     sample::create(&root).map_err(to_msg)?;
     let name = root
@@ -306,12 +353,12 @@ fn create_sample_project(path: String, state: State<AppState>) -> Result<OpenedP
     if let Ok(ai) = state.ai.lock() {
         persist_settings(&ai, Some(root_str.clone()));
     }
-    Ok(OpenedProject {
+    Ok(OpenOutcome::Opened(OpenedProject {
         root: root_str,
         name,
         tree: project::scan(&root).map_err(to_msg)?,
         codex: project::load_codex(&root).map_err(to_msg)?,
-    })
+    }))
 }
 
 /// ツリーと codex を読み直す(ファイル作成後などに呼ぶ)

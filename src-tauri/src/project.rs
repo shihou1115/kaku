@@ -116,6 +116,84 @@ pub fn init(root: &Path) -> Result<(), ProjectError> {
     Ok(())
 }
 
+/// フォルダーを開く・サンプルを作る前の判断(テスト計画 B2)
+#[derive(Debug, PartialEq, Eq)]
+pub enum OpenCheck {
+    /// そのまま進めてよい
+    Ready,
+    /// 人が置いたものがあるフォルダー。ここに作る前に本人に聞く
+    NeedsConfirm {
+        /// 人が置いたものの数
+        existing: usize,
+        /// 作ることになるもの(確認の文面に出す)
+        will_create: Vec<String>,
+    },
+}
+
+/// 「プロジェクトを開く」で選ばれたフォルダーを確かめる。**ここでは何も作らない。**
+///
+/// 以前は `manuscript/` が無ければ、空でなくても確認なしに骨組み(十数個のフォルダーと
+/// `project.md`)を作っていた。デスクトップのようなフォルダーを選び間違えると散らかる。
+/// 既存のプロジェクトと空のフォルダーはそのまま進め、それ以外は聞く
+/// (手元の原稿フォルダーをそのままプロジェクトにする使い方は、聞いたうえで残す)。
+pub fn check_open(root: &Path) -> Result<OpenCheck, ProjectError> {
+    if root.join("manuscript").is_dir() {
+        return Ok(OpenCheck::Ready);
+    }
+    check_empty(root)
+}
+
+/// 「サンプルを試す」で選ばれたフォルダーを確かめる。**空のときだけ**そのまま進める。
+///
+/// 既存のプロジェクト(本人の原稿)を選び間違えると、サンプルの原稿と設定が混ざる。
+pub fn check_sample(root: &Path) -> Result<OpenCheck, ProjectError> {
+    check_empty(root)
+}
+
+fn check_empty(root: &Path) -> Result<OpenCheck, ProjectError> {
+    let existing = user_entries(root)?;
+    if existing == 0 {
+        return Ok(OpenCheck::Ready);
+    }
+    Ok(OpenCheck::NeedsConfirm {
+        existing,
+        will_create: skeleton_missing(root),
+    })
+}
+
+/// 人が置いたものの数。隠しファイルと、OS や同期ソフトが置くもの(desktop.ini など)は数えない
+fn user_entries(root: &Path) -> Result<usize, ProjectError> {
+    Ok(fs::read_dir(root)?
+        .filter_map(|e| e.ok())
+        .filter(|e| {
+            let n = e.file_name().to_string_lossy().to_lowercase();
+            !n.starts_with('.') && n != "desktop.ini" && n != "thumbs.db"
+        })
+        .count())
+}
+
+/// `init` が作るもののうち、まだ無いもの
+fn skeleton_missing(root: &Path) -> Vec<String> {
+    let mut out: Vec<String> = TOP_DIRS
+        .iter()
+        .filter(|d| !root.join(d).exists())
+        .map(|d| {
+            if *d == "codex" {
+                format!("{d}/({})", CODEX_DIRS.join("・"))
+            } else {
+                format!("{d}/")
+            }
+        })
+        .collect();
+    if !root.join(APP_DIR).exists() {
+        out.push(format!("{APP_DIR}/(バックアップ・ログ・ゴミ箱)"));
+    }
+    if !root.join("project.md").exists() {
+        out.push("project.md".to_string());
+    }
+    out
+}
+
 fn write_new(path: &Path, content: &str) -> Result<(), ProjectError> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
@@ -879,6 +957,68 @@ mod tests {
         assert!(root.join(".app/backups").is_dir());
         assert!(root.join("project.md").is_file());
         fs::remove_dir_all(root).ok();
+    }
+
+    /// テスト計画 B2: プロジェクトでない、空でないフォルダーは、**何も作らずに**確認を求める
+    #[test]
+    fn opening_a_folder_with_things_in_it_asks_first() {
+        let root = tmp();
+        fs::write(root.join("買い物メモ.txt"), "牛乳").unwrap();
+        fs::create_dir_all(root.join("写真")).unwrap();
+        // 隠しファイルと OS・同期ソフトが置くものは数えない
+        fs::write(root.join("desktop.ini"), "").unwrap();
+        fs::write(root.join(".hidden"), "").unwrap();
+
+        match check_open(&root).unwrap() {
+            OpenCheck::NeedsConfirm {
+                existing,
+                will_create,
+            } => {
+                assert_eq!(existing, 2);
+                assert!(will_create.iter().any(|w| w.starts_with("manuscript/")));
+                assert!(will_create.iter().any(|w| w.starts_with("codex/(characters")));
+                assert!(will_create.contains(&"project.md".to_string()));
+            }
+            other => panic!("確認を求めていない: {other:?}"),
+        }
+        // 確かめただけでは何も作らない
+        assert!(!root.join("manuscript").exists());
+        assert!(!root.join(".app").exists());
+        fs::remove_dir_all(root).ok();
+    }
+
+    /// 空のフォルダー(隠しファイルだけのものを含む)と、既存のプロジェクトはそのまま開く
+    #[test]
+    fn empty_folders_and_projects_open_without_asking() {
+        let empty = tmp();
+        assert_eq!(check_open(&empty).unwrap(), OpenCheck::Ready);
+        fs::write(empty.join("desktop.ini"), "").unwrap();
+        assert_eq!(check_open(&empty).unwrap(), OpenCheck::Ready);
+
+        let project = tmp();
+        init(&project).unwrap();
+        create_file(&project, "manuscript/01.md", "本文").unwrap();
+        assert_eq!(check_open(&project).unwrap(), OpenCheck::Ready);
+        fs::remove_dir_all(empty).ok();
+        fs::remove_dir_all(project).ok();
+    }
+
+    /// サンプルは空のフォルダーにだけ黙って作る。**既存のプロジェクトでも聞く**
+    /// (本人の原稿を選び間違えると、サンプルの原稿と設定が混ざる)
+    #[test]
+    fn sample_asks_unless_the_folder_is_empty() {
+        let empty = tmp();
+        assert_eq!(check_sample(&empty).unwrap(), OpenCheck::Ready);
+
+        let project = tmp();
+        init(&project).unwrap();
+        create_file(&project, "manuscript/01.md", "本人の原稿").unwrap();
+        assert!(matches!(
+            check_sample(&project).unwrap(),
+            OpenCheck::NeedsConfirm { .. }
+        ));
+        fs::remove_dir_all(empty).ok();
+        fs::remove_dir_all(project).ok();
     }
 
     #[test]

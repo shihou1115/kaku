@@ -171,6 +171,13 @@ export default function App() {
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  /** 人が置いたものがあるフォルダーに、プロジェクトの骨組みを作ってよいかを聞く(テスト計画 B2) */
+  const [initAsk, setInitAsk] = useState<{
+    path: string;
+    sample: boolean;
+    existing: number;
+    willCreate: string[];
+  } | null>(null);
   /** 保存に失敗したまま閉じようとしたとき。捨ててよいかを本人に聞く */
   const [closeAsk, setCloseAsk] = useState(false);
   /** 外部編集との競合(T-08)。別名保存か破棄かを選んでもらう */
@@ -655,7 +662,9 @@ export default function App() {
       try {
         const path = await api.lastProject();
         if (!path) return;
+        // 前回開いていた = プロジェクトなので確認は出ない。万一出ても黙って空状態のまま
         const p = await api.openProject(path);
+        if (p.kind !== "Opened") return;
         setProject(p);
         setStatus(`「${p.name}」を開きました`);
       } catch {
@@ -666,6 +675,49 @@ export default function App() {
 
   // ===== ファイル操作 =====
 
+  /** 開いた(作った)プロジェクトへ切り替える */
+  const adopt = useCallback(
+    (p: OpenedProject, message: string) => {
+      setProject(p);
+      // 前のプロジェクトの本文をエディタに残さない(読み取り専用で見え続けていた)
+      closeFile();
+      setRefPath(null);
+      setRefText("");
+      setStatus(message);
+    },
+    [closeFile],
+  );
+
+  /**
+   * 選んだフォルダーを開く(サンプルなら作る)。
+   *
+   * **人が置いたものがあるフォルダーに骨組みを作る前は、確認の窓を出して止まる**
+   * (テスト計画 B2)。以前はデスクトップのようなフォルダーでも黙って十数個の
+   * フォルダーを作っていた。了承を得たら confirmed で呼び直す
+   */
+  const openPicked = useCallback(
+    async (path: string, sample: boolean, confirmed: boolean) => {
+      try {
+        const r = sample
+          ? await api.createSampleProject(path, confirmed)
+          : await api.openProject(path, confirmed);
+        if (r.kind === "NeedsConfirm") {
+          setInitAsk({ path, sample, existing: r.existing, willCreate: r.will_create });
+          return;
+        }
+        adopt(
+          r,
+          sample
+            ? "サンプルを作りました。左の「はじめに」から試してみてください"
+            : `「${r.name}」を開きました`,
+        );
+      } catch (e) {
+        setStatus(String(e));
+      }
+    },
+    [adopt],
+  );
+
   const openProject = useCallback(async () => {
     if (!(await gate("プロジェクトの切り替え"))) return;
     const picked = await openDialog({
@@ -673,18 +725,8 @@ export default function App() {
       title: "小説プロジェクトのフォルダを選ぶ(空フォルダなら新規作成)",
     });
     if (typeof picked !== "string") return;
-    try {
-      const p = await api.openProject(picked);
-      setProject(p);
-      // 前のプロジェクトの本文をエディタに残さない(読み取り専用で見え続けていた)
-      closeFile();
-      setRefPath(null);
-      setRefText("");
-      setStatus(`「${p.name}」を開きました`);
-    } catch (e) {
-      setStatus(String(e));
-    }
-  }, [gate, closeFile]);
+    await openPicked(picked, false, false);
+  }, [gate, openPicked]);
 
   /**
    * サンプルを作って開く(M-08)。
@@ -699,19 +741,8 @@ export default function App() {
       title: "サンプルを作るフォルダを選ぶ(空のフォルダを推奨)",
     });
     if (typeof picked !== "string") return;
-    try {
-      const p = await api.createSampleProject(picked);
-      setProject(p);
-      closeFile();
-      setRefPath(null);
-      setRefText("");
-      setStatus(
-        "サンプルを作りました。左の「はじめに」から試してみてください",
-      );
-    } catch (e) {
-      setStatus(String(e));
-    }
-  }, [gate, closeFile]);
+    await openPicked(picked, true, false);
+  }, [gate, openPicked]);
 
   /** ファイルを開く。開いた本文を返す(検索から一致箇所へ飛ぶのに使う) */
   const openFile = useCallback(
@@ -1543,6 +1574,32 @@ export default function App() {
             const dir = newFileDir;
             setNewFileDir(null);
             void createFile(dir, fileName, genre, kind);
+          }}
+        />
+      )}
+
+      {initAsk && (
+        <ConfirmDialog
+          title={
+            initAsk.sample
+              ? "このフォルダーにサンプルを作りますか"
+              : "このフォルダーをプロジェクトにしますか"
+          }
+          // 選び間違い(デスクトップなど)に気づけるよう、名前だけでなく場所ごと見せる
+          message={`${initAsk.path} には、すでにファイルやフォルダーが ${initAsk.existing} 個あります。`}
+          note={`ここに次のものを作ります: ${[
+            ...initAsk.willCreate,
+            ...(initAsk.sample ? ["サンプルの原稿と設定"] : []),
+          ].join("、")}。今あるファイルには触れません(書き換えも移動もしません)。`}
+          confirmLabel={initAsk.sample ? "ここにサンプルを作る" : "ここをプロジェクトにする"}
+          onConfirm={() => {
+            const a = initAsk;
+            setInitAsk(null);
+            void openPicked(a.path, a.sample, true);
+          }}
+          onCancel={() => {
+            setInitAsk(null);
+            setStatus("フォルダーを開くのをやめました(何も作っていません)");
           }}
         />
       )}

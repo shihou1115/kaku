@@ -25,6 +25,16 @@ export type OpenedProject = {
   codex: CodexEntry[];
 };
 
+/**
+ * フォルダーを開いた(サンプルを作った)結果。
+ *
+ * `NeedsConfirm` のときは**何も作っていない**。人が置いたものがあるフォルダーに
+ * 骨組みを作る前に本人に聞き、了承を得たら `confirmed: true` で呼び直す(テスト計画 B2)
+ */
+export type OpenOutcome =
+  | ({ kind: "Opened" } & OpenedProject)
+  | { kind: "NeedsConfirm"; existing: number; will_create: string[] };
+
 export type FileContent = {
   path: string;
   text: string;
@@ -239,11 +249,12 @@ export type ChatEvent =
   | { kind: "Error"; value: string };
 
 export const api = {
-  openProject: (path: string) => invoke<OpenedProject>("open_project", { path }),
+  openProject: (path: string, confirmed = false) =>
+    invoke<OpenOutcome>("open_project", { path, confirmed }),
   /** 前回開いたプロジェクトの場所。無い・消えている場合は null */
   lastProject: () => invoke<string | null>("last_project"),
-  createSampleProject: (path: string) =>
-    invoke<OpenedProject>("create_sample_project", { path }),
+  createSampleProject: (path: string, confirmed = false) =>
+    invoke<OpenOutcome>("create_sample_project", { path, confirmed }),
   refreshProject: () => invoke<OpenedProject>("refresh_project"),
   readFile: (path: string) => invoke<FileContent>("read_file", { path }),
   /**
