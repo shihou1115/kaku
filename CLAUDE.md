@@ -170,10 +170,13 @@ CIが落ちたときは「他人の環境では動かない」の証拠なので
   (§10 の表)
 - そのあと以前からあった不具合5件を直し、実機でも確かめた。これも push した(CI は緑)
 - **潜在バグ洗い出しのテスト計画**を [docs/07-test-plan.md](docs/07-test-plan.md) に作り、P1 を実施した。
-  **バグ8件を見つけて直した**(結果は §7)。B2(プロジェクトでないフォルダーを開く)と
-  G1(二重起動)は直し方を本人に確認中。P2・P3 は未実施
+  **バグ8件を見つけて直した**(結果は §7)。P2・P3 は未実施
+- 続けて B2(中身のあるフォルダーを開く前に確認する)と G1(二重起動させない)を、本人が選んだ
+  a 案で直し、実機でも確かめた。その確認中に見つけた主操作ボタンのホバーの不具合も直した(07 §7)
+- **二重起動の防止はリリースビルドだけ**(`npm run tauri dev` には入らない。識別子がインストール版と
+  同じなので、入れるとインストール版で執筆しながら開発版を起動できなくなる)
 - v1.1.0 のあとに直したものなので、出すなら v1.1.1 相当(要求や方針の変更は無い)
-- テスト・ビルドはすべて通る状態(Rust 285 / フロント 100 / lint 0 / clippy 0 / npm audit 0)
+- テスト・ビルドはすべて通る状態(Rust 288 / フロント 100 / lint 0 / clippy 0 / npm audit 0)
 - 公開前の履歴書き換えで残した `backup-gmail-history` 枝はローカルにだけある(不要なら消してよい)
 
 **2026-08-08 までに踏んだ落とし穴**(同じ形を繰り返さないための控え):
@@ -222,12 +225,15 @@ CIが落ちたときは「他人の環境では動かない」の証拠なので
 17. **ファイルシステムの振る舞いは、ローカルのディスクで確かめただけでは足りない。** 本人の原稿は
     Google ドライブ(G:)にある。`canonicalize` はローカルでは実際の綴りを返すが、G: では渡した綴りのまま
     返した。ファイルに触る修正は `tests/fs_probe.rs` で G: でも確かめる
+18. **共通の `:hover` は、色を持つ部品の指定より強いことがある。** `button:hover:not(:disabled)` が
+    `button.primary` に勝ち、ホバー中だけ主操作ボタンのラベルが消えていた(地だけ変わり、文字色は
+    そのまま)。地の色を持つ部品には自分の `:hover` を書く(`danger-btn` と `primary` はそうした)
 
 コード構成:
 
 | 場所 | 役割 |
 |---|---|
-| `src-tauri/src/lib.rs` | Tauri コマンド。AI機能の本体(`run_proofread` / `run_review` / `run_extract`)は**擬似の OpenAI 互換サーバー相手のテスト**あり(`ai_run_tests`) |
+| `src-tauri/src/lib.rs` | Tauri コマンド。AI機能の本体(`run_proofread` / `run_review` / `run_extract`)は**擬似の OpenAI 互換サーバー相手のテスト**あり(`ai_run_tests`)。二重起動の防止(`run()`。**リリースビルドだけ**) |
 | `src-tauri/src/project.rs` | プロジェクトの読み書き・保存前バックアップ・パス検証・改名のリンク追随・改行コードの保持 |
 | `src-tauri/src/frontmatter.rs` | 寛容パース。**再シリアライズしない**ので未知フィールドは壊れない |
 | `src-tauri/src/mentions.rs` | aho-corasickの言及検出。UTF-16位置換算あり |
@@ -247,7 +253,7 @@ CIが落ちたときは「他人の環境では動かない」の証拠なので
 | `src/components/` | ツリー・AIパネル・各種ダイアログ・フォルダー表示名の対応表 |
 | `src/components/resultLabel.ts` | AIの結果の件数表示。**確かめきれていないのに「指摘なし」と出さない** |
 
-テストは Rust 285件(`cargo test`)+ フロント100件(`npm test`)。
+テストは Rust 288件(`cargo test`)+ フロント100件(`npm test`)。
 lint は `npm run lint`(react-hooks の2ルール)と `cargo clippy -- -D warnings`。**どちらも0件で保つ**。
 実機(LM Studio)が要る2件は `#[ignore]`(`tests/poc7_length.rs` / `tests/review_moralizing.rs`)。
 `tests/fs_probe.rs` も `#[ignore]`: `KAKU_FS_PROBE_DIR` で渡したフォルダー(Google ドライブ等)で、ファイルシステムの前提を確かめる。
