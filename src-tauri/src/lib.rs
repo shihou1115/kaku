@@ -429,6 +429,18 @@ enum SaveOutcome {
     Saved { modified_ms: u64 },
     /// **書いていない。** 読み込んだ後に外部で書き換えられていた(T-08)
     Conflict { actual_ms: u64 },
+    /// **書いていない。** 読み込んだのにファイルが無くなっていた(外部で削除・改名)。
+    /// 黙って作り直さず、作り直すか閉じるかを本人に聞く(テスト計画 G3)
+    Missing,
+}
+
+/// 照合の結果を、画面へ返す形にする(画面は `kind` で見分ける。api.ts の SaveOutcome)
+fn save_outcome(check: project::SaveCheck) -> SaveOutcome {
+    match check {
+        project::SaveCheck::Saved(ms) => SaveOutcome::Saved { modified_ms: ms },
+        project::SaveCheck::Conflict(ms) => SaveOutcome::Conflict { actual_ms: ms },
+        project::SaveCheck::Missing => SaveOutcome::Missing,
+    }
 }
 
 /// 保存(保存前に1世代のバックアップを取る)。
@@ -447,15 +459,8 @@ fn save_file(
     state: State<AppState>,
 ) -> Result<SaveOutcome, String> {
     let root = root_of(&state)?;
-    if let Ok(actual) = project::modified_ms(&root, &path) {
-        if project::is_stale(actual, expected_ms) {
-            return Ok(SaveOutcome::Conflict { actual_ms: actual });
-        }
-    }
-    project::save_text(&root, &path, &text).map_err(to_msg)?;
-    Ok(SaveOutcome::Saved {
-        modified_ms: project::modified_ms(&root, &path).unwrap_or(0),
-    })
+    let check = project::save_checked(&root, &path, &text, expected_ms).map_err(to_msg)?;
+    Ok(save_outcome(check))
 }
 
 #[tauri::command]
@@ -2711,5 +2716,29 @@ mod ai_run_tests {
         let cut = split_warning(&outcome(r#"{"points":[{"quo"#, Some("length")))
             .expect("打ち切りなのに警告が無い");
         assert!(cut.contains("打ち切られました"), "{cut}");
+    }
+}
+
+/// 保存の結果が、画面(api.ts の SaveOutcome)の見分ける形で届くこと。
+///
+/// 取り違えると、**書いていないのに画面は「保存済み」になる**。外で消えたファイル(G3)の
+/// 本文は、そのまま切替や終了で黙って捨てられる
+#[cfg(test)]
+mod save_outcome_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn each_check_reaches_the_screen_as_its_own_kind() {
+        let sent = |c| serde_json::to_value(save_outcome(c)).unwrap();
+        assert_eq!(
+            sent(project::SaveCheck::Saved(5)),
+            json!({"kind": "Saved", "modified_ms": 5})
+        );
+        assert_eq!(
+            sent(project::SaveCheck::Conflict(7)),
+            json!({"kind": "Conflict", "actual_ms": 7})
+        );
+        assert_eq!(sent(project::SaveCheck::Missing), json!({"kind": "Missing"}));
     }
 }

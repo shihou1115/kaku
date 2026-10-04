@@ -29,6 +29,11 @@ export type FlushResult =
   | { kind: "saved"; modifiedMs: number }
   /** **書いていない。** 読み込んだ後にアプリの外で書き換えられていた(T-08) */
   | { kind: "conflict"; path: string; actualMs: number }
+  /**
+   * **書いていない。** 読み込んだのにファイルが無くなっていた(アプリの外で削除・改名)。
+   * 黙って作り直さず、作り直すか閉じるかを本人に聞く(テスト計画 G3)
+   */
+  | { kind: "missing"; path: string }
   | { kind: "error"; message: string };
 
 /** このあと本文を手放して(書き換えられて)よいか */
@@ -66,6 +71,8 @@ export function blockedMessage(r: FlushResult, what: string): string | null {
       return null;
     case "conflict":
       return `アプリの外で変更されているため、${what}を止めました。どちらを残すか選んでください`;
+    case "missing":
+      return `アプリの外で削除されたか名前が変わったため、${what}を止めました。作り直すか閉じるかを選んでください`;
     case "error":
       return `保存に失敗したため、${what}を中止しました。本文はこのまま残っています(${r.message})`;
   }
@@ -166,6 +173,8 @@ export function createSaver(deps: {
     const task = (async (): Promise<FlushResult> => {
       try {
         let r = await deps.save(path, text, modifiedMs || null);
+        // 読み込んだのにファイルが無い(アプリの外で削除・改名)。**書いていない**(G3)
+        if (r.kind === "Missing") return { kind: "missing", path };
         if (r.kind === "Conflict") {
           // 時刻は変わったが、中身は読み込んだとき(最後に書いたとき)のままか。
           // 同期ソフトやバックアップが**時刻だけ**触った場合で、踏み潰す相手がいない。
@@ -176,6 +185,7 @@ export function createSaver(deps: {
           }
           // 読んだ時刻で照合し直す。読んだあとで中身が変わっていれば、ここで競合になる
           r = await deps.save(path, text, disk.modifiedMs || null);
+          if (r.kind === "Missing") return { kind: "missing", path };
           if (r.kind === "Conflict") {
             return { kind: "conflict", path, actualMs: r.actual_ms };
           }

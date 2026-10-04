@@ -1005,6 +1005,45 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
     (if m <= 2 { y + 1 } else { y }, m, d)
 }
 
+/// 保存の前の照合の結果(`save_checked`)
+#[derive(Debug, PartialEq, Eq)]
+pub enum SaveCheck {
+    /// 書いた。値は保存後の更新時刻(読めなければ 0)
+    Saved(u64),
+    /// **書いていない。** 読み込んだ後に外部で書き換えられていた(T-08)。値はディスク側の時刻
+    Conflict(u64),
+    /// **書いていない。** 読み込んだのにファイルが無くなっていた(外部で削除された・名前が変わった)
+    Missing,
+}
+
+/// 照合してから保存する(保存コマンドの本体)。
+///
+/// 読み込んだとき(最後に書いたとき)の時刻 `expected_ms` を持っていれば:
+/// - 時刻が違えば書かずに Conflict(外部の変更を黙って踏み潰さない。T-08)
+/// - **ファイルが無くなっていれば書かずに Missing**(テスト計画 G3)。以前は時刻が読めないと
+///   照合を飛ばして書いていたため、アプリの外で消した・名前を変えたファイルを、次の自動保存が
+///   黙って作り直した(名前を変えた場合は、元の名前のファイルができて二重になった)
+///
+/// 時刻を持っていない(`None` や読めなかった印の 0)ときは照合せずに書く。
+/// 本人が「この内容で作り直す」を選んだときも、時刻を渡さずにここを通す
+pub fn save_checked(
+    root: &Path,
+    relative: &str,
+    text: &str,
+    expected_ms: Option<u64>,
+) -> Result<SaveCheck, ProjectError> {
+    let loaded = matches!(expected_ms, Some(e) if e != 0);
+    match modified_ms(root, relative) {
+        Ok(actual) if is_stale(actual, expected_ms) => return Ok(SaveCheck::Conflict(actual)),
+        Ok(_) => {}
+        Err(_) if loaded && !resolve(root, relative)?.exists() => return Ok(SaveCheck::Missing),
+        Err(_) => {}
+    }
+    save_text(root, relative, text)?;
+    // 書けたあとに時刻が読めなくても、保存は失敗ではない(0 は「分からない」の印)
+    Ok(SaveCheck::Saved(modified_ms(root, relative).unwrap_or(0)))
+}
+
 /// 読み込んだ後に外部で書き換えられたか(楽観ロック=T-08)。
 ///
 /// `expected` が無ければ照合しない(新規作成直後など、まだ時刻を持たない経路)。

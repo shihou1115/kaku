@@ -48,6 +48,7 @@ import { applyTheme, watchDeviceTheme } from "./theme";
 import { folderLabel, isTrashPath } from "./components/folderLabels";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { ConflictDialog } from "./components/ConflictDialog";
+import { MissingDialog } from "./components/MissingDialog";
 import { PromptDialog } from "./components/PromptDialog";
 import { HelpDialog } from "./components/HelpDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
@@ -185,6 +186,10 @@ export default function App() {
    * ヘッダーの印から二択へ戻れるようにする
    */
   const [conflictPath, setConflictPath] = useState<string | null>(null);
+  /** 開いているファイルがアプリの外で消えていた(G3)。作り直すか閉じるかを聞く */
+  const [missing, setMissing] = useState<string | null>(null);
+  /** 消えたまま決まっていないファイル(「あとで決める」のあと、ヘッダーの印から戻れる) */
+  const [missingPath, setMissingPath] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   /** 本文で選択して右クリックしたときのメニュー位置 */
   const [selMenu, setSelMenu] = useState<{ x: number; y: number } | null>(null);
@@ -364,6 +369,8 @@ export default function App() {
   const dirty = text !== savedText;
   /** 開いているファイルに未解決の競合があり、保存できていない */
   const conflictHere = dirty && conflictPath !== null && conflictPath === currentPath;
+  /** 開いているファイルがアプリの外で消えていて、保存できていない(G3) */
+  const missingHere = dirty && missingPath !== null && missingPath === currentPath;
   // 毎描画で新しい配列を作ると、これを依存に持つ言及検出などが毎回走り直す
   const codex: CodexEntry[] = useMemo(
     () => project?.codex ?? [],
@@ -425,6 +432,8 @@ export default function App() {
    * では毎回出す**(saveFlow.shouldPrompt)
    */
   const conflictSeen = useRef(0);
+  /** 消えたファイルについて、最後に聞いたパス(自動保存では同じファイルを二度は聞かない) */
+  const missingSeen = useRef<string | null>(null);
 
   /**
    * 保存を1本ずつ流す(saveFlow.createSaver)。**1つだけ作って使い回す。**
@@ -452,6 +461,7 @@ export default function App() {
         live.current.modifiedMs = ms;
         live.current.savedText = t;
         setConflictPath((c) => (c === path ? null : c));
+        setMissingPath((c) => (c === path ? null : c));
       },
     }),
   );
@@ -476,6 +486,25 @@ export default function App() {
   );
 
   /**
+   * ファイルがアプリの外で消えていたとき(G3)。**書いていない。** 作り直すか閉じるかを聞く。
+   * 自動保存では同じファイルについて二度は聞かない(競合と同じ。本人の操作では毎回聞く)
+   */
+  const noteMissing = useCallback((path: string, reason: FlushReason) => {
+    setMissingPath(path);
+    if (reason !== "auto" || missingSeen.current !== path) {
+      missingSeen.current = path;
+      setMissing(path);
+      setStatus(
+        "このファイルはアプリの外で削除されたか、名前が変わりました。作り直すか閉じるかを選んでください",
+      );
+    } else {
+      setStatus(
+        "アプリの外で削除されたため保存していません。ヘッダーの「削除済み」から選び直せます",
+      );
+    }
+  }, []);
+
+  /**
    * 未保存なら保存する。
    *
    * **結果で「このあと本文を手放してよいか」を決める**(saveFlow.canProceed)。
@@ -492,12 +521,15 @@ export default function App() {
       } else if (r.kind === "conflict") {
         // **書いていない。** 外部の変更を踏み潰さずに、どうするかを人へ渡す
         noteConflict(r.path, r.actualMs, reason);
+      } else if (r.kind === "missing") {
+        // **書いていない。** 黙って作り直さない(G3)
+        noteMissing(r.path, reason);
       } else if (r.kind === "error") {
         setStatus(`保存に失敗しました: ${r.message}`);
       }
       return r;
     },
-    [saver, noteConflict],
+    [saver, noteConflict, noteMissing],
   );
 
   /**
@@ -529,6 +561,8 @@ export default function App() {
     handleRef.current.load(f.text);
     setConflictPath(null);
     conflictSeen.current = 0;
+    setMissingPath(null);
+    missingSeen.current = null;
   }, []);
 
   /** 開いているファイルを閉じる(削除・分割・プロジェクトの切り替え) */
@@ -540,6 +574,8 @@ export default function App() {
     live.current = { currentPath: null, text: "", savedText: "", modifiedMs: 0 };
     handleRef.current.load("");
     setConflictPath(null);
+    setMissingPath(null);
+    missingSeen.current = null;
   }, []);
 
   /**
@@ -1054,6 +1090,54 @@ export default function App() {
     }
   }, [conflict, showFile]);
 
+  /**
+   * 消えたファイルの解決①: **この内容で作り直す**(G3)。
+   * 本人が選んだので、時刻を渡さずに書く(照合しない)
+   */
+  const resolveRecreate = useCallback(async () => {
+    const p = missing;
+    setMissing(null);
+    if (!p) return;
+    try {
+      // 実行中の保存と混ざらないように、終わるのを待ってから書く
+      await saver.settled();
+      const t = live.current.text;
+      const r = await api.saveFile(p, t, null);
+      if (r.kind !== "Saved") {
+        setStatus("作り直せませんでした。もう一度お試しください");
+        return;
+      }
+      if (live.current.currentPath === p) {
+        setSavedText(t);
+        setModifiedMs(r.modified_ms);
+        live.current.savedText = t;
+        live.current.modifiedMs = r.modified_ms;
+      }
+      setMissingPath(null);
+      missingSeen.current = null;
+      setProject(await api.refreshProject());
+      setStatus(`作り直しました: ${p}`);
+    } catch (e) {
+      setStatus(String(e));
+    }
+  }, [missing, saver]);
+
+  /** 消えたファイルの解決②: **閉じる**(アプリ側の本文は捨てる。G3) */
+  const resolveCloseMissing = useCallback(async () => {
+    const p = missing;
+    setMissing(null);
+    if (!p) return;
+    if (live.current.currentPath === p) closeFile();
+    setMissingPath(null);
+    missingSeen.current = null;
+    try {
+      setProject(await api.refreshProject());
+    } catch {
+      /* 一覧の更新に失敗しても、閉じてはいる */
+    }
+    setStatus(`閉じました(アプリ側の本文は捨てました): ${p}`);
+  }, [missing, closeFile]);
+
   // ===== 外部編集の検知(常駐監視はせず、フォーカス復帰時のみ) =====
 
   useEffect(() => {
@@ -1131,6 +1215,15 @@ export default function App() {
                   title="アプリの外で変更されているため保存していません。クリックで、どちらを残すか選べます"
                 >
                   競合
+                </button>
+              ) : missingHere ? (
+                // 「あとで決める」を選んだあとも、ここから作り直すか閉じるかへ戻れる(G3)
+                <button
+                  className="savechip dirty"
+                  onClick={saveNow}
+                  title="アプリの外で削除されたか名前が変わったため保存していません。クリックで、作り直すか閉じるかを選べます"
+                >
+                  削除済み
                 </button>
               ) : (
                 <button
@@ -1627,6 +1720,22 @@ export default function App() {
             setConflict(null);
             setStatus(
               "まだ保存していません。ヘッダーの「競合」から、どちらを残すか選び直せます",
+            );
+          }}
+        />
+      )}
+
+      {/* 開いているファイルがアプリの外で消えていた(G3)。作り直すか閉じるかを聞く。
+          決めるまでは書かない(黙って作り直さない) */}
+      {missing && (
+        <MissingDialog
+          path={missing}
+          onRecreate={() => void resolveRecreate()}
+          onClose={() => void resolveCloseMissing()}
+          onLater={() => {
+            setMissing(null);
+            setStatus(
+              "まだ保存していません。ヘッダーの「削除済み」から、作り直すか閉じるかを選び直せます",
             );
           }}
         />

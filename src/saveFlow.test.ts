@@ -109,6 +109,36 @@ describe("保存の直列化(saveFlow.createSaver)", () => {
     expect(app.state.modifiedMs).toBe(1000);
   });
 
+  // テスト計画 G3: 以前は黙って作り直していた(名前を変えた場合は元の名前で二重になった)
+  it("ファイルが外で消えていたら、書かずに返し、画面の状態にも触らない", async () => {
+    const disk = fakeDisk();
+    const app = fakeApp({ text: "書きかけ" });
+    const saver = createSaver({ ...app, save: disk.save, read: disk.read });
+
+    const r = saver.flush();
+    await settle();
+    disk.calls[0].finish({ kind: "Missing" });
+    const got = await r;
+    expect(got).toEqual({ kind: "missing", path: "manuscript/01.md" });
+    expect(canProceed(got)).toBe(false);
+    expect(disk.calls).toHaveLength(1);
+    expect(app.state.savedText).toBe("本文");
+  });
+
+  it("時刻だけの競合を照合し直した間に消えていても、書かずに返す", async () => {
+    const disk = fakeDisk({ text: "本文", modifiedMs: 5000 });
+    const app = fakeApp({ text: "書きかけ" });
+    const saver = createSaver({ ...app, save: disk.save, read: disk.read });
+
+    const r = saver.flush();
+    await settle();
+    disk.calls[0].finish({ kind: "Conflict", actual_ms: 5000 });
+    await settle();
+    disk.calls[1].finish({ kind: "Missing" });
+    expect(await r).toEqual({ kind: "missing", path: "manuscript/01.md" });
+    expect(app.state.savedText).toBe("本文");
+  });
+
   it("失敗は成功と区別できる形で返す", async () => {
     const disk = fakeDisk();
     const app = fakeApp({ text: "書きかけ" });
@@ -309,6 +339,11 @@ describe("保存できなかったときに操作を止める", () => {
     );
     expect(error).toContain("保存に失敗したため、削除を中止しました");
     expect(error).toContain("ディスクがいっぱいです");
+
+    const missing = blockedMessage({ kind: "missing", path: "a.md" }, "ファイルの切り替え");
+    expect(missing).toContain("削除されたか名前が変わった");
+    expect(missing).toContain("ファイルの切り替えを止めました");
+    expect(missing).not.toContain("保存に失敗");
   });
 });
 

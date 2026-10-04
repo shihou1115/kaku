@@ -244,7 +244,9 @@ export type ChatTurn = {
  */
 export type SaveOutcome =
   | { kind: "Saved"; modified_ms: number }
-  | { kind: "Conflict"; actual_ms: number };
+  | { kind: "Conflict"; actual_ms: number }
+  /** **書いていない。** 読み込んだのにファイルが無くなっていた(アプリの外で削除・改名。G3) */
+  | { kind: "Missing" };
 
 export type ChatEvent =
   | { kind: "Delta"; value: string }
