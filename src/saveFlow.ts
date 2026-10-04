@@ -94,6 +94,15 @@ export function diskChange(
 }
 
 /**
+ * 別名保存の名前に入れる時刻(`HHMMSS`)。**ゼロ埋めする。**
+ * 埋めないと4時台は `45926` になり、名前の長さが揃わず、並べたときの順もずれる。
+ */
+export function clockStamp(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+
+/**
  * 競合を「別名で保存」するときの名前。拡張子は元のまま、無ければ `.md`。
  *
  * 以前は `/.md$/`(点のエスケープ漏れ)で拡張子を落としていた。
@@ -136,6 +145,11 @@ export function createSaver(deps: {
     expectedMs: number | null,
   ) => Promise<SaveOutcome>;
   /**
+   * ディスク上の中身と時刻を読む(改行は LF に揃えたもの)。
+   * 時刻の食い違いが「中身の変更」なのか「時刻だけ」なのかを見分けるのに使う
+   */
+  read: (path: string) => Promise<{ text: string; modifiedMs: number }>;
+  /**
    * 書けたとき。**同期で状態の箱まで更新すること。** 再描画を待つと、
    * 直後の自動保存が古い時刻で照合して自分の変更を競合と誤判定する。
    * 保存中に別のファイルへ移っていた場合は呼ばない(その画面の状態は触らない)
@@ -151,9 +165,20 @@ export function createSaver(deps: {
 
     const task = (async (): Promise<FlushResult> => {
       try {
-        const r = await deps.save(path, text, modifiedMs || null);
+        let r = await deps.save(path, text, modifiedMs || null);
         if (r.kind === "Conflict") {
-          return { kind: "conflict", path, actualMs: r.actual_ms };
+          // 時刻は変わったが、中身は読み込んだとき(最後に書いたとき)のままか。
+          // 同期ソフトやバックアップが**時刻だけ**触った場合で、踏み潰す相手がいない。
+          // 二択を出すのは中身が変わったときだけにする(以前は時刻だけで二択を出していた)
+          const disk = await deps.read(path).catch(() => null);
+          if (!disk || disk.text !== savedText) {
+            return { kind: "conflict", path, actualMs: r.actual_ms };
+          }
+          // 読んだ時刻で照合し直す。読んだあとで中身が変わっていれば、ここで競合になる
+          r = await deps.save(path, text, disk.modifiedMs || null);
+          if (r.kind === "Conflict") {
+            return { kind: "conflict", path, actualMs: r.actual_ms };
+          }
         }
         if (deps.current().path === path) deps.saved(path, text, r.modified_ms);
         return { kind: "saved", modifiedMs: r.modified_ms };

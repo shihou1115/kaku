@@ -3,6 +3,7 @@ import type { SaveOutcome } from "./api";
 import {
   blockedMessage,
   canProceed,
+  clockStamp,
   conflictCopyPath,
   createSaver,
   diskChange,
@@ -10,8 +11,16 @@ import {
   type Snapshot,
 } from "./saveFlow";
 
-/** 手で進める保存。呼ばれた順に控え、終わらせるまで待たせる */
-function fakeDisk() {
+/**
+ * 手で進める保存。呼ばれた順に控え、終わらせるまで待たせる。
+ * `onDisk` は競合のあとに読み直したときのディスクの中身(既定は外部で書き換えられた本文)
+ */
+function fakeDisk(
+  onDisk: { text: string; modifiedMs: number } | Error = {
+    text: "外部で書き換えた本文",
+    modifiedMs: 5000,
+  },
+) {
   const calls: {
     path: string;
     text: string;
@@ -23,7 +32,11 @@ function fakeDisk() {
     new Promise<SaveOutcome>((finish, fail) => {
       calls.push({ path, text, expectedMs, finish, fail });
     });
-  return { calls, save };
+  const read = async () => {
+    if (onDisk instanceof Error) throw onDisk;
+    return onDisk;
+  };
+  return { calls, save, read };
 }
 
 /** App の live の箱の代わり。saved で同期に書き換わる(App と同じ約束) */
@@ -52,7 +65,7 @@ describe("保存の直列化(saveFlow.createSaver)", () => {
   it("保存するものが無ければ書かない", async () => {
     const disk = fakeDisk();
     const app = fakeApp();
-    const saver = createSaver({ ...app, save: disk.save });
+    const saver = createSaver({ ...app, save: disk.save, read: disk.read });
     expect(await saver.flush()).toEqual({ kind: "clean" });
     expect(disk.calls).toHaveLength(0);
   });
@@ -61,7 +74,7 @@ describe("保存の直列化(saveFlow.createSaver)", () => {
     // **再描画を待たずに時刻を更新しないと、自分の書き込みを競合と誤判定する**(28ca70f)
     const disk = fakeDisk();
     const app = fakeApp({ text: "本文+1" });
-    const saver = createSaver({ ...app, save: disk.save });
+    const saver = createSaver({ ...app, save: disk.save, read: disk.read });
 
     const first = saver.flush();
     await settle();
@@ -81,7 +94,7 @@ describe("保存の直列化(saveFlow.createSaver)", () => {
   it("競合なら書かずに返し、画面の状態にも触らない", async () => {
     const disk = fakeDisk();
     const app = fakeApp({ text: "書きかけ" });
-    const saver = createSaver({ ...app, save: disk.save });
+    const saver = createSaver({ ...app, save: disk.save, read: disk.read });
 
     const r = saver.flush();
     await settle();
@@ -99,7 +112,7 @@ describe("保存の直列化(saveFlow.createSaver)", () => {
   it("失敗は成功と区別できる形で返す", async () => {
     const disk = fakeDisk();
     const app = fakeApp({ text: "書きかけ" });
-    const saver = createSaver({ ...app, save: disk.save });
+    const saver = createSaver({ ...app, save: disk.save, read: disk.read });
 
     const r = saver.flush();
     await settle();
@@ -113,7 +126,7 @@ describe("保存の直列化(saveFlow.createSaver)", () => {
   it("実行中の保存が終わるまで次の保存を始めない", async () => {
     const disk = fakeDisk();
     const app = fakeApp({ text: "本文+1" });
-    const saver = createSaver({ ...app, save: disk.save });
+    const saver = createSaver({ ...app, save: disk.save, read: disk.read });
 
     const a = saver.flush();
     await settle();
@@ -135,7 +148,7 @@ describe("保存の直列化(saveFlow.createSaver)", () => {
     // そろって書くと、後の方が先の書き込みを外部の変更と取り違えて競合になる
     const disk = fakeDisk();
     const app = fakeApp({ text: "本文+1" });
-    const saver = createSaver({ ...app, save: disk.save });
+    const saver = createSaver({ ...app, save: disk.save, read: disk.read });
 
     const a = saver.flush();
     await settle();
@@ -160,7 +173,7 @@ describe("保存の直列化(saveFlow.createSaver)", () => {
   it("保存中に別のファイルへ移っていたら、その画面の状態は触らない", async () => {
     const disk = fakeDisk();
     const app = fakeApp({ text: "本文+1" });
-    const saver = createSaver({ ...app, save: disk.save });
+    const saver = createSaver({ ...app, save: disk.save, read: disk.read });
 
     const a = saver.flush();
     await settle();
@@ -180,12 +193,80 @@ describe("保存の直列化(saveFlow.createSaver)", () => {
     // 0 は「読めなかった」の印。照合に使うと保存が一切通らなくなる(project::is_stale)
     const disk = fakeDisk();
     const app = fakeApp({ text: "本文+1", modifiedMs: 0 });
-    const saver = createSaver({ ...app, save: disk.save });
+    const saver = createSaver({ ...app, save: disk.save, read: disk.read });
     const a = saver.flush();
     await settle();
     expect(disk.calls[0].expectedMs).toBeNull();
     disk.calls[0].finish({ kind: "Saved", modified_ms: 2000 });
     await a;
+  });
+});
+
+describe("時刻だけ変わったファイル(同期ソフト等が触っただけ)", () => {
+  it("中身が読み込んだときのままなら、二択を出さずに書く", async () => {
+    // 以前は時刻の食い違いだけで二択を出していた
+    const disk = fakeDisk({ text: "本文", modifiedMs: 5000 });
+    const app = fakeApp({ text: "本文+1" });
+    const saver = createSaver({ ...app, save: disk.save, read: disk.read });
+
+    const r = saver.flush();
+    await settle();
+    disk.calls[0].finish({ kind: "Conflict", actual_ms: 5000 });
+    await settle();
+    // 読み直した時刻で照合し直して書く
+    expect(disk.calls).toHaveLength(2);
+    expect(disk.calls[1].expectedMs).toBe(5000);
+    expect(disk.calls[1].text).toBe("本文+1");
+    disk.calls[1].finish({ kind: "Saved", modified_ms: 6000 });
+    expect(await r).toEqual({ kind: "saved", modifiedMs: 6000 });
+    expect(app.state.savedText).toBe("本文+1");
+    expect(app.state.modifiedMs).toBe(6000);
+  });
+
+  it("中身が変わっていれば、書かずに二択へ回す", async () => {
+    const disk = fakeDisk({ text: "外部で書き換えた本文", modifiedMs: 5000 });
+    const app = fakeApp({ text: "本文+1" });
+    const saver = createSaver({ ...app, save: disk.save, read: disk.read });
+
+    const r = saver.flush();
+    await settle();
+    disk.calls[0].finish({ kind: "Conflict", actual_ms: 5000 });
+    expect(await r).toEqual({
+      kind: "conflict",
+      path: "manuscript/01.md",
+      actualMs: 5000,
+    });
+    expect(disk.calls).toHaveLength(1);
+  });
+
+  it("読み直せなければ、二択へ回す(書かない側に倒す)", async () => {
+    const disk = fakeDisk(new Error("読めません"));
+    const app = fakeApp({ text: "本文+1" });
+    const saver = createSaver({ ...app, save: disk.save, read: disk.read });
+
+    const r = saver.flush();
+    await settle();
+    disk.calls[0].finish({ kind: "Conflict", actual_ms: 5000 });
+    expect((await r).kind).toBe("conflict");
+    expect(disk.calls).toHaveLength(1);
+  });
+
+  it("読み直したあとで中身が変わっていれば、照合し直しで二択になる", async () => {
+    const disk = fakeDisk({ text: "本文", modifiedMs: 5000 });
+    const app = fakeApp({ text: "本文+1" });
+    const saver = createSaver({ ...app, save: disk.save, read: disk.read });
+
+    const r = saver.flush();
+    await settle();
+    disk.calls[0].finish({ kind: "Conflict", actual_ms: 5000 });
+    await settle();
+    disk.calls[1].finish({ kind: "Conflict", actual_ms: 7000 });
+    expect(await r).toEqual({
+      kind: "conflict",
+      path: "manuscript/01.md",
+      actualMs: 7000,
+    });
+    expect(app.state.savedText).toBe("本文");
   });
 });
 
@@ -267,7 +348,7 @@ describe("保存の完了待ち(ディスクと見比べる前)", () => {
   it("実行中の保存が終わるまで待ち、自分では書かない", async () => {
     const disk = fakeDisk();
     const app = fakeApp({ text: "本文+1" });
-    const saver = createSaver({ ...app, save: disk.save });
+    const saver = createSaver({ ...app, save: disk.save, read: disk.read });
 
     const a = saver.flush();
     await settle();
@@ -310,6 +391,13 @@ describe("競合を別名で保存するときの名前", () => {
     expect(conflictCopyPath("plot/v1.2/メモ", "143005")).toBe(
       "plot/v1.2/メモ-競合143005.md",
     );
+  });
+
+  it("時刻はゼロ埋めする", () => {
+    // 埋めないと4時台が `45926` になり、名前の長さも並びも揃わない
+    expect(clockStamp(new Date(2026, 9, 4, 4, 59, 26))).toBe("045926");
+    expect(clockStamp(new Date(2026, 9, 4, 14, 5, 9))).toBe("140509");
+    expect(clockStamp(new Date(2026, 9, 4, 0, 0, 0))).toBe("000000");
   });
 
   it("先頭の点は拡張子ではない", () => {

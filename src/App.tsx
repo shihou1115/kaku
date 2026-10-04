@@ -21,6 +21,7 @@ import {
 import {
   blockedMessage,
   canProceed,
+  clockStamp,
   conflictCopyPath,
   createSaver,
   diskChange,
@@ -433,6 +434,10 @@ export default function App() {
         modifiedMs: live.current.modifiedMs,
       }),
       save: api.saveFile,
+      read: async (path) => {
+        const f = await api.readFile(path);
+        return { text: f.text, modifiedMs: f.modified_ms };
+      },
       saved: (path, t, ms) => {
         setSavedText(t);
         setModifiedMs(ms);
@@ -977,10 +982,7 @@ export default function App() {
     const c = conflict;
     setConflict(null);
     if (!c) return;
-    const stamp = new Date()
-      .toLocaleTimeString("ja-JP", { hour12: false })
-      .replace(/:/g, "");
-    const alt = conflictCopyPath(c.path, stamp);
+    const alt = conflictCopyPath(c.path, clockStamp(new Date()));
     try {
       const created = await api.createFile(alt, live.current.text);
       if (!created) {
