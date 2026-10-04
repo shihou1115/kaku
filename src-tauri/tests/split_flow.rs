@@ -158,3 +158,39 @@ fn refuses_when_a_target_name_is_taken() {
         "先客を上書きした"
     );
 }
+
+/// テスト計画 F5: ゴミ箱の中のファイルは読み取り専用。分割でも書き込めない
+/// (分けたファイルも作らず、退避したものをさらに動かさない)
+#[test]
+fn a_file_in_the_trash_cannot_be_split() {
+    let root = setup("trash-ro");
+    project::trash(&root, SCENE).unwrap();
+    let trash_dir = root.join(".app/trash");
+    let inside: Vec<_> = fs::read_dir(&trash_dir).unwrap().map(|e| e.unwrap().path()).collect();
+    assert_eq!(inside.len(), 1);
+    let rel = format!(
+        ".app/trash/{}/{SCENE}",
+        inside[0].file_name().unwrap().to_string_lossy()
+    );
+    let before = project::read_text(&root, &rel).unwrap();
+    let files_before = walk_count(&trash_dir);
+    assert!(split::apply(&root, &rel, "転校初日", &accepted()).is_err(), "ゴミ箱の中を分割できた");
+    assert_eq!(walk_count(&trash_dir), files_before, "ゴミ箱の中にファイルが増えた");
+    assert_eq!(project::read_text(&root, &rel).unwrap(), before, "ゴミ箱の中身が変わった");
+    // 保存の経路でも書けない
+    assert!(project::save_text(&root, &rel, "書き換え").is_err());
+}
+
+fn walk_count(dir: &std::path::Path) -> usize {
+    fs::read_dir(dir)
+        .unwrap()
+        .map(|e| {
+            let e = e.unwrap();
+            if e.file_type().unwrap().is_dir() {
+                walk_count(&e.path())
+            } else {
+                1
+            }
+        })
+        .sum()
+}
