@@ -547,13 +547,33 @@ pub fn rename(root: &Path, from: &str, to: &str) -> Result<(), ProjectError> {
 
 /// 2つのパスがディスク上の同じものを指しているか。
 ///
-/// 大文字小文字を区別しないファイルシステムで、`a.md` と `A.md` を同じと見分けるためだけに使う
-/// (パスの検証には使わない=§9)。解決できなければ「別のもの」として扱い、上書きしない側に倒す
+/// 大文字小文字を区別しないファイルシステムで、`a.md` と `A.md` を同じと見分けるためだけに使う。
+/// **フォルダーの中身を読んで決める**: 同じフォルダーにあり、名前が大文字小文字だけ違い、
+/// 改名先の綴りそのものは並んでいないなら、改名先は改名元のことである。
+///
+/// `canonicalize` では見分けられない。ローカルのディスクでは実際の綴りを返すが、
+/// Google ドライブでは**渡した綴りのまま**返すため、同じものが別物に見えた
+/// (2026-10-04 テスト計画 B5 で確認)。判断できなければ「別のもの」として扱い、上書きしない側に倒す
 fn same_entry(a: &Path, b: &Path) -> bool {
-    match (fs::canonicalize(a), fs::canonicalize(b)) {
-        (Ok(x), Ok(y)) => x == y,
-        _ => false,
+    let (Some(pa), Some(pb), Some(na), Some(nb)) = (a.parent(), b.parent(), a.file_name(), b.file_name())
+    else {
+        return false;
+    };
+    let (na, nb) = (na.to_string_lossy(), nb.to_string_lossy());
+    if pa != pb || na.to_lowercase() != nb.to_lowercase() {
+        return false;
     }
+    if na == nb {
+        return true;
+    }
+    let Ok(entries) = fs::read_dir(pa) else {
+        return false;
+    };
+    let names: Vec<String> = entries
+        .filter_map(|e| e.ok())
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .collect();
+    names.iter().any(|n| *n == na) && !names.iter().any(|n| *n == nb)
 }
 
 /// 複製。「〜のコピー」を付け、既にあれば連番にする。
