@@ -260,7 +260,9 @@ export default function App() {
   // 書き込みは数百バイトの設定ファイル1つで、打鍵ごとでも重くない
   useEffect(() => {
     if (!aiSettings || aiSettings === loadedSettings.current) return;
-    void api.setAiSettings(aiSettings).catch(() => {});
+    // 設定ファイルに書けなかったら知らせる(変更はこの起動の間だけ有効。テスト計画 H1)。
+    // 以前は握りつぶしていたため、次の起動で黙って元に戻った
+    void api.setAiSettings(aiSettings).catch((e) => setStatus(String(e)));
   }, [aiSettings]);
 
   // ===== AIの状態(ヘッダーに出す) =====

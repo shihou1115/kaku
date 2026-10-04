@@ -97,6 +97,8 @@ impl AiSettings {
             check_chunk_chars: self.check_chunk_chars,
             // 前回のプロジェクトは接続設定とは別の話。保存時に settings::merge が引き継ぐ
             last_project: None,
+            // 知らない項目も、保存時に settings::merge が引き継ぐ
+            extra: Default::default(),
         }
     }
 }
@@ -105,9 +107,11 @@ impl AiSettings {
 /// 丸ごと書き直す形式なので、部分的な知識で保存すると他の項目が消える(settings::merge)。
 ///
 /// 保存に失敗してもアプリは動かす(次回の起動で既定に戻るだけ)。
-fn persist_settings(ai: &AiSettings, last_project: Option<String>) {
+/// **書けなかったときは返す**(以前は握りつぶしていたため、読み取り専用の設定ファイルでは
+/// 変更が保存されず、次の起動で黙って元に戻った。テスト計画 H1)
+fn persist_settings(ai: &AiSettings, last_project: Option<String>) -> std::io::Result<()> {
     let stored = settings::merge(settings::load(), ai.to_stored(), last_project);
-    let _ = settings::save(&stored);
+    settings::save(&stored)
 }
 
 fn root_of(state: &State<AppState>) -> Result<PathBuf, String> {
@@ -311,7 +315,8 @@ fn open_project(
     let root_str = root.to_string_lossy().to_string();
     // 次の起動で開き直せるように覚える
     if let Ok(ai) = state.ai.lock() {
-        persist_settings(&ai, Some(root_str.clone()));
+        // 覚えられなくても開くことは止めない(次の起動で開き直せないだけ)
+        let _ = persist_settings(&ai, Some(root_str.clone()));
     }
     Ok(OpenOutcome::Opened(OpenedProject {
         root: root_str,
@@ -367,7 +372,8 @@ fn create_sample_project(
     let root_str = root.to_string_lossy().to_string();
     // サンプルも「開いたプロジェクト」なので同じように覚える
     if let Ok(ai) = state.ai.lock() {
-        persist_settings(&ai, Some(root_str.clone()));
+        // 覚えられなくても開くことは止めない(次の起動で開き直せないだけ)
+        let _ = persist_settings(&ai, Some(root_str.clone()));
     }
     Ok(OpenOutcome::Opened(OpenedProject {
         root: root_str,
@@ -1573,9 +1579,12 @@ fn get_ai_settings(state: State<AppState>) -> Result<AiSettings, String> {
 fn set_ai_settings(settings: AiSettings, state: State<AppState>) -> Result<(), String> {
     let mut settings = settings;
     settings.check_chunk_chars = settings::clamp_chunk_chars(settings.check_chunk_chars);
-    persist_settings(&settings, None);
+    // 先に今の状態へ反映する(書けなくても、この起動の間は新しい設定で動く)
+    let saved = persist_settings(&settings, None);
     *state.ai.lock().map_err(|_| "状態の更新に失敗")? = settings;
-    Ok(())
+    saved.map_err(|e| {
+        format!("設定を保存できませんでした({e})。変更はアプリを閉じるまで有効です")
+    })
 }
 
 #[tauri::command]
