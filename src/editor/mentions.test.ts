@@ -52,6 +52,58 @@ describe("findMentions", () => {
   });
 });
 
+/** 速くする前の素朴な形(位置ごとに、長い順の名前をすべて試す)。結果の正解として使う */
+function reference(text: string, patterns: string[]) {
+  const pats = normalizePatterns(patterns);
+  const out: { name: string; from: number; to: number }[] = [];
+  if (pats.length === 0) return out;
+  let i = 0;
+  while (i < text.length) {
+    const hit = pats.find((p) => text.startsWith(p, i));
+    if (hit) {
+      out.push({ name: hit, from: i, to: i + hit.length });
+      i += hit.length;
+    } else {
+      i += 1;
+    }
+  }
+  return out;
+}
+
+describe("findMentions の速い形(テスト計画 F1)", () => {
+  // 10万字・名前200個で1打鍵ごとに約30ms(エディタと App で2回)かかっていたので、
+  // 名前を先頭の1単位で分けて引くようにした。**結果は素朴な形と同じであること**
+  it("乱数の本文と名前で、素朴な形と同じ結果を返す", () => {
+    const pieces = ["架", "純", "佐", "藤", "𠮷", "あ", " "];
+    // xorshift32(掛け算の LCG は JS の数の精度を超えて、下の桁が死ぬ)
+    let seed = 20261005;
+    const next = (n: number) => {
+      seed ^= seed << 13;
+      seed >>>= 0;
+      seed ^= seed >>> 17;
+      seed ^= seed << 5;
+      seed >>>= 0;
+      return seed % n;
+    };
+    const word = (len: number) =>
+      Array.from({ length: len }, () => pieces[next(pieces.length)]).join("");
+    let hits = 0;
+    for (let round = 0; round < 2000; round++) {
+      const text = word(next(40));
+      // 名前は本文の一部を切り出して作る(当たる名前・先頭が同じ名前・重なる名前が出る)
+      const chars = Array.from(text);
+      const patterns = Array.from({ length: next(6) }, () => {
+        const at = next(chars.length + 1);
+        return chars.slice(at, at + 1 + next(3)).join("") || word(1);
+      });
+      const got = findMentions(text, patterns);
+      expect(got).toEqual(reference(text, patterns));
+      hits += got.length;
+    }
+    expect(hits).toBeGreaterThan(1000); // 当たりの無い入力ばかりでは比べたことにならない
+  });
+});
+
 describe("normalizePatterns", () => {
   it("空を除き、長い順に並べる(最長一致の前提)", () => {
     expect(normalizePatterns(["架純", "", "佐藤架純", "  "])).toEqual([

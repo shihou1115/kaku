@@ -38,11 +38,22 @@ export function findMentions(text: string, patterns: string[]): Mention[] {
   const pats = normalizePatterns(patterns);
   if (pats.length === 0 || text.length === 0) return [];
 
+  // 名前を先頭の1単位(UTF-16)で分けておく。ある位置で当たりうるのは先頭が同じ名前だけ
+  // なので、長い順を保ったまま絞っても結果は全部を試すのと同じ。全部を試していたときは、
+  // 10万字・名前200個で1打鍵ごとに約30msかかった(エディタと App で2回。テスト計画 F1)
+  const byFirst = new Map<number, string[]>();
+  for (const p of pats) {
+    const head = p.charCodeAt(0);
+    const list = byFirst.get(head);
+    if (list) list.push(p);
+    else byFirst.set(head, [p]);
+  }
+
   const out: Mention[] = [];
   let i = 0;
   while (i < text.length) {
     let hit: string | null = null;
-    for (const p of pats) {
+    for (const p of byFirst.get(text.charCodeAt(i)) ?? []) {
       if (text.startsWith(p, i)) {
         hit = p;
         break;
