@@ -32,6 +32,7 @@ import {
 import { Editor, type EditorHandle } from "./editor/Editor";
 import { findMentions } from "./editor/mentions";
 import { findForSearch } from "./searchFold";
+import { parseRightTab, parseView, type RightTab } from "./storedPrefs";
 import { FileTree } from "./components/FileTree";
 import { ProjectSearch } from "./components/ProjectSearch";
 import { AiPanel } from "./components/AiPanel";
@@ -77,23 +78,18 @@ const LS = {
   highlight: "kaku.highlight",
 };
 
-const DEFAULT_VIEW: ViewSettings = {
-  showLineNumbers: true,
-  showRuler: false,
-  wrapColumns: null,
-  // 既定はライト(§5.15)。初回起動でデバイス設定に追従はしない
-  theme: "light",
-};
-
-function storedView(): ViewSettings {
+/** 覚えておいた値を読む。置き場所が使えなければ null(既定へ落とす) */
+function readStored(key: string): string | null {
   try {
-    const raw = localStorage.getItem(LS.view);
-    if (!raw) return DEFAULT_VIEW;
-    const v = JSON.parse(raw) as Partial<ViewSettings>;
-    return { ...DEFAULT_VIEW, ...v };
+    return localStorage.getItem(key);
   } catch {
-    return DEFAULT_VIEW;
+    return null;
   }
+}
+
+/** 表示の設定。読んだ値は項目ごとに確かめる(テスト計画 F2。storedPrefs.ts) */
+function storedView(): ViewSettings {
+  return parseView(readStored(LS.view));
 }
 
 function storedNum(key: string, fallback: number): number {
@@ -144,8 +140,6 @@ function Splitter({ onDrag }: { onDrag: (dx: number) => void }) {
     />
   );
 }
-
-type RightTab = "ai" | "ref" | "proof" | "review" | "extract";
 
 export default function App() {
   const handleRef = useRef<EditorHandle>({
@@ -225,7 +219,8 @@ export default function App() {
     () => localStorage.getItem(LS.rightOpen) !== "0",
   );
   const [rightTab, setRightTab] = useState<RightTab>(
-    () => (localStorage.getItem(LS.rightTab) as RightTab) || "ai",
+    // 知らない値が残っていても右ペインを空にしない(テスト計画 F2)
+    () => parseRightTab(readStored(LS.rightTab)),
   );
 
   // 参照ペインの表示対象
