@@ -335,13 +335,10 @@ fn collect_codex(root: &Path, dir: &Path, out: &mut Vec<CodexEntry>) -> Result<(
                 continue;
             }
             // type 省略時はフォルダ位置から推定する(§3)
-            let type_ = fm.type_.or_else(|| {
-                path.parent()
-                    .and_then(|p| p.file_name())
-                    .map(|s| s.to_string_lossy().to_string())
-            });
+            let rel = rel_string(root, &path);
+            let type_ = fm.type_.or_else(|| type_from_folder(&rel));
             out.push(CodexEntry {
-                path: rel_string(root, &path),
+                path: rel,
                 title,
                 aliases: fm.aliases,
                 type_,
@@ -472,6 +469,29 @@ pub fn check_name(relative: &str) -> Result<(), ProjectError> {
         }
     }
     Ok(())
+}
+
+/// type を省略したエントリの種別を、置き場所から決める(03 §3「フォルダ位置から推定する」)。
+///
+/// 決めるのは codex 直下の種別フォルダで、その下のサブフォルダ(`characters/主要/`)ではない。
+/// 既定の種別フォルダは、フロントマターに書くときと同じ単数の名前にする(characters → character)。
+/// 以前は親フォルダの名前をそのまま使い、抽出の画面に「characters」「主要」と出ていた
+fn type_from_folder(rel: &str) -> Option<String> {
+    let mut segs = rel.split('/');
+    if segs.next()? != "codex" {
+        return None;
+    }
+    let folder = segs.next()?;
+    segs.next()?; // codex 直下のファイル(種別フォルダの外)は決めない
+    let ty = match folder {
+        "characters" => "character",
+        "locations" => "location",
+        "items" => "item",
+        "terms" => "term",
+        "notes" => "note",
+        other => other,
+    };
+    Some(ty.to_string())
 }
 
 /// 名前から、ファイル名に使える形を作る(抽出から設定を作るとき)。
@@ -1246,6 +1266,29 @@ mod tests {
     }
 
     #[test]
+    fn load_codex_infers_type_from_the_category_folder() {
+        let root = tmp();
+        init(&root).unwrap();
+        // サブフォルダは自由に掘ってよい(03 §3)。種別は codex 直下の種別フォルダで決める
+        create_file(&root, "codex/characters/主要/黒木.md", "教授\n").unwrap();
+        create_file(&root, "codex/locations/青葉高校.md", "舞台\n").unwrap();
+        // 本人が作った種別フォルダは、その名前のまま
+        create_dir(&root, "codex/組織").unwrap();
+        create_file(&root, "codex/組織/生徒会.md", "学校の組織\n").unwrap();
+        // フロントマターに書いた type が正
+        create_file(&root, "codex/terms/魔法.md", "---\ntype: item\n---\n").unwrap();
+        let codex = load_codex(&root).unwrap();
+        let type_of = |t: &str| {
+            codex.iter().find(|c| c.title == t).and_then(|c| c.type_.clone())
+        };
+        assert_eq!(type_of("黒木").as_deref(), Some("character"), "サブフォルダの名前を種別にした");
+        assert_eq!(type_of("青葉高校").as_deref(), Some("location"));
+        assert_eq!(type_of("生徒会").as_deref(), Some("組織"));
+        assert_eq!(type_of("魔法").as_deref(), Some("item"));
+        fs::remove_dir_all(root).ok();
+    }
+
+    #[test]
     fn load_codex_uses_filename_when_title_missing() {
         let root = tmp();
         init(&root).unwrap();
@@ -1260,7 +1303,8 @@ mod tests {
         assert_eq!(codex.len(), 2);
         let kasumi = codex.iter().find(|c| c.title == "佐藤架純").unwrap();
         // title 未記入でもファイル名が使われ、type はフォルダから推定される
-        assert_eq!(kasumi.type_.as_deref(), Some("characters"));
+        // (フロントマターに書くときと同じ単数の名前。以前はフォルダ名の characters のままだった)
+        assert_eq!(kasumi.type_.as_deref(), Some("character"));
         let yuji = codex.iter().find(|c| c.title == "五十嵐悠二").unwrap();
         assert_eq!(yuji.patterns(), vec!["五十嵐悠二", "悠二"]);
         fs::remove_dir_all(root).ok();
