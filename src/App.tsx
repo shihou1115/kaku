@@ -31,6 +31,7 @@ import {
 } from "./saveFlow";
 import { Editor, type EditorHandle } from "./editor/Editor";
 import { findMentions } from "./editor/mentions";
+import { findForSearch } from "./searchFold";
 import { FileTree } from "./components/FileTree";
 import { ProjectSearch } from "./components/ProjectSearch";
 import { AiPanel } from "./components/AiPanel";
@@ -780,7 +781,8 @@ export default function App() {
     async (path: string, needle: string) => {
       const text = await openFile(path);
       if (!text || !needle) return;
-      const at = text.indexOf(needle);
+      // 索引と同じく大文字小文字を区別せずに探す(テスト計画 D3)。位置は元の本文のまま
+      const at = findForSearch(text, needle);
       if (at >= 0) handleRef.current.selectRange(at, at + needle.length);
     },
     [openFile],

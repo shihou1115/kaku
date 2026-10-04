@@ -10,8 +10,9 @@
 //! 「県立青葉」のような語の途中や「白鏡の塔」のような助詞またぎも当たる。
 //!
 //! **ただし trigram は3文字未満を索引できない。** 「架純」「悠二」のような
-//! 2文字の名前はFTS5では1件も当たらないので、**短い語はLIKEへ回す**
-//! (docs/04-design.md §4.2 の「LIKEフォールバック」)。
+//! 2文字の名前はFTS5では1件も当たらないので、**短い語は索引の全件を走査する**
+//! (docs/04-design.md §7.3。以前は LIKE だったが、`%` `_` が「何でもよい」の印になった)。
+//! 照合は大文字小文字を区別しない(`fold`。trigram と同じ扱い)。
 //! 形態素解析(lindera)はPoC#2の結果として**不要と判断**した。
 //!
 //! ## しないこと
@@ -29,7 +30,7 @@ use serde::Serialize;
 use crate::frontmatter;
 use crate::project::{self, ProjectError};
 
-/// trigram が索引できる最小の長さ。これ未満はLIKEで探す
+/// trigram が索引できる最小の長さ。これ未満は全件を走査する
 pub const MIN_TRIGRAM_CHARS: usize = 3;
 
 /// 検索結果1件(ファイル粒度)
@@ -221,10 +222,36 @@ pub fn to_phrase(needle: &str) -> String {
     format!("\"{}\"", needle.replace('"', "\"\""))
 }
 
+/// 照合用に小文字へ寄せる。**1文字ずつ**寄せ、1文字に寄せられないものはそのまま残す。
+///
+/// FTS5 の trigram は大文字小文字を区別しない(全角の英字も)。以前は件数・抜き出し・
+/// 開いた先での位置合わせが区別していたため、「hello」で「Hello」のファイルが当たっても
+/// 件数が0で、抜き出しは関係のない先頭を出し、開いても一致箇所へ飛ばなかった。
+/// 3文字未満の走査(LIKE)は ASCII しか寄せず、全角の英字で長い語と結果が食い違った
+/// (テスト計画 D3)。すべてこの形で比べる。
+///
+/// 1文字ずつ寄せるので文字の位置は変わらない(抜き出しの位置を元の本文にそのまま当てられる)。
+/// 画面側の同じ規則は `src/searchFold.ts`
+pub fn fold(s: &str) -> String {
+    s.chars()
+        .map(|c| {
+            let mut l = c.to_lowercase();
+            match (l.next(), l.next()) {
+                (Some(x), None) if x.len_utf16() == c.len_utf16() => x,
+                _ => c,
+            }
+        })
+        .collect()
+}
+
 /// 一致箇所の前後を切り出す。**位置は保存しない**ので毎回ここで作る(D-7)。
 pub fn make_snippet(body: &str, needle: &str, radius: usize) -> String {
     let chars: Vec<char> = body.chars().collect();
-    let hit = body.find(needle).map(|byte_pos| body[..byte_pos].chars().count());
+    // 寄せた形で探す。1文字ずつ寄せているので、見つけた文字の位置は元の本文と同じ
+    let folded = fold(body);
+    let hit = folded
+        .find(&fold(needle))
+        .map(|byte_pos| folded[..byte_pos].chars().count());
     let (start, prefix) = match hit {
         Some(at) => (at.saturating_sub(radius), at > radius),
         None => (0, false),
@@ -241,18 +268,18 @@ pub fn make_snippet(body: &str, needle: &str, radius: usize) -> String {
     )
 }
 
-/// 本文中の出現回数
+/// 本文中の出現回数(寄せた形で数える。当たったのに0回と出さない)
 fn count_of(body: &str, needle: &str) -> usize {
     if needle.is_empty() {
         0
     } else {
-        body.matches(needle).count()
+        fold(body).matches(&fold(needle)).count()
     }
 }
 
 /// プロジェクトを検索する。**検索のたびに変更分だけ索引し直す**。
 ///
-/// 3文字未満は trigram が索引できないのでLIKEで探す(PoC#2)。
+/// 3文字未満は trigram が索引できないので全件を走査する(PoC#2)。
 pub fn search(root: &Path, needle: &str) -> Result<SearchResult, ProjectError> {
     let started = std::time::Instant::now();
     let needle = needle.trim();
@@ -277,20 +304,26 @@ pub fn search(root: &Path, needle: &str) -> Result<SearchResult, ProjectError> {
             .map_err(|e| ProjectError::Index(e.to_string()))?;
         mapped.flatten().collect()
     } else {
+        // 3文字未満は全件を走査する。以前は LIKE で探していたが、`%` と `_` が
+        // 「何でもよい」の印になり、「_」で全ファイルが当たった(テスト計画 D1)。
+        // 照合は下でまとめて行う
         let mut stmt = conn
-            .prepare(
-                "SELECT path, title, body FROM docs
-                 WHERE body LIKE '%' || ?1 || '%' OR title LIKE '%' || ?1 || '%'",
-            )
+            .prepare("SELECT path, title, body FROM docs")
             .map_err(|e| ProjectError::Index(e.to_string()))?;
         let mapped = stmt
-            .query_map([needle], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
             .map_err(|e| ProjectError::Index(e.to_string()))?;
         mapped.flatten().collect()
     };
 
+    // **本当に含むものだけ**を結果にする(寄せた形で比べる)。件数・抜き出し・開いた先での
+    // 位置合わせと同じ基準にそろえ、当たったのに0回のファイルを出さない
+    let folded_needle = fold(needle);
     let mut hits: Vec<Hit> = rows
         .into_iter()
+        .filter(|(_, title, body)| {
+            fold(body).contains(&folded_needle) || fold(title).contains(&folded_needle)
+        })
         .map(|(path, title, body)| Hit {
             snippet: make_snippet(&body, needle, 20),
             count: count_of(&body, needle).max(count_of(&title, needle)),
@@ -362,6 +395,25 @@ mod tests {
         // PoC#2の実測で決めた切り分け。ここが変わると2文字の名前が引けなくなる
         assert!("架純".chars().count() < MIN_TRIGRAM_CHARS);
         assert!("昇降口".chars().count() >= MIN_TRIGRAM_CHARS);
+    }
+
+    /// テスト計画 D3: 照合は1文字ずつ小文字に寄せる(全角の英字も)。長さの変わる文字は寄せない
+    #[test]
+    fn fold_lowers_one_char_at_a_time() {
+        assert_eq!(fold("Hello ＡＢＣ ÀΣ"), "hello ａｂｃ àσ");
+        assert_eq!(fold("İ"), "İ", "小文字が2文字になるものは寄せない(位置がずれる)");
+        assert_eq!(fold("架純"), "架純");
+    }
+
+    /// 抜き出しは、大文字小文字の違う一致箇所の前後を出す(先頭を出して済ませない)
+    #[test]
+    fn snippet_finds_a_hit_that_differs_in_case() {
+        let body = format!("{}そして Hello と言った。", "前置きの文章が長く続く。".repeat(6));
+        // 語の側も寄せる(本文の「Hello」を「HELLO」で探す)
+        let got = make_snippet(&body, "HELLO", 6);
+        assert!(got.contains("Hello"), "一致箇所が抜き出されていない: {got}");
+        assert!(got.starts_with('…'), "{got}");
+        assert_eq!(count_of(&body, "HELLO"), 1);
     }
 
     /// 索引を使えないときは、索引の問題だと言う。以前は「文字コードを判別できませんでした」と
