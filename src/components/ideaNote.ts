@@ -32,7 +32,10 @@ export function ideaNote(i: IdeaNoteInput): string {
   const materials = [
     ...(entries.length > 0
       ? entries.map(
-          (e) => `- ${e.title}(${e.source === "manual" ? "手動" : "自動"}) — ${e.path}`,
+          (e) =>
+            `- ${e.title}(${e.source === "manual" ? "手動" : "自動"}${
+              e.truncated ? "・長いため途中まで" : ""
+            }) — ${e.path}`,
         )
       : ["- (なし)"]),
     // 上限で落ちた分も黙って隠さない — 隠すと「全部渡したうえでの応答」として読める

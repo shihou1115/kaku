@@ -469,13 +469,16 @@ export function AiPanel({
           <details className="preview" open>
             <summary>
               送信内容 {preview.total_chars}字 / 資料{preview.entries.length}件
+              {/* 落としたもの・切ったものを黙らない(テスト計画 E2) */}
+              {preview.dropped_entries > 0 &&
+                `(上限を超えた ${preview.dropped_entries}件は渡しません)`}
               {preview.body_truncated && " (本文は末尾を切り捨て)"}
             </summary>
             <ul>
               {preview.entries.map((e) => (
                 <li key={e.path}>
                   {e.source === "manual" ? "手動" : "自動"}: {e.title}(
-                  {e.text.length}字)
+                  {Array.from(e.text).length}字{e.truncated && "・長いため途中まで"})
                 </li>
               ))}
             </ul>

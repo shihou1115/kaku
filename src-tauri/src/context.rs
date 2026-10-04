@@ -30,6 +30,10 @@ pub struct ContextEntry {
     /// "mention" = 本文に名前が出た / "manual" = ユーザーが手動で追加
     pub source: String,
     pub text: String,
+    /// 1件の上限(MAX_ENTRY_CHARS)で途中までにしたか。送る内容の確認・AI・記録の
+    /// どれにもそう伝える(テスト計画 E2。以前は黙って切っていた)
+    #[serde(default)]
+    pub truncated: bool,
 }
 
 /// 上限。トークン数ではなく文字数で単純に切る(V1の割り切り)。
@@ -71,13 +75,14 @@ pub fn build(
                 continue;
             };
             let Some(raw) = entry_texts(p) else { continue };
-            let (text, _) = truncate(raw.trim(), MAX_ENTRY_CHARS);
+            let (text, truncated) = truncate(raw.trim(), MAX_ENTRY_CHARS);
             seen.push(p.as_str());
             entries.push(ContextEntry {
                 path: c.path.clone(),
                 title: c.title.clone(),
                 source: source.to_string(),
                 text,
+                truncated,
             });
         }
     }
@@ -193,7 +198,12 @@ pub fn render_user_message(ctx: &ContextPreview, question: &str) -> String {
     if !ctx.entries.is_empty() {
         s.push_str("# 設定資料\n\n");
         for e in &ctx.entries {
-            s.push_str(&format!("## {}\n{}\n\n", e.title, e.text));
+            s.push_str(&format!("## {}\n{}\n", e.title, e.text));
+            // 途中までの資料だと伝える(資料に無いことを「設定に無い」と読ませない)
+            if e.truncated {
+                s.push_str("(※この資料は長いため途中までです)\n");
+            }
+            s.push('\n');
         }
     }
     if !ctx.body.trim().is_empty() {
@@ -250,6 +260,36 @@ mod tests {
         let ctx = build(&long, &[], &|_| None, &[], &[]);
         assert!(ctx.body_truncated);
         assert_eq!(ctx.body.chars().count(), MAX_BODY_CHARS);
+    }
+
+    /// テスト計画 E2: 上限を超えたとき、何を落とし何を切ったかが、送る内容(確認の表示と同じもの)
+    /// にそのまま出る。件数の上限は手動の資料を先に守り、1件の上限で切ったものには印が付き、
+    /// AI にも途中までだと伝わる
+    #[test]
+    fn limits_are_visible_in_what_is_sent() {
+        let codex: Vec<CodexEntry> = (0..25)
+            .map(|i| entry(&format!("codex/c{i:02}.md"), &format!("人物{i}")))
+            .collect();
+        let long = "あ".repeat(MAX_ENTRY_CHARS + 300);
+        let short = "短い資料".to_string();
+        let texts = |p: &str| Some(if p == "codex/c24.md" { short.clone() } else { long.clone() });
+        let mentioned: Vec<String> = (0..24).map(|i| format!("codex/c{i:02}.md")).collect();
+        let manual = vec!["codex/c24.md".to_string()];
+        let ctx = build("本文", &codex, &texts, &mentioned, &manual);
+
+        assert_eq!(ctx.entries.len(), MAX_ENTRIES);
+        assert_eq!(ctx.dropped_entries, 25 - MAX_ENTRIES);
+        assert_eq!(ctx.entries[0].path, "codex/c24.md", "手動の資料が落とされた");
+        assert!(!ctx.entries[0].truncated);
+        for e in &ctx.entries[1..] {
+            assert!(e.truncated, "{} に途中までの印が無い", e.path);
+            assert_eq!(e.text.chars().count(), MAX_ENTRY_CHARS);
+        }
+        let msg = render_user_message(&ctx, "依頼");
+        assert_eq!(
+            msg.matches("(※この資料は長いため途中までです)").count(),
+            MAX_ENTRIES - 1
+        );
     }
 
     #[test]

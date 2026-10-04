@@ -54,6 +54,8 @@ export type ContextEntry = {
   title: string;
   source: "mention" | "manual";
   text: string;
+  /** 1件の上限で途中までにしたか(テスト計画 E2) */
+  truncated: boolean;
 };
 
 export type ContextPreview = {

@@ -47,11 +47,16 @@ describe("相談の記録(テスト計画 E1・E4)", () => {
       ...base,
       context: {
         ...base.context,
-        entries: [{ path: "codex/characters/架純.md", title: "架純", source: "manual", text: "幼馴染" }],
+        entries: [
+          { path: "codex/characters/架純.md", title: "架純", source: "manual", text: "幼馴染", truncated: false },
+          { path: "codex/terms/魔法.md", title: "魔法", source: "mention", text: "長い", truncated: true },
+        ],
         dropped_entries: 2,
       },
     });
     expect(md).toContain("- 架純(手動) — codex/characters/架純.md");
+    // 1件の上限で切った資料には、途中までだと書く(テスト計画 E2)
+    expect(md).toContain("- 魔法(自動・長いため途中まで) — codex/terms/魔法.md");
     expect(md).toContain("2件は渡していません");
   });
 
