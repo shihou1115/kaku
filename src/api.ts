@@ -216,6 +216,12 @@ export type PromptTemplate = {
   body: string;
 };
 
+export type PromptList = {
+  templates: PromptTemplate[];
+  /** 読めなかったファイル(名前と直し方)。黙って飛ばさず画面に出す(テスト計画 E8) */
+  unreadable: string[];
+};
+
 export type AiSettings = {
   base_url: string;
   api_key: string | null;
@@ -319,7 +325,7 @@ export const api = {
   renderTemplate: (genre: string, kind: string, title: string) =>
     invoke<string>("render_template", { genre, kind, title }),
   openTemplatesDir: () => invoke<string>("open_templates_dir"),
-  listPrompts: () => invoke<PromptTemplate[]>("list_prompts"),
+  listPrompts: () => invoke<PromptList>("list_prompts"),
   openPromptsDir: () => invoke<string>("open_prompts_dir"),
   searchProject: (query: string) =>
     invoke<SearchResult>("search_project", { query }),

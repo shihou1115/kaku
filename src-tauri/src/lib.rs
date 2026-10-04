@@ -536,14 +536,12 @@ fn list_templates() -> Result<Vec<templates::TemplateInfo>, String> {
 /// テンプレートを適用した新規ファイルの中身を返す
 #[tauri::command]
 fn render_template(genre: String, kind: String, title: String) -> Result<String, String> {
-    templates::render(&genre, &kind, &title).map_err(|e| {
-        format!("テンプレートを読めませんでした({genre}/{kind}): {e}")
-    })
+    templates::render(&genre, &kind, &title)
 }
 
 /// AI相談の依頼テンプレート(M-03)。押すと依頼欄へ入る文例の一覧
 #[tauri::command]
-fn list_prompts() -> Result<Vec<prompts::PromptTemplate>, String> {
+fn list_prompts() -> Result<prompts::PromptList, String> {
     prompts::ensure_defaults().map_err(|e| e.to_string())?;
     prompts::list().map_err(|e| e.to_string())
 }

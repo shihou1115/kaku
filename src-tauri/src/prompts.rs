@@ -22,7 +22,7 @@
 //! 2経路で提供すると使い分けが分からなくなる。
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
@@ -162,6 +162,8 @@ pub fn display_category(file_stem: &str) -> String {
 /// `## 見出し` が1件の区切り。見出しの後から次の `##` までが挿入される文面になる。
 /// `#`(1段)はカテゴリの説明なので読み飛ばす。
 pub fn parse(category: &str, markdown: &str) -> Vec<PromptTemplate> {
+    // 先頭の BOM(メモ帳などで保存したもの)は落とす。残すと1行目の見出しを読まない(テスト計画 E8)
+    let markdown = markdown.strip_prefix('\u{feff}').unwrap_or(markdown);
     let mut out: Vec<PromptTemplate> = Vec::new();
     let mut title: Option<String> = None;
     let mut body = String::new();
@@ -201,19 +203,32 @@ pub fn parse(category: &str, markdown: &str) -> Vec<PromptTemplate> {
     out
 }
 
+/// 文例の一覧と、読めなかったファイル
+#[derive(Debug, Default, Serialize)]
+pub struct PromptList {
+    pub templates: Vec<PromptTemplate>,
+    /// 読めなかったファイル(名前と理由。画面に出す)。**黙って飛ばすと、そのファイルの
+    /// 文例が理由も分からずに消えて見える**(Shift_JIS で保存し直した等。テスト計画 E8)
+    pub unreadable: Vec<String>,
+}
+
 /// 定型文を読み込む。ファイル名順に並ぶ(数字の接頭辞で制御する)
-pub fn list() -> std::io::Result<Vec<PromptTemplate>> {
-    let dir = prompts_dir();
+pub fn list() -> std::io::Result<PromptList> {
+    list_in(&prompts_dir())
+}
+
+/// `list` の本体。置き場を受け取る(テストは使い捨てのフォルダーで呼ぶ)
+pub fn list_in(dir: &Path) -> std::io::Result<PromptList> {
+    let mut out = PromptList::default();
     if !dir.exists() {
-        return Ok(Vec::new());
+        return Ok(out);
     }
-    let mut files: Vec<PathBuf> = fs::read_dir(&dir)?
+    let mut files: Vec<PathBuf> = fs::read_dir(dir)?
         .filter_map(|e| e.ok().map(|e| e.path()))
         .filter(|p| p.extension().map(|e| e == "md").unwrap_or(false))
         .collect();
     files.sort();
 
-    let mut out = Vec::new();
     for path in files {
         let Some(stem) = path.file_stem().map(|s| s.to_string_lossy().to_string()) else {
             continue;
@@ -221,10 +236,22 @@ pub fn list() -> std::io::Result<Vec<PromptTemplate>> {
         if stem.starts_with('.') {
             continue;
         }
-        let Ok(text) = fs::read_to_string(&path) else {
-            continue; // 読めないファイルは黙って飛ばす(1つの壊れで全部止めない)
+        let name = format!("{stem}.md");
+        // 読めないファイルは飛ばす(1つの壊れで全部は止めない)。ただし黙らない
+        let text = match fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(e) if e.kind() == std::io::ErrorKind::InvalidData => {
+                out.unreadable.push(format!(
+                    "{name}(UTF-8 ではありません。UTF-8 で保存し直すと読めます)"
+                ));
+                continue;
+            }
+            Err(e) => {
+                out.unreadable.push(format!("{name}({e})"));
+                continue;
+            }
         };
-        out.extend(parse(&display_category(&stem), &text));
+        out.templates.extend(parse(&display_category(&stem), &text));
     }
     Ok(out)
 }

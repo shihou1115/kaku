@@ -13,7 +13,7 @@
 //! 配置: `<config_dir>/kaku/templates/<ジャンル>/<種別>.md`
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
@@ -479,10 +479,23 @@ pub fn list() -> std::io::Result<Vec<TemplateInfo>> {
 }
 
 /// テンプレート本文を読む。`title` 行には作成時の名前を差し込む。
-pub fn render(genre: &str, kind: &str, title: &str) -> std::io::Result<String> {
-    let path = templates_dir().join(genre).join(format!("{kind}.md"));
-    let body = fs::read_to_string(path)?;
-    Ok(fill_title(&body, title))
+/// 失敗は画面に出す文面で返す
+pub fn render(genre: &str, kind: &str, title: &str) -> Result<String, String> {
+    render_in(&templates_dir(), genre, kind, title)
+}
+
+/// `render` の本体。置き場を受け取る(テストは使い捨てのフォルダーで呼ぶ)。
+/// 本人が書き換えたファイルなので、UTF-8 以外で保存されていることがある。そのときは
+/// OS の英語の文面ではなく、どうすれば使えるかを言う(テスト計画 E8)
+pub fn render_in(base: &Path, genre: &str, kind: &str, title: &str) -> Result<String, String> {
+    let path = base.join(genre).join(format!("{kind}.md"));
+    match fs::read_to_string(path) {
+        Ok(body) => Ok(fill_title(&body, title)),
+        Err(e) if e.kind() == std::io::ErrorKind::InvalidData => Err(format!(
+            "テンプレート({genre}/{kind}.md)が UTF-8 ではないので読めません。UTF-8 で保存し直すと使えます"
+        )),
+        Err(e) => Err(format!("テンプレート({genre}/{kind}.md)を読めませんでした: {e}")),
+    }
 }
 
 /// フロントマター内の空の `title:` に名前を入れる。

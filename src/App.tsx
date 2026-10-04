@@ -838,11 +838,13 @@ export default function App() {
       const path = `${dirPath}/${fileName}`;
       const title = fileName.replace(/\.md$/, "");
       let content: string;
+      /** テンプレートを使えなかったこと。**開いたあとで出す**(開く処理が案内を消すため。テスト計画 E8) */
+      let note: string | null = null;
       if (genre && kind) {
         try {
           content = await api.renderTemplate(genre, kind, title);
         } catch (e) {
-          setStatus(`テンプレートを使えませんでした(${e})`);
+          note = `テンプレートを使えなかったので、ひな形なしで作りました。${e}`;
           content = dirPath.startsWith("codex") ? PLAIN_CODEX : PLAIN_SCENE;
         }
       } else {
@@ -855,7 +857,8 @@ export default function App() {
           return;
         }
         setProject(await api.refreshProject());
-        await openFile(path);
+        const opened = await openFile(path);
+        if (note && opened !== null) setStatus(note);
       } catch (e) {
         setStatus(String(e));
       }

@@ -104,6 +104,8 @@ export function AiPanel({
 
   // --- M-03: 依頼の文例(設定フォルダのMarkdownが実体) ---
   const [prompts, setPrompts] = useState<PromptTemplate[]>([]);
+  /** 読めなかった文例ファイル(Shift_JIS で保存し直した等)。黙って消さずに出す */
+  const [unreadablePrompts, setUnreadablePrompts] = useState<string[]>([]);
   const [showAllPrompts, setShowAllPrompts] = useState(false);
   /** 保存する相談の件名を聞く */
   const [saving, setSaving] = useState<string | null>(null);
@@ -116,9 +118,15 @@ export function AiPanel({
   const lastRun = useRef<LastRun | null>(null);
 
   useEffect(() => {
-    api.listPrompts().then(setPrompts).catch(() => {
-      /* 文例が無くても相談自体はできる */
-    });
+    api
+      .listPrompts()
+      .then((l) => {
+        setPrompts(l.templates);
+        setUnreadablePrompts(l.unreadable);
+      })
+      .catch(() => {
+        /* 文例が無くても相談自体はできる */
+      });
   }, []);
 
   /** カテゴリごとにまとめる。並び順はファイル名(数字の接頭辞)で決まる */
@@ -356,7 +364,8 @@ export function AiPanel({
       <div className="block">
         <div className="block-head">
           <h2>依頼</h2>
-          {prompts.length > 0 && (
+          {/* 全部読めなくなったときも出す(直しに行く道を消さない) */}
+          {(prompts.length > 0 || unreadablePrompts.length > 0) && (
             <button
               className="mini"
               onClick={() => void api.openPromptsDir().catch(() => {})}
@@ -366,6 +375,12 @@ export function AiPanel({
             </button>
           )}
         </div>
+
+        {unreadablePrompts.length > 0 && (
+          <p className="pf-stale">
+            読めなかった文例のファイルがあります: {unreadablePrompts.join("、")}
+          </p>
+        )}
 
         {/* 押すと文面が入るだけ。**送信はしない**ので、そのまま直せる(§5.6 案A) */}
         {promptGroups.length > 0 && (
@@ -378,9 +393,10 @@ export function AiPanel({
               return (
                 <div className="pt-group" key={g.category}>
                   <span className="pt-category">{g.category}</span>
-                  {items.map((p) => (
+                  {items.map((p, i) => (
                     <button
-                      key={`${g.category}/${p.title}`}
+                      // 見出しは重なりうる(本人が書き換えるファイル)。並びは読み込みごとに固定
+                      key={`${g.category}/${i}`}
                       className="pt-chip"
                       onClick={() => applyPrompt(p.body)}
                       title={p.body}
