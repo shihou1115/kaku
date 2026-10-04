@@ -15,6 +15,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::frontmatter;
 use crate::project::CodexEntry;
 
 /// codexへの追加候補。
@@ -348,15 +349,22 @@ pub fn verify(body: &str, raw: Vec<RawEntity>, codex: &[CodexEntry]) -> VerifyRe
 
 /// codexエントリのファイル本文を作る(テンプレートを使わない最小形)
 pub fn entry_markdown(c: &Candidate) -> String {
+    // 名前・別名・説明はAIが返したもの。改行や YAML の記号が入っていても、
+    // フロントマターを壊さず、読み直して同じに戻る形で書く(テスト計画 C2)。
+    // 以前はそのまま書いていたため、説明の改行でフロントマターが壊れ、
+    // カンマを含む別名(「黒木, 龍一」)は2つに割れた
     let aliases = c
         .aliases
         .iter()
-        .map(|a| a.as_str())
+        .map(|a| frontmatter::quote_if_needed(a))
         .collect::<Vec<_>>()
         .join(", ");
     format!(
         "---\ntype: {}\ntitle: {}\naliases: [{}]\ndescription: {}\n---\n\n",
-        c.kind, c.name, aliases, c.description
+        c.kind,
+        frontmatter::yaml_scalar(&c.name),
+        aliases,
+        frontmatter::yaml_scalar(&c.description)
     )
 }
 
@@ -662,6 +670,28 @@ mod tests {
         assert!(md.contains("aliases: []"));
         assert!(md.contains("description: 幼馴染"));
         assert!(!md.contains("id:"), "V1で解釈しないフィールドを書かない");
+    }
+
+    /// テスト計画 C2: AIが返した名前・別名・説明に改行や YAML の記号が入っていても、
+    /// フロントマターを壊さず、読み直して同じに戻る。以前はそのまま書いていたため、
+    /// 説明の改行でフロントマターが壊れ、カンマを含む別名は2つに割れた
+    #[test]
+    fn entry_markdown_survives_what_the_ai_returns() {
+        let c = Candidate {
+            name: "[仮] 黒木".into(),
+            kind: "character".into(),
+            description: "教授。研究室の主 #2\n二行目もある: 補足".into(),
+            count: 1,
+            aliases: vec!["黒木, 龍一".into(), "教授".into()],
+            existing_path: None,
+        };
+        let md = format!("{}本文\n", entry_markdown(&c));
+        let fm = frontmatter::parse_source(&md);
+        assert_eq!(fm.title.as_deref(), Some("[仮] 黒木"));
+        assert_eq!(fm.aliases, vec!["黒木, 龍一", "教授"]);
+        assert_eq!(fm.description.as_deref(), Some("教授。研究室の主 #2 二行目もある: 補足"));
+        assert_eq!(fm.type_.as_deref(), Some("character"), "後ろの行が崩れた");
+        assert_eq!(frontmatter::split(&md).1, "\n本文\n", "フロントマターの閉じが崩れた");
     }
 
     #[test]

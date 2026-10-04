@@ -232,8 +232,60 @@ pub fn add_aliases(source: &str, additions: &[String]) -> String {
     out
 }
 
+/// `title:` `description:` などの値(1行の文字列)を、読み直して同じに戻る形で書く。
+///
+/// そのまま書くと、` #` 以降がコメントになって名前が切れる(「第1話 #序章」→「第1話」)。
+/// 先頭の `[` `&` `!` `%` などや `: ` を含む値は、ほかのツールが読めないフロントマターになり、
+/// 改行を含む値(抽出したAIの説明など)はフロントマターの形そのものを壊す(テスト計画 C2)。
+///
+/// 要るときだけ単一引用符で包む(中の `'` は `''`)。単一引用符はバックスラッシュを
+/// 特別扱いしないので、どのツールでも同じに読める。改行などの制御文字は空白にする
+pub fn yaml_scalar(value: &str) -> String {
+    let flat: String = value
+        .chars()
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .collect();
+    let needs_quotes = flat
+        .chars()
+        .next()
+        .is_some_and(|c| "-?:,[]{}#&*!|>'\"%@`".contains(c))
+        || flat.contains(": ")
+        || flat.contains(" #")
+        || flat.ends_with(':')
+        || flat.starts_with(char::is_whitespace)
+        || flat.ends_with(char::is_whitespace)
+        || flat.contains(['"', '\'']);
+    if needs_quotes {
+        format!("'{}'", flat.replace('\'', "''"))
+    } else {
+        flat
+    }
+}
+
+/// YAML で意味を持つ文字を含む名前(ファイル名に使えるもの)。テスト用。
+/// そのまま `title: ` の後ろに置くと、` #` 以降がコメントになって名前が切れたり、
+/// 先頭の `[` `&` `!` などでほかのツールが読めないフロントマターになる
+#[cfg(test)]
+pub(crate) const YAML_TRICKY: &[&str] = &[
+    "第1話 #序章",
+    "[序] 始まり",
+    "&印",
+    "!注意",
+    "'単'の話",
+    "%率",
+    "@名",
+    "- 前置き",
+    "? 問い",
+    "{波}",
+    "`記号`",
+    "場面: 再会",
+    "終わり:",
+    "He said \"hi\"",
+    "  前後の空白  ",
+];
+
 /// YAMLのインライン配列に入れて壊れる文字があれば引用符で包む
-fn quote_if_needed(value: &str) -> String {
+pub(crate) fn quote_if_needed(value: &str) -> String {
     if value.contains([',', '[', ']', '"', '\'', ':', '#']) {
         format!("\"{}\"", value.replace('"', "\\\""))
     } else {
@@ -337,6 +389,8 @@ fn non_empty(value: &str) -> Option<String> {
 ///
 /// フロントマターごと無い場合は、本文の前に付ける。
 pub fn set_title(source: &str, title: &str) -> String {
+    // 見出しはAIが付けることもある(シーンの分割)。YAML として読み直せる形にして書く
+    let title = yaml_scalar(title);
     let (fm, body) = split(source);
     let Some(fm) = fm else {
         return format!("---\ntitle: {title}\n---\n\n{source}");
@@ -637,5 +691,29 @@ mod tests {
         assert!(fm.is_some());
         assert_eq!(body, "本文\r\n");
         assert_eq!(parse(fm.unwrap()).title.as_deref(), Some("出会い"));
+    }
+
+    /// テスト計画 C2: 見出しの書き換え(シーンの分割で AI が付けた見出し)も、
+    /// YAML の記号や改行を含んだまま読み直して同じに戻る
+    #[test]
+    fn set_title_survives_tricky_titles() {
+        for title in YAML_TRICKY {
+            for src in ["---\ntitle: 元\n---\n本文\n", "---\ntype: scene\n---\n本文\n", "本文だけ\n"] {
+                let got = set_title(src, title);
+                assert_eq!(parse_source(&got).title.as_deref(), Some(title.trim()), "{got:?}");
+            }
+        }
+        // 改行は空白にする(見出しは1行。改行のまま書くとフロントマターが壊れる)
+        let got = set_title("本文\n", "一行目\n二行目");
+        assert_eq!(parse_source(&got).title.as_deref(), Some("一行目 二行目"));
+        assert_eq!(split(&got).1, "\n本文\n");
+    }
+
+    /// 引用の要らない値はそのまま書く(既存のファイルの見た目を変えない)
+    #[test]
+    fn plain_values_stay_plain() {
+        for v in ["佐藤架純", "第1話", "a-b", "見出し#1", "C#", "ゴロウ!", "時刻 12:30"] {
+            assert_eq!(yaml_scalar(v), v);
+        }
     }
 }

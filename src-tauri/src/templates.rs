@@ -513,7 +513,11 @@ pub fn fill_title(body: &str, title: &str) -> String {
                 } else {
                     ""
                 };
-                out.push_str(&format!("title: {title}{nl}"));
+                // YAML として読み直して同じ名前に戻る形で書く(テスト計画 C2)
+                out.push_str(&format!(
+                    "title: {}{nl}",
+                    crate::frontmatter::yaml_scalar(title)
+                ));
                 done = true;
                 continue;
             }
@@ -554,6 +558,20 @@ mod tests {
     fn empty_title_is_noop() {
         let src = "---\ntitle:\n---\n";
         assert_eq!(fill_title(src, "   "), src);
+    }
+
+    /// テスト計画 C2: どんな名前でも、読み直すと同じ名前に戻る
+    /// (js-yaml でも同じ名前に読めることを確かめた。引用しないと15通り中14通りが壊れた)
+    #[test]
+    fn tricky_names_survive_the_round_trip() {
+        let src = "---\ntype: scene\ntitle:\n---\n本文\n";
+        for name in crate::frontmatter::YAML_TRICKY {
+            let got = fill_title(src, name);
+            let read = crate::frontmatter::parse_source(&got).title;
+            assert_eq!(read.as_deref(), Some(name.trim()), "{name:?} → {got:?}");
+        }
+        // 引用の要らない名前は今までどおり素のまま書く
+        assert!(fill_title(src, "佐藤架純").contains("title: 佐藤架純\n"));
     }
 
     #[test]

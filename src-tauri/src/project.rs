@@ -125,7 +125,11 @@ pub fn init(root: &Path) -> Result<(), ProjectError> {
             .file_name()
             .map(|s| s.to_string_lossy().to_string())
             .unwrap_or_else(|| "無題".to_string());
-        let content = format!("---\ntitle: {name}\n---\n\n(あらすじをここに書く)\n");
+        // フォルダー名は「[序] 物語」のような形でもよい。YAML として読み直せる形で書く
+        let content = format!(
+            "---\ntitle: {}\n---\n\n(あらすじをここに書く)\n",
+            crate::frontmatter::yaml_scalar(&name)
+        );
         write_new(&project_md, &content)?;
     }
     Ok(())
@@ -1062,6 +1066,20 @@ mod tests {
         assert!(root.join(".app/backups").is_dir());
         assert!(root.join("project.md").is_file());
         fs::remove_dir_all(root).ok();
+    }
+
+    /// テスト計画 C2: フォルダー名に YAML の記号があっても、project.md の題名として読み直せる
+    #[test]
+    fn project_title_survives_a_tricky_folder_name() {
+        let root = tmp().join("[序] 物語 #1");
+        init(&root).unwrap();
+        let source = read_text(&root, "project.md").unwrap();
+        assert_eq!(
+            crate::frontmatter::parse_source(&source).title.as_deref(),
+            Some("[序] 物語 #1"),
+            "{source}"
+        );
+        fs::remove_dir_all(root.parent().unwrap()).ok();
     }
 
     /// テスト計画 B2: プロジェクトでない、空でないフォルダーは、**何も作らずに**確認を求める
