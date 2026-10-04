@@ -227,6 +227,22 @@ fn note_cancelled(warning: Option<String>) -> Option<String> {
     })
 }
 
+/// すべての塊で問い合わせに失敗したときの文面。**最後の失敗の理由を添える**(テスト計画 E7)。
+/// 以前は理由を捨てて一律に「接続設定を確認してください」と出していたため、時間切れ
+/// (モデルが遅いだけ)でも接続先やキーを疑わせた
+fn all_failed(reason: Option<&str>) -> String {
+    match reason {
+        Some(r) => format!("AIへの問い合わせに失敗しました。{r}"),
+        None => "AIへの問い合わせに失敗しました。接続設定を確認してください".to_string(),
+    }
+}
+
+/// 一部の塊で失敗したときの断り書き。理由を添える
+fn some_failed(failures: usize, what: &str, reason: Option<&str>) -> String {
+    let why = reason.map(|r| format!("(理由: {r})")).unwrap_or_default();
+    format!("{failures}箇所の{what}に失敗しました{why}。結果は一部のみです")
+}
+
 // ===== プロジェクト =====
 
 #[derive(Serialize)]
@@ -680,6 +696,8 @@ async fn run_proofread(
     let mut collected = Vec::new();
     let mut completion_tokens = 0u64;
     let mut failures = 0usize;
+    // 最後に失敗した理由。捨てると時間切れまで「接続設定を確認」に化ける(テスト計画 E7)
+    let mut last_failure: Option<String> = None;
     // 応答が打ち切られた塊の数。「指摘なし」と取り違えると誤報告になる
     let mut truncated = 0usize;
     // 1文字も返らなかった塊。検閲による拒否でこの形になる(打ち切りとは対処が逆)
@@ -750,6 +768,7 @@ async fn run_proofread(
                         (h.log)("proofread", &messages, "", ms_since(call_started), Some(&note));
                         // 一部が落ちても、取れた分は返す(全部やり直させない)
                         failures += 1;
+                        last_failure = Some(e);
                         continue;
                     }
                 }
@@ -825,7 +844,7 @@ async fn run_proofread(
     }
 
     if failures == chunks.len() && !chunks.is_empty() {
-        return Err("AIへの問い合わせに失敗しました。接続設定を確認してください".to_string());
+        return Err(all_failed(last_failure.as_deref()));
     }
 
     let elapsed = started.elapsed();
@@ -857,9 +876,7 @@ async fn run_proofread(
              別のモデルをお試しください"
         ))
     } else if failures > 0 {
-        Some(format!(
-            "{failures}箇所の検査に失敗しました。結果は一部のみです"
-        ))
+        Some(some_failed(failures, "検査", last_failure.as_deref()))
     } else {
         None
     };
@@ -1109,6 +1126,8 @@ async fn run_review(
     let mut overalls: Vec<String> = Vec::new();
     let mut completion_tokens = 0u64;
     let mut failures = 0usize;
+    // 最後に失敗した理由。捨てると時間切れまで「接続設定を確認」に化ける(テスト計画 E7)
+    let mut last_failure: Option<String> = None;
     // 応答が打ち切られた塊。「指摘なし」と取り違えると誤報告になる
     let mut truncated = 0usize;
     // 1文字も返らなかった塊。検閲による拒否でこの形になる
@@ -1180,6 +1199,7 @@ async fn run_review(
                         (h.log)("review", &messages, "", ms_since(call_started), Some(&note));
                         // 一部が落ちても、取れた分は返す(全部やり直させない)
                         failures += 1;
+                        last_failure = Some(e);
                         continue;
                     }
                 }
@@ -1268,7 +1288,7 @@ async fn run_review(
     }
 
     if failures == chunks.len() && !chunks.is_empty() {
-        return Err("AIへの問い合わせに失敗しました。接続設定を確認してください".to_string());
+        return Err(all_failed(last_failure.as_deref()));
     }
 
     let elapsed = started.elapsed();
@@ -1300,9 +1320,7 @@ async fn run_review(
              別のモデルをお試しください"
         ))
     } else if failures > 0 {
-        Some(format!(
-            "{failures}箇所のレビューに失敗しました。結果は一部のみです"
-        ))
+        Some(some_failed(failures, "レビュー", last_failure.as_deref()))
     } else {
         None
     };
@@ -1395,6 +1413,8 @@ async fn run_extract(
     let mut refused = 0usize;
     let mut unparsed = 0usize;
     let mut failures = 0usize;
+    // 最後に失敗した理由。捨てると時間切れまで「接続設定を確認」に化ける(テスト計画 E7)
+    let mut last_failure: Option<String> = None;
     let mut cancelled = false;
 
     for chunk in &chunks {
@@ -1446,12 +1466,13 @@ async fn run_extract(
                 let note = format!("失敗: {e}");
                 (h.log)("extract", &messages, "", ms_since(call_started), Some(&note));
                 failures += 1;
+                last_failure = Some(e);
             }
         }
     }
 
     if failures == chunks.len() && !chunks.is_empty() {
-        return Err("AIへの問い合わせに失敗しました。接続設定を確認してください".to_string());
+        return Err(all_failed(last_failure.as_deref()));
     }
 
     let raw_count = raw_all.len();
@@ -1477,7 +1498,7 @@ async fn run_extract(
              「候補なし」ではありません。別のモデルをお試しください"
         ));
     } else if failures > 0 {
-        notes.push(format!("{failures}箇所の抽出に失敗しました。結果は一部のみです"));
+        notes.push(some_failed(failures, "抽出", last_failure.as_deref()));
     }
     if unchecked_chars > 0 {
         notes.push(format!(
@@ -1653,7 +1674,7 @@ async fn ask_ai(
     if !resp.status().is_success() {
         let status = resp.status();
         let body = resp.text().await.unwrap_or_default();
-        let msg = format!("APIエラー: status={status} body={body}");
+        let msg = ai::describe_status(status, &body, &s.base_url);
         log("chat", &messages, "", ms_since(started), Some(&msg));
         let _ = on_event.send(ChatEvent::Error(msg.clone()));
         return Err(msg);
@@ -2441,6 +2462,56 @@ mod ai_run_tests {
         let r = extract_with(&s, &text).await;
         let w = r.warning.expect("末尾を見ていないのに黙っている");
         assert!(w.contains("見ていません"), "{w}");
+    }
+
+    /// テスト計画 E7: すべての塊で失敗したら、**失敗の理由をそのまま伝える**。
+    /// 以前は理由を捨てて一律に「接続設定を確認してください」と出していた
+    /// (時間切れ=モデルが遅いだけ、でも接続先やキーを疑わせた)
+    #[tokio::test]
+    async fn every_run_tells_why_it_failed() {
+        let (c, l) = (never(), no_log());
+        let h = AiHooks { cancelled: &c, log: &l };
+        // APIキーの拒否(経路A・Bとも)
+        let m = mock(vec![Reply::Status(401), Reply::Status(401)]);
+        let err = run_proofread(&settings(&m), TEXT, &[], &h).await.err().expect("失敗するはず");
+        assert!(err.contains("APIキー"), "校正: {err}");
+        let m = mock(vec![Reply::Status(401), Reply::Status(401)]);
+        let picked = review::selected_aspects(&[]);
+        let err = run_review(&settings(&m), TEXT, &picked, &[], vec![], &h).await.err().expect("失敗するはず");
+        assert!(err.contains("APIキー"), "レビュー: {err}");
+        let m = mock(vec![Reply::Status(401), Reply::Status(401)]);
+        let err = run_extract(&settings(&m), TEXT, &[], &h).await.err().expect("失敗するはず");
+        assert!(err.contains("APIキー"), "抽出: {err}");
+
+        // 接続先に何も居ない
+        let closed = {
+            let l = TcpListener::bind("127.0.0.1:0").unwrap();
+            let port = l.local_addr().unwrap().port();
+            drop(l);
+            port
+        };
+        let mut s = settings(&mock(vec![]));
+        s.base_url = format!("http://127.0.0.1:{closed}/v1");
+        let err = run_proofread(&s, TEXT, &[], &h).await.err().expect("失敗するはず");
+        assert!(err.contains("接続できませんでした"), "{err}");
+    }
+
+    /// 一部の塊だけ失敗したときも、断り書きに理由を添える
+    #[tokio::test]
+    async fn partial_failure_note_tells_why() {
+        let m = mock(vec![
+            chat(Some(r#"{"issues":[]}"#), "stop"),
+            Reply::Status(401),
+            Reply::Status(401),
+        ]);
+        let mut s = settings(&m);
+        s.check_chunk_chars = 500;
+        let text = text_with_a_repeated_phrase();
+        let (c, l) = (never(), no_log());
+        let h = AiHooks { cancelled: &c, log: &l };
+        let r = run_proofread(&s, &text, &[], &h).await.unwrap();
+        let w = r.warning.expect("一部失敗したのに断りが無い");
+        assert!(w.contains("1箇所の検査に失敗しました") && w.contains("APIキー"), "{w}");
     }
 
     /// テスト計画 E3: 塊の上限を超えた本文では、校正もレビューも見ていない末尾の字数を返す

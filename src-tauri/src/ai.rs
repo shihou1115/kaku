@@ -161,6 +161,39 @@ pub fn describe_error(e: &reqwest::Error, url: &str) -> String {
     }
 }
 
+/// エラー応答(HTTP の状態)を、原因と次にすべきことが分かる日本語にする(テスト計画 E7)。
+///
+/// 以前は「APIエラー: status=401 body=…」をそのまま出していたため、APIキーの入れ忘れも、
+/// 接続先の `/v1` の抜けも、同じ形の文面で区別が付かなかった。本文は診断のために後ろへ残す
+pub fn describe_status(status: reqwest::StatusCode, body: &str, url: &str) -> String {
+    let code = status.as_u16();
+    let detail = body.trim();
+    let detail = if detail.is_empty() {
+        String::new()
+    } else {
+        // 長い応答はそのまま出さない(1行の案内に収める)
+        let clipped: String = detail.chars().take(200).collect();
+        format!(" 応答: {clipped}")
+    };
+    let hint = match code {
+        401 | 403 => "APIキーが無いか、正しくありません。設定の APIキー を確かめてください".to_string(),
+        404 => format!(
+            "接続先にAPIが見つかりません({url})。接続先の末尾に /v1 が要ることがあります。\
+             モデル名が違う場合も、この応答になることがあります"
+        ),
+        400 | 422 if detail.to_lowercase().contains("model") => {
+            "モデルを使えませんでした。LM Studio でモデルを読み込んでいるか、\
+             モデル名が合っているか確かめてください"
+                .to_string()
+        }
+        429 => "混み合っているか、利用の上限に達しました。少し待ってからやり直してください"
+            .to_string(),
+        500..=599 => "AIサーバーの中で失敗しました。LM Studio のログを確かめてください".to_string(),
+        _ => "AIサーバーが要求を受け付けませんでした".to_string(),
+    };
+    format!("{hint}(status={code}){detail}")
+}
+
 /// 接続テスト兼モデル一覧取得(M-07)。LM Studio では現在ロード中のモデルが返る。
 pub async fn list_models(base_url: &str, api_key: &Option<String>) -> Result<Vec<String>, String> {
     let url = endpoint(base_url, "models");
@@ -171,7 +204,7 @@ pub async fn list_models(base_url: &str, api_key: &Option<String>) -> Result<Vec
     let status = resp.status();
     if !status.is_success() {
         let body = resp.text().await.unwrap_or_default();
-        return Err(format!("APIエラー: status={status} body={body}"));
+        return Err(describe_status(status, &body, &url));
     }
     let list: ModelList = resp
         .json()
@@ -208,7 +241,7 @@ pub async fn chat(
     let status = resp.status();
     if !status.is_success() {
         let text = resp.text().await.unwrap_or_default();
-        return Err(format!("APIエラー: status={status} body={text}"));
+        return Err(describe_status(status, &text, &url));
     }
     let parsed: ChatResponse = resp
         .json()
@@ -366,6 +399,23 @@ mod tests_sse_lines {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// テスト計画 E7: エラー応答の状態ごとに、原因と次にすべきことを言う
+    #[test]
+    fn describe_status_names_the_cause() {
+        use reqwest::StatusCode as S;
+        let url = "http://localhost:1234/models";
+        assert!(describe_status(S::UNAUTHORIZED, "", url).contains("APIキー"));
+        assert!(describe_status(S::FORBIDDEN, "", url).contains("APIキー"));
+        let not_found = describe_status(S::NOT_FOUND, "", url);
+        assert!(not_found.contains("/v1") && not_found.contains(url), "{not_found}");
+        let no_model = describe_status(S::BAD_REQUEST, r#"{"error":"Model not loaded"}"#, url);
+        assert!(no_model.contains("モデルを読み込んで"), "{no_model}");
+        assert!(describe_status(S::INTERNAL_SERVER_ERROR, "", url).contains("ログ"));
+        // 本文は診断のために残すが、長すぎるものは切る
+        let long = describe_status(S::IM_A_TEAPOT, &"x".repeat(1000), url);
+        assert!(long.contains("status=418") && long.chars().count() < 300, "{long}");
+    }
 
     #[test]
     fn endpoint_handles_trailing_slash() {
