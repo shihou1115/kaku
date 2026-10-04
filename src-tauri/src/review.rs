@@ -356,12 +356,14 @@ pub fn parse(raw: &str) -> ParsedReview {
     }
 }
 
-/// 同じ指摘の重複を落とす(塊をまたいで同じ箇所が指摘されることがある)。
+/// 同じ指摘の重複を落とす(モデルが同じ指摘を繰り返すことがある)。
 ///
-/// 引用が同じでも観点が違えば別の指摘なので、キーは(観点, 引用)にする。
+/// 引用が同じでも観点が違えば別の指摘なので、キーは(観点, 引用, 位置)にする。
+/// **位置も鍵に入れる**: 別々の箇所にある同じ一文への指摘は別の指摘で、1つに潰すと
+/// 2つ目が黙って消える(校正の A4 と同じ)。位置は `resolve_in` で付けてから呼ぶ。
 /// 引用が無いものは指摘文で見る。
 pub fn dedupe(comments: Vec<ReviewComment>) -> Vec<ReviewComment> {
-    let mut seen: Vec<(String, String)> = Vec::new();
+    let mut seen: Vec<(String, String, Option<usize>)> = Vec::new();
     let mut out = Vec::new();
     for c in comments {
         let body = if c.quote.is_empty() {
@@ -369,7 +371,7 @@ pub fn dedupe(comments: Vec<ReviewComment>) -> Vec<ReviewComment> {
         } else {
             c.quote.clone()
         };
-        let key = (c.aspect.clone(), body);
+        let key = (c.aspect.clone(), body, c.start_utf16);
         if seen.contains(&key) {
             continue;
         }
@@ -381,20 +383,43 @@ pub fn dedupe(comments: Vec<ReviewComment>) -> Vec<ReviewComment> {
 
 
 /// 引用が本文に実在するかを照合し、位置を埋める(**幻覚を機械で落とす**)。
+/// 本文全体を1つの塊として扱う。分割して実行した結果は `resolve_in` と `order` で扱う。
 ///
 /// 見つからないものは消さずに `found=false` で後ろへ回す。
 /// 消すとモデルの癖が見えなくなり、「レビューは当たっている」という誤解を生む。
+pub fn resolve(body: &str, comments: Vec<ReviewComment>) -> Vec<ReviewComment> {
+    let mut out = resolve_in(body, 0, body, comments);
+    order(&mut out);
+    out
+}
+
+/// 1つの塊から返った指摘に、本文全体での位置を付ける。**探すのはその塊の中だけ。**
 ///
-/// 並び順は 本文に見つかったもの(出現順) → 引用なし → 見つからないもの。
-pub fn resolve(body: &str, mut comments: Vec<ReviewComment>) -> Vec<ReviewComment> {
+/// 本文全体を前から探すと、前の塊にある同じ一文(言い換えられた引用なら、先頭が
+/// 一致する別の一文)に当たり、「移動」が別の場面へ飛んだ(テスト計画 A5。
+/// 校正の A4 と同じ型)。モデルは自分の塊しか見ていないので、引用は塊の中にあるはずで、
+/// 無ければ見つからない扱いにする。同じ塊の中に複数あるときは最初の1つ。
+///
+/// `chunk_start` は塊が本文のどこ(バイト位置)から始まるか。並べ替えはしない
+pub fn resolve_in(
+    body: &str,
+    chunk_start: usize,
+    chunk: &str,
+    mut comments: Vec<ReviewComment>,
+) -> Vec<ReviewComment> {
     let to_utf16 = Utf16Map::new(body);
     for c in comments.iter_mut() {
-        if let Some((start, end)) = locate_quote(body, &c.quote) {
+        if let Some((start, end)) = locate_quote(chunk, &c.quote) {
             c.found = true;
-            c.start_utf16 = Some(to_utf16.at(start));
-            c.end_utf16 = Some(to_utf16.at(end));
+            c.start_utf16 = Some(to_utf16.at(chunk_start + start));
+            c.end_utf16 = Some(to_utf16.at(chunk_start + end));
         }
     }
+    comments
+}
+
+/// 並び順は 本文に見つかったもの(出現順) → 引用なし → 見つからないもの
+pub fn order(comments: &mut [ReviewComment]) {
     // 0 = 本文に見つかった / 1 = 引用なし(範囲全体への指摘) / 2 = 見つからない
     fn rank(c: &ReviewComment) -> u8 {
         if c.found {
@@ -406,7 +431,6 @@ pub fn resolve(body: &str, mut comments: Vec<ReviewComment>) -> Vec<ReviewCommen
         }
     }
     comments.sort_by_key(|c| (rank(c), c.start_utf16.unwrap_or(usize::MAX)));
-    comments
 }
 
 /// 分割して実行したときの全体講評をまとめる。
@@ -731,6 +755,58 @@ mod tests {
             got.iter().map(|c| c.comment.as_str()).collect::<Vec<_>>(),
             vec!["実在", "引きが弱い", "幻"]
         );
+    }
+
+    /// 前の塊と後の塊に、同じ書き出しの一文がある本文
+    const FIRST: &str = "前の場面。彼女は窓の外を見つめたまま、ため息をついた。\n";
+    const SECOND: &str = "後の場面。彼女は窓の外を見つめたまま、何も答えなかった。\n";
+
+    fn style(quote: &str) -> Vec<ReviewComment> {
+        vec![ReviewComment {
+            aspect: "style".into(),
+            quote: quote.into(),
+            comment: "a".into(),
+            suggestion: String::new(),
+            found: false,
+            start_utf16: None,
+            end_utf16: None,
+        }]
+    }
+
+    /// テスト計画 A5: 後の塊への指摘は、後の塊の箇所を指す。
+    /// 本文全体を前から探すと、前の塊の同じ一文に当たる
+    #[test]
+    fn resolve_in_points_into_its_own_chunk() {
+        let body = format!("{FIRST}{SECOND}");
+        let second_at = FIRST.encode_utf16().count() + "後の場面。".encode_utf16().count();
+        // 引用がそのまま両方の塊にある
+        let got = resolve_in(&body, FIRST.len(), SECOND, style("彼女は窓の外を見つめたまま"));
+        assert_eq!(got[0].start_utf16, Some(second_at), "前の塊の一文に当たった");
+        // 言い換えられた引用。先頭の一致する部分も、前の塊にある
+        let got = resolve_in(&body, FIRST.len(), SECOND, style("彼女は窓の外を見つめたまま答えなかった"));
+        assert!(got[0].found);
+        assert_eq!(got[0].start_utf16, Some(second_at), "前の塊の似た一文に当たった");
+    }
+
+    /// モデルは自分の塊しか見ていない。ほかの塊にしか無い引用は取り違えとして扱う
+    #[test]
+    fn quote_found_only_in_another_chunk_is_not_found() {
+        let body = format!("{FIRST}{SECOND}");
+        let got = resolve_in(&body, FIRST.len(), SECOND, style("ため息をついた"));
+        assert!(!got[0].found);
+        assert_eq!(got[0].start_utf16, None);
+    }
+
+    /// 別々の箇所にある同じ一文への指摘は、両方残す。同じ箇所の繰り返しは1つにする
+    #[test]
+    fn dedupe_keeps_the_same_quote_at_different_places() {
+        let body = format!("{FIRST}{SECOND}");
+        let mut all = resolve_in(&body, 0, FIRST, style("彼女は窓の外を見つめたまま"));
+        all.extend(resolve_in(&body, FIRST.len(), SECOND, style("彼女は窓の外を見つめたまま")));
+        all.extend(resolve_in(&body, FIRST.len(), SECOND, style("彼女は窓の外を見つめたまま")));
+        let got = dedupe(all);
+        assert_eq!(got.len(), 2, "別の箇所への指摘を潰した、または繰り返しを残した");
+        assert_ne!(got[0].start_utf16, got[1].start_utf16);
     }
 
     // ===== 重複と講評 =====

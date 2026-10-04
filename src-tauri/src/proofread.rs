@@ -340,6 +340,21 @@ pub fn split_for_check(body: &str) -> Vec<String> {
     split_for_check_with(body, CHUNK_CHARS)
 }
 
+/// 各塊が本文のどこ(バイト位置)から始まるか。
+///
+/// 塊は本文を順に切り分けたものなので、前から探せば一意に決まる。
+/// 指摘の位置を**その塊の中で**付けるのに使う(校正 A4・レビュー A5)
+pub fn chunk_starts(body: &str, chunks: &[String]) -> Vec<usize> {
+    let mut starts = Vec::with_capacity(chunks.len());
+    let mut cursor = 0usize;
+    for c in chunks {
+        let at = body[cursor..].find(c.as_str()).map_or(cursor, |p| cursor + p);
+        starts.push(at);
+        cursor = at + c.len();
+    }
+    starts
+}
+
 /// 同じ指摘の重複を落とす(塊をまたいで同じ語が指摘されることがある)
 pub fn dedupe_issues(issues: Vec<AiIssue>) -> Vec<AiIssue> {
     // **位置も鍵に入れる。** 別々の箇所にある同じ誤字は別の指摘で、1つに潰すと

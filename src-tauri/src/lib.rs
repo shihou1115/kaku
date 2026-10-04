@@ -687,14 +687,7 @@ async fn run_proofread(
     let mut unparsed = 0usize;
     let mut cancelled = false;
 
-    // 各塊が本文のどこから始まるか。塊は本文を順に切り分けたものなので、前から探せば一意に決まる
-    let mut starts = Vec::with_capacity(chunks.len());
-    let mut cursor = 0usize;
-    for c in &chunks {
-        let at = text[cursor..].find(c.as_str()).map_or(cursor, |p| cursor + p);
-        starts.push(at);
-        cursor = at + c.len();
-    }
+    let starts = proofread::chunk_starts(text, &chunks);
 
     for (chunk, &chunk_start) in chunks.iter().zip(&starts) {
         if (h.cancelled)() {
@@ -1117,7 +1110,9 @@ async fn run_review(
     let mut unparsed = 0usize;
     let mut cancelled = false;
 
-    for chunk in &chunks {
+    let starts = proofread::chunk_starts(text, &chunks);
+
+    for (chunk, &chunk_start) in chunks.iter().zip(&starts) {
         if (h.cancelled)() {
             cancelled = true;
             break;
@@ -1260,7 +1255,9 @@ async fn run_review(
             path = "fallback";
         }
         overalls.push(parsed.overall);
-        collected.extend(parsed.comments);
+        // 位置は**その塊の中で**付ける(本文全体を前から探すと、前の塊にある同じ一文や
+        // 先頭の似た一文に当たる。テスト計画 A5)
+        collected.extend(review::resolve_in(text, chunk_start, chunk, parsed.comments));
     }
 
     if failures == chunks.len() && !chunks.is_empty() {
@@ -1303,8 +1300,8 @@ async fn run_review(
         None
     };
 
-    // 位置は本文全体に対して引き直す(塊ごとのずれを持ち込まない)
-    let comments = review::resolve(text, review::dedupe(collected));
+    let mut comments = review::dedupe(collected);
+    review::order(&mut comments);
 
     Ok(AiReviewResult {
         comments,
@@ -2311,6 +2308,50 @@ mod ai_run_tests {
         assert!(!r.refused, "読めたのに拒否として数えている");
         assert!(r.warning.is_none(), "{:?}", r.warning);
         assert!(r.overall.contains("測り直しで読めた講評"));
+    }
+
+    /// 2つの塊に分かれ、同じ書き出しの一文が両方の塊にある本文
+    fn text_with_a_repeated_opening() -> String {
+        let pad = |tag: &str| {
+            (0..12)
+                .map(|i| format!("{tag}{i}行目。これは分割の試験に使う本文で、それなりの長さがある。"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        };
+        format!(
+            "{}\n彼女は窓の外を見つめたまま、ため息をついた。\n{}\n彼女は窓の外を見つめたまま、何も答えなかった。\n",
+            pad("前"),
+            pad("後")
+        )
+    }
+
+    /// テスト計画 A5: 2塊目への指摘は、2塊目の箇所を指す(引用が言い換えられていても)。
+    /// 以前は本文全体を前から探したため、1塊目の似た一文へ「移動」した
+    #[tokio::test]
+    async fn review_points_at_the_sentence_in_the_chunk_it_came_from() {
+        let comment = serde_json::json!({
+            "comments": [{"aspect": "style", "quote": "彼女は窓の外を見つめたまま答えなかった", "comment": "沈黙の描写が弱い"}],
+            "overall": ""
+        })
+        .to_string();
+        let m = mock(vec![chat(Some(&review_json("")), "stop"), chat(Some(&comment), "stop")]);
+        let mut s = settings(&m);
+        s.check_chunk_chars = 500;
+        let text = text_with_a_repeated_opening();
+        let chunks = proofread::split_for_check_with(&text, 500);
+        assert_eq!(chunks.len(), 2, "テストの前提: 2塊に分かれること");
+        assert!(chunks[0].contains("ため息") && chunks[1].contains("何も答えなかった"));
+
+        let (c, l) = (never(), no_log());
+        let h = AiHooks { cancelled: &c, log: &l };
+        let picked = review::selected_aspects(&[]);
+        let r = run_review(&s, &text, &picked, &[], vec![], &h).await.unwrap();
+        assert_eq!(r.comments.len(), 1);
+        let cm = &r.comments[0];
+        assert!(cm.found);
+        let (st, en) = (cm.start_utf16.unwrap(), cm.end_utf16.unwrap());
+        assert_eq!(u16_at(&text, st, en), "彼女は窓の外を見つめたまま");
+        assert_eq!(u16_at(&text, en, en + 3), "、何も", "指摘が1塊目の一文に当たっている");
     }
 
     #[tokio::test]
