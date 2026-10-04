@@ -73,9 +73,9 @@ fn open(root: &Path) -> Result<Connection, ProjectError> {
             // 壊れた索引で検索が止まるくらいなら、捨てて作り直す
             let _ = std::fs::remove_file(&path);
             let conn = Connection::open(&path)
-                .map_err(|e| ProjectError::Encoding(format!("索引を作れません: {e}")))?;
+                .map_err(|e| ProjectError::Index(format!("作れません: {e}")))?;
             init_schema(&conn)
-                .map_err(|e| ProjectError::Encoding(format!("索引を初期化できません: {e}")))?;
+                .map_err(|e| ProjectError::Index(format!("初期化できません: {e}")))?;
             Ok(conn)
         }
     }
@@ -174,18 +174,18 @@ pub fn reindex(root: &Path) -> Result<usize, ProjectError> {
         });
 
         conn.execute("DELETE FROM docs WHERE path = ?1", [rel])
-            .map_err(|e| ProjectError::Encoding(e.to_string()))?;
+            .map_err(|e| ProjectError::Index(e.to_string()))?;
         conn.execute(
             "INSERT INTO docs(path, title, body) VALUES (?1, ?2, ?3)",
             params![rel, title, body],
         )
-        .map_err(|e| ProjectError::Encoding(e.to_string()))?;
+        .map_err(|e| ProjectError::Index(e.to_string()))?;
         conn.execute(
             "INSERT INTO files(path, mtime, size) VALUES (?1, ?2, ?3)
              ON CONFLICT(path) DO UPDATE SET mtime = ?2, size = ?3",
             params![rel, mtime, size],
         )
-        .map_err(|e| ProjectError::Encoding(e.to_string()))?;
+        .map_err(|e| ProjectError::Index(e.to_string()))?;
         changed += 1;
     }
 
@@ -194,10 +194,10 @@ pub fn reindex(root: &Path) -> Result<usize, ProjectError> {
     {
         let mut stmt = conn
             .prepare("SELECT path FROM files")
-            .map_err(|e| ProjectError::Encoding(e.to_string()))?;
+            .map_err(|e| ProjectError::Index(e.to_string()))?;
         let rows = stmt
             .query_map([], |r| r.get::<_, String>(0))
-            .map_err(|e| ProjectError::Encoding(e.to_string()))?;
+            .map_err(|e| ProjectError::Index(e.to_string()))?;
         for row in rows.flatten() {
             if !files.contains(&row) {
                 stale.push(row);
@@ -271,10 +271,10 @@ pub fn search(root: &Path, needle: &str) -> Result<SearchResult, ProjectError> {
     let rows: Vec<(String, String, String)> = if use_fts {
         let mut stmt = conn
             .prepare("SELECT path, title, body FROM docs WHERE docs MATCH ?1 ORDER BY rank")
-            .map_err(|e| ProjectError::Encoding(e.to_string()))?;
+            .map_err(|e| ProjectError::Index(e.to_string()))?;
         let mapped = stmt
             .query_map([to_phrase(needle)], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
-            .map_err(|e| ProjectError::Encoding(e.to_string()))?;
+            .map_err(|e| ProjectError::Index(e.to_string()))?;
         mapped.flatten().collect()
     } else {
         let mut stmt = conn
@@ -282,10 +282,10 @@ pub fn search(root: &Path, needle: &str) -> Result<SearchResult, ProjectError> {
                 "SELECT path, title, body FROM docs
                  WHERE body LIKE '%' || ?1 || '%' OR title LIKE '%' || ?1 || '%'",
             )
-            .map_err(|e| ProjectError::Encoding(e.to_string()))?;
+            .map_err(|e| ProjectError::Index(e.to_string()))?;
         let mapped = stmt
             .query_map([needle], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
-            .map_err(|e| ProjectError::Encoding(e.to_string()))?;
+            .map_err(|e| ProjectError::Index(e.to_string()))?;
         mapped.flatten().collect()
     };
 
@@ -362,5 +362,19 @@ mod tests {
         // PoC#2の実測で決めた切り分け。ここが変わると2文字の名前が引けなくなる
         assert!("架純".chars().count() < MIN_TRIGRAM_CHARS);
         assert!("昇降口".chars().count() >= MIN_TRIGRAM_CHARS);
+    }
+
+    /// 索引を使えないときは、索引の問題だと言う。以前は「文字コードを判別できませんでした」と
+    /// 出ていた(索引の失敗を文字コードの失敗の型で返していた。テスト計画 B8)
+    #[test]
+    fn index_failure_is_reported_as_an_index_problem() {
+        let root = std::env::temp_dir().join(format!("kaku-search-index-{}", std::process::id()));
+        project::init(&root).unwrap();
+        // 索引の場所にフォルダーがあると、開けず、消して作り直すこともできない
+        std::fs::create_dir_all(index_path(&root)).unwrap();
+        let err = search(&root, "本文").unwrap_err().to_string();
+        assert!(err.contains("索引"), "{err}");
+        assert!(!err.contains("UTF-8") && !err.contains("文字コード"), "{err}");
+        std::fs::remove_dir_all(root).ok();
     }
 }

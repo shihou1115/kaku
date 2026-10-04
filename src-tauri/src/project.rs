@@ -25,8 +25,16 @@ pub enum ProjectError {
     OutsideProject(String),
     #[error("入出力エラー: {0}")]
     Io(#[from] io::Error),
-    #[error("文字コードを判別できませんでした: {0}")]
+    /// UTF-8 として読めない(Shift_JIS の古い原稿など)。V1 は UTF-8 だけを読む(03 §4.4)。
+    /// 読めない理由と直し方を言う(テスト計画 B8)
+    #[error(
+        "UTF-8 ではないので開けません: {0}(Shift_JIS などで保存されたファイルは、UTF-8 で保存し直すと開けます)"
+    )]
     Encoding(String),
+    /// 検索の索引(.app/index.sqlite)を使えない。以前は Encoding で返していたため、
+    /// 索引の失敗が「文字コード」の問題に見えた
+    #[error("検索の索引を使えませんでした: {0}")]
+    Index(String),
     /// 名前・行き先として使えない(Windows で使えない名前、フォルダーを自分の中へ移す など)。
     /// 理由は文に含める
     #[error("{0}")]
