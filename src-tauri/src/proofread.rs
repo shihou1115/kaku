@@ -58,13 +58,29 @@ fn is_name_char(c: char) -> bool {
     )
 }
 
-/// 本文から候補語(漢字・カタカナの連なり)を位置つきで切り出す
+/// 異体字セレクタ(葛󠄀 = 葛 + U+E0100 など)。直前の字の形を選ぶだけで、字そのものは変えない
+fn is_variation_selector(c: char) -> bool {
+    matches!(c, '\u{FE00}'..='\u{FE0F}' | '\u{E0100}'..='\u{E01EF}')
+}
+
+/// 照合に使う形。**異体字セレクタを除く**(テスト計画 A2)。
+/// 字の形の違いは表記ゆれ(誤変換)ではない。見た目には同じ字なので、
+/// 「1文字違い」と言われても本人には違いが分からない
+fn without_selectors(s: &str) -> String {
+    s.chars().filter(|c| !is_variation_selector(*c)).collect()
+}
+
+/// 本文から候補語(漢字・カタカナの連なり)を位置つきで切り出す。
+///
+/// 異体字セレクタは語の続きとして含める。以前は語の切れ目にしていたため、
+/// 「葛󠄀城悠二」が「葛」と「城悠二」に割れ、「城悠二」が「葛城悠二」の脱字として挙がり、
+/// 置換すると「葛󠄀葛城悠二」になった
 fn candidates(text: &str) -> Vec<(String, usize)> {
     let mut out = Vec::new();
     let mut buf = String::new();
     let mut start = 0usize;
     for (idx, c) in text.char_indices() {
-        if is_name_char(c) {
+        if is_name_char(c) || (is_variation_selector(c) && !buf.is_empty()) {
             if buf.is_empty() {
                 start = idx;
             }
@@ -77,7 +93,7 @@ fn candidates(text: &str) -> Vec<(String, usize)> {
         out.push((buf, start));
     }
     out.retain(|(s, _)| {
-        let n = s.chars().count();
+        let n = without_selectors(s).chars().count();
         (MIN_LEN..=MAX_LEN).contains(&n)
     });
     out
@@ -117,28 +133,31 @@ pub fn check_notation(text: &str, names: &[String]) -> Vec<NotationHit> {
     let known: Vec<String> = names
         .iter()
         .map(|s| s.trim().to_string())
-        .filter(|s| s.chars().count() >= MIN_LEN)
+        .filter(|s| without_selectors(s).chars().count() >= MIN_LEN)
         .collect();
     if known.is_empty() || text.is_empty() {
         return Vec::new();
     }
-    let known_chars: Vec<Vec<char>> = known.iter().map(|s| s.chars().collect()).collect();
+    // 照合は異体字セレクタを除いた形で行う(置き換える名前は登録どおりの形)
+    let known_keys: Vec<String> = known.iter().map(|s| without_selectors(s)).collect();
+    let known_chars: Vec<Vec<char>> = known_keys.iter().map(|s| s.chars().collect()).collect();
     let to_utf16 = Utf16Map::new(text);
 
-    // 登録名が本文に何回出るか(確度の判定に使う)
+    // 登録名が本文に何回出るか(確度の判定に使う)。字の形の違いは同じ名前として数える
+    let plain_text = without_selectors(text);
     let count_of = |needle: &str| -> usize {
         if needle.is_empty() {
             0
         } else {
-            text.matches(needle).count()
+            plain_text.matches(needle).count()
         }
     };
 
     // 候補語 -> 出現位置
     let mut grouped: Vec<(String, Vec<usize>)> = Vec::new();
     for (word, byte_pos) in candidates(text) {
-        // 登録名そのものは対象外
-        if known.contains(&word) {
+        // 登録名そのもの(字の形だけが違うものを含む)は対象外
+        if known_keys.contains(&without_selectors(&word)) {
             continue;
         }
         match grouped.iter_mut().find(|(w, _)| *w == word) {
@@ -149,7 +168,8 @@ pub fn check_notation(text: &str, names: &[String]) -> Vec<NotationHit> {
 
     let mut hits = Vec::new();
     for (word, positions) in grouped {
-        let wchars: Vec<char> = word.chars().collect();
+        let word_key = without_selectors(&word);
+        let wchars: Vec<char> = word_key.chars().collect();
         // 最も近い登録名を1つだけ選ぶ(複数該当時は先に登録された方)
         let Some(idx) = known_chars
             .iter()
@@ -158,6 +178,7 @@ pub fn check_notation(text: &str, names: &[String]) -> Vec<NotationHit> {
             continue;
         };
         let suggestion = known[idx].clone();
+        let suggestion_key = &known_keys[idx];
 
         // 登録名に文字が足されただけの語は複合語であって誤記ではない。
         // 例:「青葉高校」+生 =「青葉高校生」、「悠二」+郎 =「悠二郎」。
@@ -165,11 +186,11 @@ pub fn check_notation(text: &str, names: &[String]) -> Vec<NotationHit> {
         // 逆に「五十悠二」は、より長い登録名「五十嵐悠二」から1文字落ちた形で、
         // 登録名そのものは含まれていない。こちらは脱字として拾う必要がある。
         // 「登録名を含む語は一律で除く」としてしまうと後者を取りこぼす。
-        if word.contains(&suggestion) {
+        if word_key.contains(suggestion_key.as_str()) {
             continue;
         }
 
-        let suggestion_count = count_of(&suggestion);
+        let suggestion_count = count_of(suggestion_key);
         let (confidence, reason) = if suggestion_count > 0 {
             (
                 "high",
@@ -659,6 +680,77 @@ mod tests {
         assert_eq!(hits.len(), 2);
         assert_eq!(hits[0].confidence, "high");
         assert_eq!(hits[1].confidence, "medium");
+    }
+
+    /// テスト計画 A2: 異体字セレクタ(葛󠄀 = 葛 + U+E0100)は語を割らない。
+    /// 割ると「城悠二」が「葛城悠二」の脱字として挙がり、置換で「葛󠄀葛城悠二」になる
+    #[test]
+    fn variation_selector_does_not_split_a_name() {
+        let text = "葛\u{E0100}城悠二が来た。";
+        let hits = check_notation(text, &names(&["葛城悠二"]));
+        assert!(hits.is_empty(), "異体字セレクタで語が割れた: {hits:?}");
+    }
+
+    /// 異体字セレクタの有無だけの違いは「1文字違い(誤変換)」ではない。見た目には同じ字
+    #[test]
+    fn variant_glyph_alone_is_not_a_typo() {
+        // 登録名に付いていて、本文に付いていない
+        let hits = check_notation("葛城が来た。", &names(&["葛\u{E0100}城"]));
+        assert!(hits.is_empty(), "異体字だけの違いを誤記扱いした: {hits:?}");
+        // 本文に付いていて、登録名に付いていない(標準の異体字セレクタ U+FE00 も)
+        assert!(check_notation("葛\u{E0100}城が来た。", &names(&["葛城"])).is_empty());
+        assert!(check_notation("辻\u{FE00}本が来た。", &names(&["辻本"])).is_empty());
+    }
+
+    /// 異体字セレクタの付いた語でも、本当の誤記は拾う。位置は異体字セレクタごと覆う
+    /// (置換で語全体が入れ替わるように)
+    #[test]
+    fn real_typo_in_a_word_with_variation_selector_is_still_found() {
+        let text = "葛\u{E0100}城悠三が来た。";
+        let hits = check_notation(text, &names(&["葛城悠二"]));
+        assert_eq!(hits.len(), 1, "{hits:?}");
+        assert_eq!(hits[0].candidate, "葛\u{E0100}城悠三");
+        assert_eq!(hits[0].suggestion, "葛城悠二");
+        // 葛(1) + U+E0100(2) + 城悠三(3) = UTF-16 で 6
+        assert_eq!(
+            hits[0].occurrences,
+            vec![Span {
+                start_utf16: 0,
+                end_utf16: 6
+            }]
+        );
+    }
+
+    /// 字の形だけ違う登録名は登録名そのもの。よく似た別の登録名(葛木)の誤記にしない
+    #[test]
+    fn variant_glyph_of_a_name_is_skipped_even_if_a_similar_name_exists() {
+        let text = "葛\u{E0100}城が来た。";
+        assert!(check_notation(text, &names(&["葛城", "葛木"])).is_empty());
+    }
+
+    /// 字の形が違っても、登録名に字が足された語は複合語(悠󠄀二郎 は 悠二 の誤記ではない)
+    #[test]
+    fn compound_word_with_variant_glyph_is_not_a_typo() {
+        let text = "悠\u{E0100}二郎が来た。";
+        assert!(check_notation(text, &names(&["悠二"])).is_empty());
+    }
+
+    /// 1字の語は候補にしない(誤検出が多すぎる)。異体字セレクタが付いても1字は1字
+    #[test]
+    fn one_char_word_with_variation_selector_is_not_a_candidate() {
+        let text = "木\u{E0100}が倒れた。";
+        assert!(check_notation(text, &names(&["木本"])).is_empty());
+    }
+
+    /// 確度の判定では、字の形が違う登録名も「本文に出ている」と数える
+    #[test]
+    fn variant_glyph_counts_as_the_correct_name_for_confidence() {
+        let text = "葛\u{E0100}城悠二と葛城悠三。";
+        let hits = check_notation(text, &names(&["葛城悠二"]));
+        assert_eq!(hits.len(), 1, "{hits:?}");
+        assert_eq!(hits[0].candidate, "葛城悠三");
+        assert_eq!(hits[0].suggestion_count, 1);
+        assert_eq!(hits[0].confidence, "high");
     }
 
     #[test]
