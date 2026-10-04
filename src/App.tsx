@@ -598,10 +598,17 @@ export default function App() {
     }
   }, [flushSave]);
 
-  // 入力が止まったら自動保存する(保存前に1世代のバックアップが残る)
+  // 入力が止まったら自動保存する(保存前に1世代のバックアップが残る)。
+  //
+  // **IME で変換している間は書かない**(テスト計画 F3)。変換中の読みもエディタの本文に入るので、
+  // 候補を選ぶ間に1.2秒を超えると、確定前の読みが保存され、1世代のバックアップまで
+  // それで上書きされた。確定すれば本文が変わってここがまた走り、確定した本文を書く
   useEffect(() => {
     if (!currentPath || !dirty) return;
-    const t = setTimeout(() => void flushSave("auto"), AUTOSAVE_DELAY_MS);
+    const t = setTimeout(() => {
+      if (handleRef.current.view?.composing) return;
+      void flushSave("auto");
+    }, AUTOSAVE_DELAY_MS);
     return () => clearTimeout(t);
   }, [text, dirty, currentPath, flushSave]);
 
