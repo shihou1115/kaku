@@ -14,9 +14,18 @@ export type Mention = {
   to: number;
 };
 
+/**
+ * 名前の前後から除く空白。**Rust 版の `str::trim` と同じく、Unicode の White_Space だけ**。
+ *
+ * JS の `trim()` は BOM(U+FEFF)も除き、NEL(U+0085)は除かない。Rust とは逆で、
+ * 同じ名前の一覧でも結果が食い違っていた(テスト計画 A3)。BOM の付いた名前は、
+ * エディタでは色が付くのに、AIへ渡す資料には入らなかった(App の照合は元の名前で行う)
+ */
+const EDGE_SPACE = /^\p{White_Space}+|\p{White_Space}+$/gu;
+
 export function normalizePatterns(raw: string[]): string[] {
   return raw
-    .map((p) => p.trim())
+    .map((p) => p.replace(EDGE_SPACE, ""))
     .filter((p) => p.length > 0)
     .sort((a, b) => b.length - a.length);
 }
