@@ -80,6 +80,12 @@ pub fn parse(fm: &str) -> FrontMatter {
                     //     - 架純
                     while let Some(next) = lines.peek() {
                         let t = next.trim();
+                        // 途中のコメント行・空行は読み飛ばす。ここで止めると、
+                        // 後ろの項目を別名として扱わなくなる(テスト計画 C1)
+                        if t.is_empty() || t.starts_with('#') {
+                            lines.next();
+                            continue;
+                        }
                         if let Some(item) = t.strip_prefix("- ").or_else(|| t.strip_prefix('-')) {
                             if next.starts_with(' ') || next.starts_with('\t') || t.starts_with('-')
                             {
@@ -191,10 +197,18 @@ pub fn add_aliases(source: &str, additions: &[String]) -> String {
 
         let in_fm = fence == 1;
         if in_fm {
-            // ブロック形式の続き( - 項目 )は読み飛ばす
+            // ブロック形式の続き( - 項目 )は読み飛ばす。**インデントの有無は問わない**
+            // (`aliases:` の次の行が `- 黒木` でも YAML として正しい。読む側の parse も
+            // そう扱う)。残すと `aliases: [...]` の下に項目行が並び、ほかのツールで
+            // 読めないフロントマターになった(テスト計画 C1)
             if skipping_block {
                 let t = bare.trim_start();
-                if t.starts_with('-') && (bare.starts_with(' ') || bare.starts_with('\t')) {
+                if t.starts_with('-') {
+                    continue;
+                }
+                // 途中のコメント行・空行は残して、項目行の読み飛ばしを続ける(parse と同じ扱い)
+                if t.is_empty() || t.starts_with('#') {
+                    out.push_str(line);
                     continue;
                 }
                 skipping_block = false;
@@ -509,6 +523,53 @@ mod tests {
         // 後続のキーは温存
         assert!(got.contains("type: character"));
         assert!(got.ends_with("本文\n"));
+    }
+
+    /// テスト計画 C1: **インデントの無い**ブロック形式も YAML として正しい。
+    /// 項目行を残すと `aliases: [...]` の下に `- 黒木` が並び、ほかのツールで読めなくなる
+    #[test]
+    fn adds_aliases_to_an_unindented_block_form() {
+        let src = "---\ntitle: 黒木龍一\naliases:\n- 黒木\n- 龍一\ntype: character\n---\n本文\n";
+        assert_eq!(parse_source(src).aliases, vec!["黒木", "龍一"]);
+        let got = add_aliases(src, &["教授".into()]);
+        assert_eq!(
+            got,
+            "---\ntitle: 黒木龍一\naliases: [黒木, 龍一, 教授]\ntype: character\n---\n本文\n"
+        );
+    }
+
+    /// 別名のブロックの途中にコメント行があっても、後ろの項目を落とさない
+    #[test]
+    fn block_aliases_survive_a_comment_line() {
+        let src = "---\ntitle: 黒木龍一\naliases:\n  - 黒木  # 苗字\n  # 呼び名\n  - 龍一\n---\n本文\n";
+        assert_eq!(parse_source(src).aliases, vec!["黒木", "龍一"]);
+        let got = add_aliases(src, &["教授".into()]);
+        assert_eq!(parse_source(&got).aliases, vec!["黒木", "龍一", "教授"], "{got}");
+        assert!(!got.contains("- 龍一"), "項目行が残っている: {got}");
+    }
+
+    /// 空・スカラー・引用符付きの形にも足せる
+    #[test]
+    fn adds_aliases_to_other_inline_shapes() {
+        for (src, want) in [
+            ("---\ntitle: 黒木\naliases: []\n---\n", vec!["教授"]),
+            ("---\ntitle: 黒木\naliases: 龍一\n---\n", vec!["龍一", "教授"]),
+            ("---\ntitle: 黒木\naliases: [\"龍一\", '黒木さん']\n---\n", vec!["龍一", "黒木さん", "教授"]),
+        ] {
+            let got = add_aliases(src, &["教授".into()]);
+            assert_eq!(parse_source(&got).aliases, want, "{src:?} -> {got:?}");
+        }
+    }
+
+    /// CRLF のファイルでも同じ(項目行を残さない・改行コードを変えない)
+    #[test]
+    fn adds_aliases_to_an_unindented_block_form_with_crlf() {
+        let src = "---\r\ntitle: 黒木龍一\r\naliases:\r\n- 黒木\r\n- 龍一\r\n---\r\n本文\r\n";
+        let got = add_aliases(src, &["教授".into()]);
+        assert_eq!(
+            got,
+            "---\r\ntitle: 黒木龍一\r\naliases: [黒木, 龍一, 教授]\r\n---\r\n本文\r\n"
+        );
     }
 
     #[test]
