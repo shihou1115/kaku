@@ -321,10 +321,12 @@ pub fn split_for_check(body: &str) -> Vec<String> {
 
 /// 同じ指摘の重複を落とす(塊をまたいで同じ語が指摘されることがある)
 pub fn dedupe_issues(issues: Vec<AiIssue>) -> Vec<AiIssue> {
-    let mut seen: Vec<(String, String)> = Vec::new();
+    // **位置も鍵に入れる。** 別々の箇所にある同じ誤字は別の指摘で、1つに潰すと
+    // 2つ目が黙って見落とされる(位置が付く前なら従来どおり引用と提案だけで比べる)
+    let mut seen: Vec<(String, String, Option<usize>)> = Vec::new();
     let mut out = Vec::new();
     for i in issues {
-        let key = (i.quote.clone(), i.suggestion.clone());
+        let key = (i.quote.clone(), i.suggestion.clone(), i.start_utf16);
         if seen.contains(&key) {
             continue;
         }
@@ -483,20 +485,47 @@ pub fn looks_structured(raw: &str) -> bool {
 ///
 /// 見つからない指摘は幻覚の疑いが強いので `found=false` にして後ろへ回す
 /// (消しはしない。モデルの癖を見えるようにしておく)。
-pub fn resolve_issues(body: &str, mut issues: Vec<AiIssue>) -> Vec<AiIssue> {
+pub fn resolve_issues(body: &str, issues: Vec<AiIssue>) -> Vec<AiIssue> {
+    let mut issues = resolve_issues_in(body, 0, body, issues);
+    order_issues(&mut issues);
+    issues
+}
+
+/// 1つの塊から返った指摘に、本文全体での位置を付ける。**探すのはその塊の中だけ。**
+///
+/// 本文全体の最初の一致に当てると、別の塊にある同じ文字列(正しい用法のことが多い)を
+/// 指してしまい、「置換」が正しい文を書き換える(「それ以外と比べて」と「以外と簡単」。
+/// テスト計画 A4)。モデルは自分の塊しか見ていないので、引用は塊の中にあるはずで、
+/// 無ければ取り違え(見つからない)として扱う。
+/// 同じ塊の中に複数あるときは最初の1つ(04-design §6.4 の割り切り)。
+///
+/// `chunk_start` は塊が本文のどこ(バイト位置)から始まるか。
+pub fn resolve_issues_in(
+    body: &str,
+    chunk_start: usize,
+    chunk: &str,
+    mut issues: Vec<AiIssue>,
+) -> Vec<AiIssue> {
     let to_utf16 = Utf16Map::new(body);
     for issue in issues.iter_mut() {
-        // 同じ引用が複数あっても最初の1つに対応づける(単純検索。04-design §6.4)
-        if let Some(pos) = body.find(&issue.quote) {
+        if issue.quote.is_empty() {
+            continue;
+        }
+        if let Some(pos) = chunk.find(&issue.quote) {
+            let at = chunk_start + pos;
             issue.found = true;
-            issue.start_utf16 = Some(to_utf16.at(pos));
-            issue.end_utf16 = Some(to_utf16.at(pos + issue.quote.len()));
+            issue.start_utf16 = Some(to_utf16.at(at));
+            issue.end_utf16 = Some(to_utf16.at(at + issue.quote.len()));
         }
     }
     // 変更のない提案(quote == suggestion)は指摘として意味がないので落とす
     issues.retain(|i| i.suggestion != i.quote);
-    issues.sort_by_key(|i| (!i.found, i.start_utf16.unwrap_or(usize::MAX)));
     issues
+}
+
+/// 見つかったものを本文の順に、見つからないものを後ろに並べる
+pub fn order_issues(issues: &mut [AiIssue]) {
+    issues.sort_by_key(|i| (!i.found, i.start_utf16.unwrap_or(usize::MAX)));
 }
 
 #[cfg(test)]
@@ -785,7 +814,7 @@ mod tests {
     }
 
     #[test]
-    fn dedupe_drops_repeated_issue_across_chunks() {
+    fn dedupe_drops_the_same_issue_at_the_same_place() {
         let issues = parse_ai_issues(
             r#"{"issues":[
                 {"quote":"雨だつた","suggestion":"雨だった","kind":"誤字","reason":"a"},
@@ -796,6 +825,30 @@ mod tests {
         let got = dedupe_issues(issues);
         assert_eq!(got.len(), 2);
         assert_eq!(got[0].reason, "a", "先に出たものを残す");
+    }
+
+    /// 同じ誤字でも**箇所が違えば**別の指摘として残す(潰すと2つ目を黙って見落とす)
+    #[test]
+    fn dedupe_keeps_the_same_typo_at_different_places() {
+        let body = "雨だつた。\n翌日も雨だつた。\n";
+        let one = || {
+            parse_ai_issues(r#"{"issues":[{"quote":"雨だつた","suggestion":"雨だった","kind":"誤字","reason":"r"}]}"#)
+        };
+        let first_line = &body[..body.find('\n').unwrap() + 1];
+        let mut all = resolve_issues_in(body, 0, first_line, one());
+        all.extend(resolve_issues_in(body, first_line.len(), &body[first_line.len()..], one()));
+        assert_eq!(dedupe_issues(all).len(), 2);
+    }
+
+    /// 塊を前からつなぐと本文に戻ること(長い1行を文字で割る場合も)。
+    /// 校正の指摘の位置は、塊の始まりを前から数えて決めている(テスト計画 A4)
+    #[test]
+    fn chunks_are_consecutive_slices_of_the_body() {
+        let long_line = "𠮷と葛\u{E0100}城の話。".repeat(150);
+        let body = format!("短い行\n{long_line}\nまた短い行\n{}", "あ".repeat(250));
+        for size in [100, 300, 1_000] {
+            assert_eq!(split_for_check_with(&body, size).concat(), body, "{size}");
+        }
     }
 
     #[test]

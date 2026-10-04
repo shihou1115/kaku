@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type AiIssue, type AiSettings, type NotationHit } from "../api";
 import { countLabel, fullyChecked } from "./resultLabel";
+import { shiftAfterReplace } from "./issuePositions";
 
 type Props = {
   /** 現在の本文。結果の鮮度判定に使う */
@@ -26,16 +27,6 @@ type Props = {
   onJump: (from: number, to: number) => void;
   onReplace: (from: number, to: number, text: string) => void;
 };
-
-/** 引用文字列から位置を引き直す(D-7: 位置は保存せず表示時に解決する) */
-function reresolve(issues: AiIssue[], body: string): AiIssue[] {
-  return issues.map((i) => {
-    const idx = body.indexOf(i.quote);
-    return idx >= 0
-      ? { ...i, found: true, start_utf16: idx, end_utf16: idx + i.quote.length }
-      : { ...i, found: false, start_utf16: null, end_utf16: null };
-  });
-}
 
 export function ProofreadPane({
   body,
@@ -147,18 +138,26 @@ export function ProofreadPane({
 
   /**
    * AIの指摘を1件適用する。
-   * 再実行はしない(トークンを消費するため)。代わりに引用文字列から位置を引き直す。
+   * 再実行はしない(トークンを消費するため)。残りの指摘は、置換でずれた分だけ動かす
+   * (先頭から探し直すと、同じ文字列が前にあるときそちらへ飛ぶ。issuePositions.ts)。
    */
   const applyIssue = useCallback(
     (issue: AiIssue) => {
       if (issue.start_utf16 === null || issue.end_utf16 === null) return;
-      const newBody =
-        body.slice(0, issue.start_utf16) +
-        issue.suggestion +
-        body.slice(issue.end_utf16);
-      onReplace(issue.start_utf16, issue.end_utf16, issue.suggestion);
+      const from = issue.start_utf16;
+      const to = issue.end_utf16;
+      const newBody = body.slice(0, from) + issue.suggestion + body.slice(to);
+      onReplace(from, to, issue.suggestion);
       setIssues((prev) =>
-        prev ? reresolve(prev.filter((i) => i !== issue), newBody) : prev,
+        prev
+          ? shiftAfterReplace(
+              prev.filter((i) => i !== issue),
+              from,
+              to,
+              issue.suggestion.length,
+              newBody,
+            )
+          : prev,
       );
       setAiBody(newBody);
     },

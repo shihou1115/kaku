@@ -640,7 +640,16 @@ async fn run_proofread(
     let mut unparsed = 0usize;
     let mut cancelled = false;
 
-    for chunk in &chunks {
+    // 各塊が本文のどこから始まるか。塊は本文を順に切り分けたものなので、前から探せば一意に決まる
+    let mut starts = Vec::with_capacity(chunks.len());
+    let mut cursor = 0usize;
+    for c in &chunks {
+        let at = text[cursor..].find(c.as_str()).map_or(cursor, |p| cursor + p);
+        starts.push(at);
+        cursor = at + c.len();
+    }
+
+    for (chunk, &chunk_start) in chunks.iter().zip(&starts) {
         if (h.cancelled)() {
             cancelled = true;
             break;
@@ -769,7 +778,9 @@ async fn run_proofread(
         if used_fallback {
             path = "fallback";
         }
-        collected.extend(issues);
+        // 位置は**その塊の中で**付ける(本文全体の最初の一致に当てると、別の塊の
+        // 同じ文字列を指してしまう。テスト計画 A4)
+        collected.extend(proofread::resolve_issues_in(text, chunk_start, chunk, issues));
     }
 
     if failures == chunks.len() && !chunks.is_empty() {
@@ -812,8 +823,9 @@ async fn run_proofread(
         None
     };
 
-    // 位置は本文全体に対して引き直す(塊ごとのずれを持ち込まない)
-    let issues = proofread::resolve_issues(text, proofread::dedupe_issues(collected));
+    // 同じ箇所への同じ指摘(測り直しで重なったもの等)だけを1つにまとめ、本文の順に並べる
+    let mut issues = proofread::dedupe_issues(collected);
+    proofread::order_issues(&mut issues);
 
     Ok(AiProofreadResult {
         issues,
@@ -1907,6 +1919,72 @@ mod ai_run_tests {
     }
 
     // ===== 校正 =====
+
+    /// 2つの塊に分かれる本文。「以外と」が1塊目では正しく(それ以外と比べて)、
+    /// 2塊目では誤り(以外と簡単だった=意外と)として出てくる
+    fn text_with_a_repeated_phrase() -> String {
+        let pad = |tag: &str| {
+            (0..12)
+                .map(|i| format!("{tag}{i}行目。これは分割の試験に使う本文で、それなりの長さがある。"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        };
+        format!(
+            "{}\nそれ以外と比べて、ここは静かだった。\n{}\n試験は以外と簡単だった。\n",
+            pad("前"),
+            pad("後")
+        )
+    }
+
+    fn u16_at(text: &str, from: usize, to: usize) -> String {
+        let units: Vec<u16> = text.encode_utf16().collect();
+        String::from_utf16(&units[from..to]).unwrap()
+    }
+
+    /// テスト計画 A4: 2塊目の誤りを指摘されたら、**2塊目の箇所**を指す。
+    /// 本文全体の最初の一致に当てると、1塊目の正しい「それ以外と」を書き換えてしまう
+    #[tokio::test]
+    async fn proofread_points_at_the_occurrence_in_the_chunk_it_came_from() {
+        let issue = r#"{"issues":[{"quote":"以外と","suggestion":"意外と","kind":"変換ミス","reason":"文脈から"}]}"#;
+        let m = mock(vec![chat(Some(r#"{"issues":[]}"#), "stop"), chat(Some(issue), "stop")]);
+        let mut s = settings(&m);
+        s.check_chunk_chars = 500;
+        let text = text_with_a_repeated_phrase();
+        let chunks = proofread::split_for_check_with(&text, 500);
+        assert_eq!(chunks.len(), 2, "テストの前提: 2塊に分かれること");
+        assert!(chunks[0].contains("それ以外と") && chunks[1].contains("以外と簡単"));
+
+        let c = never();
+        let l = no_log();
+        let h = AiHooks { cancelled: &c, log: &l };
+        let r = run_proofread(&s, &text, &[], &h).await.unwrap();
+        assert_eq!(r.issues.len(), 1);
+        let (st, en) = (r.issues[0].start_utf16.unwrap(), r.issues[0].end_utf16.unwrap());
+        assert_eq!(u16_at(&text, st, en), "以外と");
+        assert_eq!(
+            u16_at(&text, en, en + 2),
+            "簡単",
+            "指摘が1塊目の正しい「それ以外と」に当たっている"
+        );
+    }
+
+    /// 同じ誤りが別々の塊にあれば、**どちらも**指摘として残す(重複として1つに潰さない)
+    #[tokio::test]
+    async fn proofread_keeps_the_same_typo_found_in_different_chunks() {
+        let issue = r#"{"issues":[{"quote":"以外と","suggestion":"意外と","kind":"変換ミス","reason":"r"}]}"#;
+        let m = mock(vec![chat(Some(issue), "stop"), chat(Some(issue), "stop")]);
+        let mut s = settings(&m);
+        s.check_chunk_chars = 500;
+        let text = text_with_a_repeated_phrase();
+        let c = never();
+        let l = no_log();
+        let h = AiHooks { cancelled: &c, log: &l };
+        let r = run_proofread(&s, &text, &[], &h).await.unwrap();
+        let mut at: Vec<usize> = r.issues.iter().map(|i| i.start_utf16.unwrap()).collect();
+        at.sort();
+        at.dedup();
+        assert_eq!(at.len(), 2, "別々の箇所の同じ誤りを1つに潰した: {:?}", r.issues);
+    }
 
     /// **誤字が無い本文で2回投げないこと**(外部レビュー指摘6の回帰)。
     /// 正常な「指摘なし」(`{"issues":[]}`)で測り直すと、誤字の無い本文ほど時間が倍かかる
