@@ -456,9 +456,10 @@ fn trash_entry(path: String, state: State<AppState>) -> Result<String, String> {
     project::trash(&root, &path).map_err(to_msg)
 }
 
-/// 改名・移動。プロジェクト内のMarkdownリンクも追随する
+/// 改名・移動。プロジェクト内のMarkdownリンクも追随する。
+/// 戻り値はリンクを書き換えられなかったファイル(改名そのものは済んでいる)
 #[tauri::command]
-fn rename_entry(from: String, to: String, state: State<AppState>) -> Result<(), String> {
+fn rename_entry(from: String, to: String, state: State<AppState>) -> Result<Vec<String>, String> {
     let root = root_of(&state)?;
     project::rename(&root, &from, &to).map_err(to_msg)
 }

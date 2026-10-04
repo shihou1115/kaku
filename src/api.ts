@@ -295,8 +295,12 @@ export const api = {
     }),
   countFiles: (path: string) => invoke<number>("count_files", { path }),
   trashEntry: (path: string) => invoke<string>("trash_entry", { path }),
+  /**
+   * 改名・移動する。戻り値は**リンクを書き換えられなかったファイル**
+   * (読み取り専用など)。改名そのものは済んでいる
+   */
   renameEntry: (from: string, to: string) =>
-    invoke<void>("rename_entry", { from, to }),
+    invoke<string[]>("rename_entry", { from, to }),
   duplicateEntry: (path: string) => invoke<string>("duplicate_entry", { path }),
   createDir: (path: string) => invoke<boolean>("create_dir", { path }),
   revealInExplorer: (path: string) =>

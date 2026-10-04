@@ -930,7 +930,8 @@ export default function App() {
         // 出せなければ改名しない(読み直すと、出せなかった編集を捨てることになる)
         if (!(await gate("名前の変更"))) return;
 
-        await api.renameEntry(node.path, to);
+        // 改名は済んだが、リンクを書き換えられなかったファイル(読み取り専用など)
+        const unlinked = await api.renameEntry(node.path, to);
 
         // 開いているファイル(またはそれを含むフォルダー)が動いたら、場所を付け替える
         const follow = (p: string | null) =>
@@ -949,7 +950,12 @@ export default function App() {
         const reloaded = await syncOpenFile();
         setProject(await api.refreshProject());
         setStatus(
-          `名前を変更しました: ${to}${reloaded ? "(開いているファイルのリンクも書き換えました)" : ""}`,
+          `名前を変更しました: ${to}${reloaded ? "(開いているファイルのリンクも書き換えました)" : ""}` +
+            (unlinked.length > 0
+              ? `。ただし次のファイルのリンクは書き換えられませんでした(読み取り専用など): ${unlinked
+                  .slice(0, 3)
+                  .join("、")}${unlinked.length > 3 ? ` ほか${unlinked.length - 3}件` : ""}`
+              : ""),
         );
       } catch (e) {
         setStatus(String(e));

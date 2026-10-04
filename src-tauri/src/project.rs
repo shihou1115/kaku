@@ -31,6 +31,12 @@ pub enum ProjectError {
     /// 理由は文に含める
     #[error("{0}")]
     BadName(String),
+    /// 読み取り専用のファイル(本人か同期ソフトが書き換えを止めている)。
+    /// OS の「アクセスが拒否されました」では、何がいけないのか伝わらない(テスト計画 B6)
+    #[error(
+        "読み取り専用のファイルなので書き込めません: {0}(エクスプローラーのプロパティで「読み取り専用」を外すと書き込めます)"
+    )]
+    ReadOnly(String),
 }
 
 impl serde::Serialize for ProjectError {
@@ -488,6 +494,9 @@ pub fn write_text(root: &Path, relative: &str, content: &str) -> Result<(), Proj
     reject_app_area(relative)?;
     let path = resolve(root, relative)?;
     if path.exists() {
+        if fs::metadata(&path)?.permissions().readonly() {
+            return Err(ProjectError::ReadOnly(relative.to_string()));
+        }
         backup(root, relative, &path)?;
     }
     if let Some(parent) = path.parent() {
@@ -503,8 +512,34 @@ fn backup(root: &Path, relative: &str, path: &Path) -> Result<(), ProjectError> 
     if let Some(parent) = dest.parent() {
         fs::create_dir_all(parent)?;
     }
-    fs::copy(path, dest)?;
+    // 控えは**書き込める状態で**置く。fs::copy は読み取り専用の属性まで写すので、
+    // 読み取り専用の原稿を一度控えると次からは控えを上書きできず、原稿を書き込めるように
+    // 戻しても保存できないままになった(テスト計画 B6)。前に残った読み取り専用の控えも外す
+    make_writable(&dest);
+    fs::copy(path, &dest)?;
+    make_writable(&dest);
     Ok(())
+}
+
+/// 読み取り専用を外す(アプリが置いた控えにだけ使う。本人の原稿には使わない)
+fn make_writable(path: &Path) {
+    let Ok(meta) = fs::metadata(path) else {
+        return;
+    };
+    let mut perm = meta.permissions();
+    if !perm.readonly() {
+        return;
+    }
+    // Unix の set_readonly(false) は誰でも書ける状態にしてしまうので、持ち主の書き込みだけ足す
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        perm.set_mode(perm.mode() | 0o200);
+    }
+    #[cfg(not(unix))]
+    #[allow(clippy::permissions_set_readonly_false)] // Windows では読み取り専用の属性を外すだけ
+    perm.set_readonly(false);
+    let _ = fs::set_permissions(path, perm);
 }
 
 /// 新規ファイルを作る。既存なら何もしない(上書き事故の防止)。
@@ -601,7 +636,10 @@ pub fn count_files(root: &Path, relative: &str) -> Result<usize, ProjectError> {
 }
 
 /// 改名・移動。プロジェクト内のMarkdownリンクも追随させる(§5-6)。
-pub fn rename(root: &Path, from: &str, to: &str) -> Result<(), ProjectError> {
+///
+/// 戻り値は、**リンクを書き換えられなかったファイル**(読み取り専用・他のアプリが握っている
+/// など)。改名そのものは済んでいるので失敗にはせず、画面で知らせる(テスト計画 B6)
+pub fn rename(root: &Path, from: &str, to: &str) -> Result<Vec<String>, ProjectError> {
     // 退避したものを動かすのも、原稿をアプリ専用領域へ押し込むのも塞ぐ
     reject_app_area(from)?;
     reject_app_area(to)?;
@@ -643,8 +681,7 @@ pub fn rename(root: &Path, from: &str, to: &str) -> Result<(), ProjectError> {
         }
         return Err(e.into());
     }
-    rewrite_links(root, from, to)?;
-    Ok(())
+    rewrite_links(root, from, to)
 }
 
 /// `to` が `from` の内側(子孫)を指しているか。Windows に合わせて大文字小文字は区別しない
@@ -762,9 +799,15 @@ pub fn create_dir(root: &Path, relative: &str) -> Result<bool, ProjectError> {
 ///
 /// 書き換える前に、保存と同じく1世代のバックアップを取る。
 /// 一度に多くのファイルへ書くので、取り違えたときに戻せるようにしておく。
-fn rewrite_links(root: &Path, old_rel: &str, new_rel: &str) -> Result<(), ProjectError> {
+///
+/// **1つ書けなくても、ほかのファイルは書き換える。** 以前は最初の失敗で止まったため、
+/// 読み取り専用のファイルが1つあるだけで、書き換えられたはずの他のファイルのリンクまで
+/// 切れたまま残り、改名は済んでいるのに失敗と表示された(テスト計画 B6)。
+/// 戻り値は書き換えられなかったファイル
+fn rewrite_links(root: &Path, old_rel: &str, new_rel: &str) -> Result<Vec<String>, ProjectError> {
     let mut targets = Vec::new();
     collect_md(root, &mut targets)?;
+    let mut failed = Vec::new();
     for file in targets {
         let Ok(text) = fs::read_to_string(&file) else {
             continue;
@@ -780,11 +823,15 @@ fn rewrite_links(root: &Path, old_rel: &str, new_rel: &str) -> Result<(), Projec
         };
         let replaced = replace_links(&text, parent_dir(&before), parent_dir(&rel), old_rel, new_rel);
         if replaced != text {
-            backup(root, &rel, &file)?;
-            fs::write(&file, replaced)?;
+            // 控えが取れなければ書かない(取り違えたときに戻せなくなる)
+            let written = backup(root, &rel, &file)
+                .and_then(|_| fs::write(&file, replaced).map_err(ProjectError::from));
+            if written.is_err() {
+                failed.push(rel);
+            }
         }
     }
-    Ok(())
+    Ok(failed)
 }
 
 /// プロジェクト相対パスの親フォルダー(直下なら空)
