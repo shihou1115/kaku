@@ -181,6 +181,88 @@ fn a_file_in_the_trash_cannot_be_split() {
     assert!(project::save_text(&root, &rel, "書き換え").is_err());
 }
 
+/// テスト計画 C5: AI の見出しに `/`・`..`・`:`・改行・行区切り・長すぎる文字列が来ても、
+/// **ファイル名は元の名前+連番のまま**で、元と同じフォルダーにだけ作る。
+/// 見出しはフロントマターの title に**1行で**入り、読み直すと(改行を空白にした)同じ見出しに戻る。
+/// U+2028/U+2029 は YAML 1.1 の読み手(libyaml・PyYAML)では改行になり、フロントマターの形を壊す
+#[test]
+fn odd_titles_from_the_ai_stay_in_one_frontmatter_line() {
+    let long = "長".repeat(2000);
+    let titles: Vec<&str> = vec![
+        "../../外へ",
+        "a/b\\c:d*e?f\"g<h>i|j",
+        "一行目\n二行目\r\n三行目",
+        "前\u{2028}後\u{2029}末",
+        &long,
+        "---",
+        "title: 偽物",
+    ];
+    let paras: Vec<String> = (0..=titles.len())
+        .map(|i| format!("　段落{i}の書き出し。").repeat(10))
+        .collect();
+    let root = tmp_dir("odd-titles");
+    project::init(&root).unwrap();
+    let source = format!("---\ntitle: 元\n---\n\n{}\n", paras.join("\n"));
+    project::create_file(&root, SCENE, &source).unwrap();
+    let body_before = frontmatter::split(&source).1.to_string();
+    let top = |root: &std::path::Path| {
+        let mut v: Vec<String> = fs::read_dir(root)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        v.sort();
+        v
+    };
+    let top_before = top(&root);
+
+    let points: Vec<split::AcceptedPoint> = titles
+        .iter()
+        .enumerate()
+        .map(|(i, t)| split::AcceptedPoint {
+            quote: paras[i + 1].clone(),
+            title: t.to_string(),
+        })
+        .collect();
+    let created = split::apply(&root, SCENE, "元", &points).unwrap();
+    let made = &created[..created.len() - 1];
+    let expected: Vec<String> = (0..=titles.len())
+        .map(|i| split::file_name_for(SCENE, i))
+        .collect();
+    assert_eq!(made, expected.as_slice());
+
+    // 見出しで別の場所へ書いていない: 原稿フォルダーには作ったものだけ、直下も増えていない
+    let mut in_manuscript: Vec<String> = fs::read_dir(root.join("manuscript"))
+        .unwrap()
+        .map(|e| format!("manuscript/{}", e.unwrap().file_name().to_string_lossy()))
+        .collect();
+    in_manuscript.sort();
+    let mut want = expected.clone();
+    want.sort();
+    assert_eq!(in_manuscript, want);
+    assert_eq!(top(&root), top_before);
+
+    let flat = |t: &str| -> String {
+        t.chars()
+            .map(|c| if c.is_control() || c == '\u{2028}' || c == '\u{2029}' { ' ' } else { c })
+            .collect()
+    };
+    let mut joined = String::new();
+    for (i, path) in made.iter().enumerate() {
+        let s = project::read_text(&root, path).unwrap();
+        let (fm, body) = frontmatter::split(&s);
+        let fm = fm.expect("フロントマターが閉じていない");
+        assert!(
+            !fm.contains(['\r', '\u{2028}', '\u{2029}']),
+            "title が1行になっていない: {fm:?}"
+        );
+        assert_eq!(fm.lines().filter(|l| l.starts_with("title:")).count(), 1, "{fm}");
+        let want_title = if i == 0 { "元".to_string() } else { flat(titles[i - 1]) };
+        assert_eq!(frontmatter::parse(fm).title.as_deref(), Some(want_title.as_str()));
+        joined.push_str(body);
+    }
+    assert_eq!(joined, body_before, "分割で本文が変わった");
+}
+
 fn walk_count(dir: &std::path::Path) -> usize {
     fs::read_dir(dir)
         .unwrap()

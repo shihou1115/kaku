@@ -268,11 +268,19 @@ pub fn yaml_scalar(value: &str) -> String {
     }
 }
 
-/// 1行の値にする(改行などの制御文字は空白に。改行のまま書くとフロントマターの形が壊れる)
+/// 1行の値にする(改行などの制御文字は空白に。改行のまま書くとフロントマターの形が壊れる)。
+/// 行区切り(U+2028)と段落区切り(U+2029)も空白にする。制御文字ではないが、YAML 1.1 の
+/// 読み手(libyaml・PyYAML)は改行として読み、フロントマター全体が読めなくなる(テスト計画 C5)
 fn one_line(value: &str) -> String {
     value
         .chars()
-        .map(|c| if c.is_control() { ' ' } else { c })
+        .map(|c| {
+            if c.is_control() || matches!(c, '\u{2028}' | '\u{2029}') {
+                ' '
+            } else {
+                c
+            }
+        })
         .collect()
 }
 
@@ -805,11 +813,14 @@ mod tests {
             "a\\b",
             "\"a\", 'b'",
             "改\n行",
+            // 行区切り・段落区切り。YAML 1.1 の読み手は改行として読む(テスト計画 C5)
+            "行\u{2028}区\u{2029}切",
         ];
         let src = "---\ntitle: 黒木\naliases: [龍一]\n---\n本文\n";
         for alias in tricky {
             let got = add_aliases(src, &[alias.to_string()]);
-            let expected_alias = alias.replace('\n', " ");
+            assert!(!got.contains(['\u{2028}', '\u{2029}']), "{alias:?} → {got:?}");
+            let expected_alias = alias.replace(['\n', '\u{2028}', '\u{2029}'], " ");
             assert_eq!(
                 parse_source(&got).aliases,
                 vec!["龍一".to_string(), expected_alias],
