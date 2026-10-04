@@ -22,7 +22,8 @@ import {
 } from "../api";
 import { useMaterials } from "./useMaterials";
 import { PromptDialog } from "./PromptDialog";
-import { frontmatter, notePath } from "./saveNote";
+import { notePath } from "./saveNote";
+import { reviewNote } from "./reviewNote";
 import { countLabel } from "./resultLabel";
 
 type Props = {
@@ -91,6 +92,8 @@ export function ReviewPane({
     tokensPerSec: number | null;
     unchecked: number;
     materials: string[];
+    /** 実際に渡した資料のパス(記録に書くのはこちら) */
+    materialPaths: string[];
     refused: boolean;
     unparsed: boolean;
     warning: string | null;
@@ -126,6 +129,7 @@ export function ReviewPane({
         tokensPerSec: r.tokens_per_sec,
         unchecked: r.unchecked_chars,
         materials: r.materials,
+        materialPaths: r.material_paths,
         refused: r.refused,
         unparsed: r.unparsed,
         warning: r.warning,
@@ -152,70 +156,27 @@ export function ReviewPane({
       const now = new Date();
       const path = notePath("reviews", name, now);
 
-      const label: Record<Verdict, string> = {
-        done: " 【対応済み】",
-        dropped: " 【棄却】",
-      };
-      const lines: string[] = [];
-      for (const a of REVIEW_ASPECTS) {
-        const items = (comments ?? [])
-          .map((c, index) => ({ c, index }))
-          .filter((x) => x.c.aspect === a.key);
-        if (items.length === 0) continue;
-        lines.push(`### ${a.label}`, "");
-        for (const { c, index } of items) {
-          const v = verdicts[index];
-          lines.push(`- ${c.comment}${v ? label[v] : ""}`);
-          if (c.quote) {
-            lines.push(
-              `  - 引用: 「${c.quote}」${c.found ? "" : " ※本文に見つかりません"}`,
-            );
-          }
-          if (c.suggestion) lines.push(`  - 方向: ${c.suggestion}`);
-        }
-        lines.push("");
-      }
-
-      const materials = [
-        ...reviewedMaterials.auto.map((p) => ({ p, kind: "自動" })),
-        ...reviewedMaterials.manual.map((p) => ({ p, kind: "手動" })),
-      ].map(({ p, kind }) => {
-        const c = codex.find((x) => x.path === p);
-        return `- ${c?.title ?? p}(${kind}) — ${p}`;
+      // 記録には**実際に渡した資料**を書く(頼んだ資料ではない。上限を超えたもの・
+      // 読めなかったものは渡っていない。テスト計画 E4)
+      const passed = meta?.materialPaths ?? [];
+      const requested = new Set([...reviewedMaterials.auto, ...reviewedMaterials.manual]);
+      const md = reviewNote({
+        name,
+        now,
+        model: meta?.model,
+        path: reviewedPath,
+        aspects: reviewedAspects,
+        materials: passed.map((p) => ({
+          path: p,
+          title: codex.find((x) => x.path === p)?.title ?? p,
+          kind: reviewedMaterials.manual.includes(p) ? "手動" : "自動",
+        })),
+        notPassed: [...requested].filter((p) => !passed.includes(p)).length,
+        warning: meta?.warning ?? null,
+        unchecked: meta?.unchecked ?? 0,
+        overall,
+        comments: (comments ?? []).map((c, index) => ({ ...c, verdict: verdicts[index] })),
       });
-
-      const md = [
-        frontmatter({
-          title: name,
-          created: now.toISOString(),
-          model: meta?.model,
-          source: reviewedPath ?? undefined,
-          aspects: reviewedAspects
-            .map((k) => REVIEW_ASPECTS.find((a) => a.key === k)?.label ?? k)
-            .join("、"),
-        }),
-        "## 対象",
-        "",
-        `- 文書: ${reviewedPath ?? "(ファイルを開いていない)"}`,
-        `- 観点: ${reviewedAspects
-          .map((k) => REVIEW_ASPECTS.find((a) => a.key === k)?.label ?? k)
-          .join("、")}`,
-        "",
-        "### 渡した設定資料",
-        "",
-        ...(materials.length > 0 ? materials : ["- (なし)"]),
-        "",
-        // 打ち切り・拒否・形式違反があったなら必ず書く。
-        // 警告を落とすと「全部見たうえでの講評」として読めてしまう
-        ...(meta?.warning ? ["> ⚠ " + meta.warning, ""] : []),
-        "## 全体講評",
-        "",
-        overall || "(なし)",
-        "",
-        `## 指摘(${comments?.length ?? 0}件)`,
-        "",
-        ...(lines.length > 0 ? lines : ["(なし)", ""]),
-      ].join("\n");
 
       try {
         const created = await api.createFile(path, md);

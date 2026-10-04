@@ -1009,6 +1009,10 @@ struct AiReviewResult {
     aspects: Vec<String>,
     /// 一緒に渡した設定資料の名前(U-05: 何を渡したかを見せる)
     materials: Vec<String>,
+    /// **実際に渡した**設定資料のパス(materials と同じ順)。頼んだ資料のうち、上限を超えたもの・
+    /// 読めなかったものは入らない。講評の記録にはこちらを書く(テスト計画 E4。以前は
+    /// 頼んだ資料をそのまま「渡した」と書いていた)
+    material_paths: Vec<String>,
     /// 本文が長くて末尾を切り捨てた場合の未検査文字数(0なら全文を見た)
     unchecked_chars: usize,
     /// "schema" = 構造化出力が通った / "fallback" = 寛容パースで拾った
@@ -1067,7 +1071,9 @@ async fn review_ai(
         cancelled: &cancelled,
         log: &log,
     };
-    run_review(&s, &text, &picked, &materials, material_names, &hooks).await
+    let mut result = run_review(&s, &text, &picked, &materials, material_names, &hooks).await?;
+    result.material_paths = ctx.entries.iter().map(|e| e.path.clone()).collect();
+    Ok(result)
 }
 
 /// レビューの本体。
@@ -1309,6 +1315,8 @@ async fn run_review(
         overall: review::merge_overall(&overalls),
         aspects: used_aspects,
         materials: material_names,
+        // パスは呼び出し元(review_ai)が、実際に渡した資料から埋める
+        material_paths: Vec::new(),
         unchecked_chars,
         path: path.to_string(),
         model: s.model.clone(),
@@ -1585,6 +1593,9 @@ enum ChatEvent {
     /// 会話の履歴に積まれていた
     Cancelled,
     Error(String),
+    /// 実際に送った往復の数(会話モード)。上限を超えた古い往復は送らないので、
+    /// 画面が持っている往復の数より少ないことがある(テスト計画 E1)。問い合わせる前に1回流す
+    HistorySent(usize),
 }
 
 /// 相談の応答の終わり方
@@ -1611,6 +1622,8 @@ async fn ask_ai(
         return Err(NO_MODEL.to_string());
     }
     let messages = context::build_chat_messages(&context, &question, &history);
+    // 送らない往復があったことを画面と記録に伝える(黙って落とさない)
+    let _ = on_event.send(ChatEvent::HistorySent(context::sent_history(&history).len()));
     // 応答を待っている間に中止されることもあるので、投げる前に世代を覚える
     let cancelled = live_cancel(state.inner());
     let log = live_log(root_of(&state).ok(), s.model.clone(), s.base_url.clone());

@@ -31,7 +31,8 @@ import {
 } from "../api";
 import { PromptDialog } from "./PromptDialog";
 import { useMaterials } from "./useMaterials";
-import { frontmatter, notePath } from "./saveNote";
+import { clip, notePath } from "./saveNote";
+import { ideaNote } from "./ideaNote";
 
 /** 常時見せる文例の数(カテゴリごと)。UI渋滞を避ける(§5.6) */
 const VISIBLE_PER_CATEGORY = 2;
@@ -44,6 +45,8 @@ type LastRun = {
   context: ContextPreview;
   /** 送信した時点までの往復(会話モード)。記録にはやりとり全体を残す */
   history: ChatTurn[];
+  /** 実際に送った往復の数(直近から)。古い往復は上限を超えると送らない(テスト計画 E1) */
+  historySent: number;
 };
 
 type Props = {
@@ -90,6 +93,10 @@ export function AiPanel({
   const [conversation, setConversation] = useState(false);
   /** これまでの往復。**メモリ上だけ**に持つ(§5.7 A案) */
   const [turns, setTurns] = useState<ChatTurn[]>([]);
+  /** 直前の依頼で、実際に送った往復の数と、そのとき持っていた往復の数 */
+  const [sentTurns, setSentTurns] = useState<{ sent: number; total: number } | null>(
+    null,
+  );
   /** 応答が空のまま終わったか。検閲による拒否で起きうる(04-design §8.1) */
   const [emptyAnswer, setEmptyAnswer] = useState(false);
   const answerRef = useRef<HTMLDivElement | null>(null);
@@ -170,8 +177,16 @@ export function AiPanel({
     }
     // 会話モードのときだけ、これまでの往復を一緒に送る(既定は単発)
     const history = conversation ? turns : [];
-    // 送信した内容をここで固める(以後、画面を触られても記録はずれない)
-    lastRun.current = { question, path: currentPath, context: ctx, history };
+    // 送信した内容をここで固める(以後、画面を触られても記録はずれない)。
+    // 実際に送った往復の数は、送る直前に Rust から届く
+    lastRun.current = {
+      question,
+      path: currentPath,
+      context: ctx,
+      history,
+      historySent: history.length,
+    };
+    setSentTurns(null);
     setBusy(true);
     onBusy("応答中");
     setAnswer("");
@@ -192,6 +207,10 @@ export function AiPanel({
           answerRef.current?.scrollTo(0, answerRef.current.scrollHeight);
         } else if (ev.kind === "Cancelled") {
           stopped = true;
+        } else if (ev.kind === "HistorySent") {
+          // 送らなかった古い往復があれば、画面と記録にそう出す(黙って落とさない)
+          if (lastRun.current) lastRun.current.historySent = ev.value;
+          setSentTurns({ sent: ev.value, total: history.length });
         } else if (ev.kind === "Error") {
           setError(ev.value);
         }
@@ -242,59 +261,18 @@ export function AiPanel({
       const path = notePath("ideas", name, now);
 
       // 何について相談したかが分からない記録は、あとから読んでも使えない。
-      // **対象文書と渡した資料**を必ず残す(U-05の透明性を保存側にも通す)
-      // 実際に渡ったものだけを書く(選んだつもりでも読めなければ渡っていない)。
-      // 上限で落ちた分も黙って隠さない — 隠すと「全部渡したうえでの応答」として読める
-      const entries = run.context.entries;
-      const materialList = [
-        ...(entries.length > 0
-          ? entries.map(
-              (e) => `- ${e.title}(${e.source === "manual" ? "手動" : "自動"}) — ${e.path}`,
-            )
-          : ["- (なし)"]),
-        ...(run.context.dropped_entries > 0
-          ? [`- ※ 上限を超えたため ${run.context.dropped_entries}件は渡していません`]
-          : []),
-      ].join("\n");
-
-      const md = [
-        frontmatter({
-          title: name,
-          created: now.toISOString(),
-          model: settings?.model,
-          source: run.path ?? undefined,
-        }),
-        "## 対象",
-        "",
-        `- 文書: ${run.path ?? "(ファイルを開いていない)"}`,
-        `- 渡した本文: ${run.context.body.length}字${
-          run.context.body_truncated ? "(長いため末尾を切り捨て)" : ""
-        }`,
-        "",
-        "### 渡した設定資料",
-        "",
-        materialList,
-        "",
-        // 会話モードでは**やりとり全体**を残す。最後の1往復だけでは何の話か読めない
-        ...run.history.flatMap((t, i) => [
-          `## 依頼 ${i + 1}`,
-          "",
-          t.question,
-          "",
-          `## 応答 ${i + 1}`,
-          "",
-          t.answer,
-          "",
-        ]),
-        run.history.length > 0 ? `## 依頼 ${run.history.length + 1}` : "## 依頼",
-        "",
-        run.question,
-        "",
-        run.history.length > 0 ? `## 応答 ${run.history.length + 1}` : "## 応答",
-        "",
+      // **対象文書と、実際に渡った本文・資料・往復**を必ず残す(U-05の透明性を保存側にも通す)
+      const md = ideaNote({
+        name,
+        now,
+        model: settings?.model,
+        path: run.path,
+        context: run.context,
+        history: run.history,
+        historySent: run.historySent,
+        question: run.question,
         answer,
-        "",
-      ].join("\n");
+      });
 
       try {
         const created = await api.createFile(path, md);
@@ -448,7 +426,10 @@ export function AiPanel({
               checked={conversation}
               onChange={(e) => {
                 setConversation(e.target.checked);
-                if (!e.target.checked) setTurns([]);
+                if (!e.target.checked) {
+                  setTurns([]);
+                  setSentTurns(null);
+                }
               }}
               disabled={busy}
             />
@@ -462,6 +443,7 @@ export function AiPanel({
                 onClick={() => {
                   setTurns([]);
                   setAnswer("");
+                  setSentTurns(null);
                 }}
                 disabled={busy}
               >
@@ -475,6 +457,12 @@ export function AiPanel({
             やりとりは<strong>アプリを閉じると消えます</strong>。
             残すものは応答の「この相談を残す」で <code>ideas/</code> へ書いてください。
             長くなると古い往復から落とします。
+          </p>
+        )}
+        {conversation && sentTurns && sentTurns.sent < sentTurns.total && (
+          <p className="pf-stale">
+            直前の依頼では、長くなったため古い {sentTurns.total - sentTurns.sent}
+            往復を AI へ送っていません(送ったのは直近 {sentTurns.sent}往復)。
           </p>
         )}
         {preview && (
@@ -533,7 +521,7 @@ export function AiPanel({
                 className="mini"
                 onClick={() =>
                   setSaving(
-                    lastRun.current?.question.trim().slice(0, 20) || "相談",
+                    clip(lastRun.current?.question.trim() ?? "", 20) || "相談",
                   )
                 }
                 title="依頼と応答に加えて、対象文書と渡した設定資料も ideas/ に残します"

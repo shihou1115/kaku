@@ -164,6 +164,9 @@ export type AiReviewResult = {
   aspects: ReviewAspect[];
   /** 一緒に渡した設定資料の名前(U-05) */
   materials: string[];
+  /** **実際に渡した**設定資料のパス(materials と同じ順)。頼んだのに渡らなかったもの
+   *  (上限を超えた・読めない)は入らない。講評の記録にはこちらを書く(テスト計画 E4) */
+  material_paths: string[];
   unchecked_chars: number;
   path: "schema" | "fallback";
   model: string;
@@ -246,7 +249,10 @@ export type ChatEvent =
   | { kind: "Done" }
   /** 中止された。完了(Done)とは区別する */
   | { kind: "Cancelled" }
-  | { kind: "Error"; value: string };
+  | { kind: "Error"; value: string }
+  /** 実際に送った往復の数(会話モード)。上限を超えた古い往復は送らない(テスト計画 E1)。
+   *  問い合わせる前に1回届く */
+  | { kind: "HistorySent"; value: number };
 
 export const api = {
   openProject: (path: string, confirmed = false) =>

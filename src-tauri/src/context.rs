@@ -142,6 +142,14 @@ pub fn trim_history(turns: &[ChatTurn], max_chars: usize) -> Vec<ChatTurn> {
     kept
 }
 
+/// 実際にAIへ送る往復(上限に収めたもの)。**送る往復の数はここだけで決める**。
+///
+/// 画面は往復をすべて持っているので、送らなかった往復があることを画面と記録に
+/// 伝えるのにも使う(テスト計画 E1。以前は黙って落としていた)
+pub fn sent_history(history: &[ChatTurn]) -> Vec<ChatTurn> {
+    trim_history(history, MAX_HISTORY_CHARS)
+}
+
 /// 送るメッセージ列を組み立てる。
 ///
 /// **設定資料と本文は最初のユーザーメッセージにだけ載せる。** 往復のたびに足すと
@@ -158,7 +166,7 @@ pub fn build_chat_messages(
     };
     let mut messages = vec![msg("system", SYSTEM_PROMPT.to_string())];
 
-    let history = trim_history(history, MAX_HISTORY_CHARS);
+    let history = sent_history(history);
     for (i, turn) in history.iter().enumerate() {
         // 素材が載るのは先頭の1通だけ。落として先頭が入れ替わったら、そこへ載せ直す
         let content = if i == 0 {
@@ -279,6 +287,25 @@ mod tests {
         ChatTurn {
             question: q.to_string(),
             answer: a.to_string(),
+        }
+    }
+
+    /// テスト計画 E1: 画面に知らせる「送った往復の数」は、実際に組み立てたメッセージの
+    /// 往復の数と同じ(数え方が2か所でずれると、送ったものと記録が食い違う)
+    #[test]
+    fn sent_history_matches_the_messages_actually_built() {
+        let ctx = build("本文", &[], &|_| None, &[], &[]);
+        let long = "あ".repeat(3_000);
+        for history in [
+            vec![],
+            vec![turn("1", "a")],
+            vec![turn("古い", &long), turn("中", &long), turn("新しい", &long)],
+            vec![turn("古い", "短い"), turn("新しい", &"い".repeat(MAX_HISTORY_CHARS + 10))],
+        ] {
+            let msgs = build_chat_messages(&ctx, "次", &history);
+            let user_turns = msgs.iter().filter(|m| m.role == "user").count() - 1;
+            assert_eq!(sent_history(&history).len(), user_turns);
+            assert!(sent_history(&history).len() <= history.len());
         }
     }
 

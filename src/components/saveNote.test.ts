@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { frontmatter, notePath, safeFileName, stamp } from "./saveNote";
+import { clip, frontmatter, notePath, safeFileName, stamp } from "./saveNote";
 
 describe("AIの出力を正本へ残す(03 §4.3)", () => {
   it("ファイル名に使えない文字を落とす", () => {
@@ -14,6 +14,20 @@ describe("AIの出力を正本へ残す(03 §4.3)", () => {
 
   it("長すぎる件名は切る", () => {
     expect(safeFileName("あ".repeat(80))).toHaveLength(40);
+  });
+
+  // テスト計画 E4: 依頼の書き出しを件名の既定値にしているので、貼り付けた文の
+  // タブや、𠮷・絵文字がちょうど切れ目に来ることがある
+  it("切るときに𠮷や絵文字を割らない(片割れのサロゲートを残さない)", () => {
+    const name = safeFileName("あ".repeat(39) + "𠮷" + "い");
+    expect(Array.from(name)).toHaveLength(40);
+    expect(name.endsWith("𠮷")).toBe(true);
+    expect(clip("👍👍👍", 2)).toBe("👍👍");
+  });
+
+  it("制御文字(タブなど)は名前に残さない", () => {
+    expect(safeFileName("前半\t後半")).toBe("前半 後半");
+    expect(safeFileName("\t\u0001")).toBe("無題");
   });
 
   it("日時は並べたときに時系列になる形", () => {
