@@ -154,8 +154,11 @@ pub fn mask(text: &str) -> String {
         out.push_str(&text[prev..r.start]);
         out.push('　'); // ｜
         out.push_str(&r.base);
-        // 《 + 読み + 》 を同じ文字数の全角空白に置き換える
-        for _ in 0..(r.reading.chars().count() + 2) {
+        // 《 + 読み + 》 を全角空白に置き換える。**数えるのは UTF-16 の長さ** —
+        // 見つけた位置はエディタの単位(UTF-16)で元の本文へそのまま当てるので、
+        // 読みにサロゲートペア(𠮷・絵文字)があると、文字数で数えた分だけ後ろがずれて
+        // 「置換」が別の文字を書き換えた(2026-10-04 テスト計画 A1 で見つけた)
+        for _ in 0..(r.reading.encode_utf16().count() + 2) {
             out.push('　');
         }
         prev = r.end;
