@@ -589,12 +589,15 @@ pub fn trash(root: &Path, relative: &str) -> Result<String, ProjectError> {
     // `fs::rename` は Windows では黙って上書きするため、ここで避けないと退避の意味が消える
     let stamp = timestamp_dir(std::time::SystemTime::now());
     let base = root.join(APP_DIR).join("trash");
-    let mut dest = base.join(&stamp).join(relative);
+    // 1段ずつつなぐ(相対パスを丸ごと join すると、案内に出す退避先で `\` と `/` が混ざる)
+    let rel = normalize_rel(relative);
+    let under = |dir: PathBuf| rel.split('/').fold(dir, |p, seg| p.join(seg));
+    let mut dest = under(base.join(&stamp));
     for n in 2..1000 {
         if !dest.exists() {
             break;
         }
-        dest = base.join(format!("{stamp}_{n}")).join(relative);
+        dest = under(base.join(format!("{stamp}_{n}")));
     }
     if let Some(parent) = dest.parent() {
         fs::create_dir_all(parent)?;
@@ -1283,6 +1286,21 @@ mod tests {
         assert_eq!(fs::read_to_string(&dest).unwrap(), "本文");
         assert!(dest.contains("trash"), "ゴミ箱配下にない: {dest}");
         assert!(dest.ends_with("manuscript\\01-出会い.md") || dest.ends_with("manuscript/01-出会い.md"));
+        fs::remove_dir_all(root).ok();
+    }
+
+    /// 退避先の案内は OS の区切りだけで書く。以前は `…\trash\日時\manuscript/第一章/01.md` のように
+    /// 円記号とスラッシュが混ざっていた(テスト計画 P3)
+    #[test]
+    fn trash_reports_the_destination_with_one_kind_of_separator() {
+        let root = tmp();
+        init(&root).unwrap();
+        create_file(&root, "manuscript/第一章/01.md", "本文").unwrap();
+        let dest = trash(&root, "manuscript/第一章/01.md").unwrap();
+        let trash_dir = root.join(APP_DIR).join("trash");
+        let stamp = fs::read_dir(&trash_dir).unwrap().next().unwrap().unwrap().file_name();
+        let want = trash_dir.join(stamp).join("manuscript").join("第一章").join("01.md");
+        assert_eq!(dest, want.to_string_lossy());
         fs::remove_dir_all(root).ok();
     }
 
