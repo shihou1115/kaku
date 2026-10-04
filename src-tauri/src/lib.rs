@@ -1742,7 +1742,24 @@ pub fn run() {
         }
     }
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // 二重起動させない(テスト計画 G1)。2つ目は立ち上がらず、開いている窓を前に出す。
+    // 2つの窓で同じ原稿を開くと、片方の古い本文で上書きしかねない(競合の確認は出るが、
+    // 「アプリの外で変更」と言われても本人には何のことか分からない)。
+    // **最初に登録する**(ほかのプラグインより前でないと効かない、とプラグインの約束にある)。
+    // 開発版(npm run tauri dev)には入れない。識別子がインストール版と同じなので、
+    // インストール版で執筆しながら開発版を起動できなくなる
+    #[cfg(all(desktop, not(debug_assertions)))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        use tauri::Manager;
+        if let Some(w) = app.get_webview_window("main") {
+            let _ = w.unminimize();
+            let _ = w.show();
+            let _ = w.set_focus();
+        }
+    }));
+
+    builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(state)
