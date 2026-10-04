@@ -2141,6 +2141,25 @@ mod ai_run_tests {
         assert_eq!(m.count(), 1, "中止のあとに投げ直した");
     }
 
+    /// テスト計画 E6: 同時に走っている AI 処理は、1回の中止で**すべて**止まる
+    /// (中止は世代番号なので、同時に走るどれもが同じ中止を見る)
+    #[tokio::test]
+    async fn one_cancel_stops_every_running_task() {
+        let (m1, m2) = (mock(vec![Reply::Hang]), mock(vec![Reply::Hang]));
+        let t0 = std::time::Instant::now();
+        let c = move || t0.elapsed() > std::time::Duration::from_millis(300);
+        let l = no_log();
+        let h = AiHooks { cancelled: &c, log: &l };
+        let (s1, s2) = (settings(&m1), settings(&m2));
+        let (p, e) = tokio::join!(
+            run_proofread(&s1, TEXT, &[], &h),
+            run_extract(&s2, TEXT, &[], &h)
+        );
+        assert!(t0.elapsed() < HANG / 3, "どれかが止まらなかった: {:?}", t0.elapsed());
+        assert!(p.unwrap().warning.unwrap_or_default().contains("中止しました"));
+        assert!(e.unwrap().warning.unwrap_or_default().contains("中止しました"));
+    }
+
     /// 塊の合間に黙り込んだ(次の塊の前に考えている)間に中止しても、次の塊を待たずに止まる
     #[tokio::test]
     async fn stream_stops_waiting_during_silence_when_cancelled() {

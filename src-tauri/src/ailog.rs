@@ -75,19 +75,27 @@ pub fn write(
         elapsed_ms,
         note,
     };
-    let Ok(line) = serde_json::to_string(&entry) else {
+    let Ok(mut line) = serde_json::to_string(&entry) else {
         return;
     };
+    line.push('\n');
 
     let dir = root.join(crate::project::APP_DIR).join("logs");
     if std::fs::create_dir_all(&dir).is_err() {
         return;
     }
     let path = dir.join(format!("{}.jsonl", crate::project::date_dir_utc(now)));
+    // **1行を1回の書き込みで出し、同時には書かない。** 校正・レビュー・抽出は同時に走れる。
+    // 以前は `writeln!`(本体と改行の2回)を排他なしで書いていたため、行どうしが混ざって
+    // JSON として読めない行ができた(テスト計画 E6。200行中70〜100行が壊れた)
+    let _turn = WRITE_TURN.lock().unwrap_or_else(|e| e.into_inner());
     if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
-        let _ = writeln!(f, "{line}");
+        let _ = f.write_all(line.as_bytes());
     }
 }
+
+/// ログを書く順番(同じプロセスの中で1本ずつにする)
+static WRITE_TURN: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[cfg(test)]
 mod tests {
@@ -111,6 +119,39 @@ mod tests {
             role: role.to_string(),
             content: content.to_string(),
         }
+    }
+
+    /// テスト計画 E6: 校正・レビュー・抽出は同時に走れるので、ログも同時に書かれる。
+    /// **1行が丸ごと1つの JSON として残ること**(行どうしが混ざらないこと)
+    #[test]
+    fn concurrent_writes_keep_each_line_whole() {
+        let root = tmp();
+        let big = "あ".repeat(20_000); // 1行が大きいほど、書き込みの合間に割り込まれやすい
+        let threads: Vec<_> = (0..8)
+            .map(|t| {
+                let root = root.clone();
+                let big = big.clone();
+                std::thread::spawn(move || {
+                    for i in 0..25 {
+                        let m = vec![msg("user", &format!("{t}-{i}{big}"))];
+                        write(&root, "proofread", "m", "http://localhost:1234/v1", &m, &big, 1, None);
+                    }
+                })
+            })
+            .collect();
+        for t in threads {
+            t.join().unwrap();
+        }
+        let dir = root.join(".app").join("logs");
+        let file = std::fs::read_dir(&dir).unwrap().next().unwrap().unwrap().path();
+        let text = std::fs::read_to_string(&file).unwrap();
+        let lines: Vec<&str> = text.lines().collect();
+        let broken = lines
+            .iter()
+            .filter(|l| serde_json::from_str::<serde_json::Value>(l).is_err())
+            .count();
+        assert_eq!(broken, 0, "JSON として読めない行が {broken} 行ある(行が混ざった)");
+        assert_eq!(lines.len(), 200, "行が足りない・余る");
     }
 
     /// **プロンプト全文と応答全文が残ること。** 要約して残すと比較の役に立たない
