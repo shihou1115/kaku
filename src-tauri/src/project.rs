@@ -27,7 +27,8 @@ pub enum ProjectError {
     Io(#[from] io::Error),
     #[error("文字コードを判別できませんでした: {0}")]
     Encoding(String),
-    /// Windows で名前として使えない(理由は文に含める)
+    /// 名前・行き先として使えない(Windows で使えない名前、フォルダーを自分の中へ移す など)。
+    /// 理由は文に含める
     #[error("{0}")]
     BadName(String),
 }
@@ -406,6 +407,12 @@ const RESERVED: &[&str] = &[
 /// 日本語の原稿では全角の記号(:?)を使う人が多いので、断るときに代わりを示す。
 pub fn check_name(relative: &str) -> Result<(), ProjectError> {
     for seg in relative.split(['/', '\\']).filter(|s| !s.is_empty() && *s != ".") {
+        // 「末尾が点」の一般の文面では、何がいけないのか伝わらない(テスト計画 B4)
+        if seg == ".." {
+            return Err(ProjectError::BadName(
+                "「..」は上のフォルダーを表す記号なので、名前には使えません".to_string(),
+            ));
+        }
         if let Some(c) = seg
             .chars()
             .find(|c| matches!(c, '<' | '>' | ':' | '"' | '|' | '?' | '*') || c.is_control())
@@ -615,12 +622,55 @@ pub fn rename(root: &Path, from: &str, to: &str) -> Result<(), ProjectError> {
             format!("同名のファイルが既にあります: {to}"),
         )));
     }
+    // フォルダーを自分の中へは移せない(`a` → `a/b`)。OS に任せると「パラメーターが
+    // 間違っています」「アクセスが拒否されました」と原因の分からない文面になり、しかも
+    // 行き先の途中のフォルダーだけが作られて残った(テスト計画 B4)
+    if src.is_dir() && is_inside(from, to) {
+        return Err(ProjectError::BadName(format!(
+            "フォルダー「{from}」を、それ自身の中({to})へは移せません"
+        )));
+    }
+    // 行き先のフォルダーが無ければ作る。**移せなかったら、作った分は消して元に戻す**
+    // (他のアプリが開いていて動かせない場合など。空のフォルダーだけが残ると紛らわしい)
+    let created = dst.parent().map(missing_dirs).unwrap_or_default();
     if let Some(parent) = dst.parent() {
         fs::create_dir_all(parent)?;
     }
-    fs::rename(&src, &dst)?;
+    if let Err(e) = fs::rename(&src, &dst) {
+        // 深い方から。中身のあるフォルダーは remove_dir が消さない
+        for dir in &created {
+            let _ = fs::remove_dir(dir);
+        }
+        return Err(e.into());
+    }
     rewrite_links(root, from, to)?;
     Ok(())
+}
+
+/// `to` が `from` の内側(子孫)を指しているか。Windows に合わせて大文字小文字は区別しない
+fn is_inside(from: &str, to: &str) -> bool {
+    fn parts(p: &str) -> Vec<String> {
+        p.split(['/', '\\'])
+            .filter(|s| !s.is_empty() && *s != ".")
+            .map(|s| s.to_lowercase())
+            .collect()
+    }
+    let (f, t) = (parts(from), parts(to));
+    t.len() > f.len() && t[..f.len()] == f[..]
+}
+
+/// まだ無いフォルダー(`dir` とその親のうち、無いもの)。深い方から並べる
+fn missing_dirs(dir: &Path) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    let mut cur = Some(dir);
+    while let Some(d) = cur {
+        if d.exists() {
+            break;
+        }
+        out.push(d.to_path_buf());
+        cur = d.parent();
+    }
+    out
 }
 
 /// 2つのパスがディスク上の同じものを指しているか。
