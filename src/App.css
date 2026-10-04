@@ -18,6 +18,7 @@
   --muted: #656d76; /* 補助情報・ラベル */
   --text-disabled: #a9b1ba;
   --accent: #0b7285; /* 主操作・見出し */
+  --accent-active: #0a6474; /* 主操作ボタンのホバー */
   --on-accent: #ffffff; /* アクセント面の上に載る文字 */
 
   --surface-raised: #fbfcfd; /* わずかに浮いた面(開いた折りたたみ) */
@@ -104,6 +105,7 @@
   --muted: #939ca6;
   --text-disabled: #5e6871;
   --accent: #3bb3cc;
+  --accent-active: #5cc8e0;
   --on-accent: #08171b;
 
   --surface-raised: #232930;
@@ -1585,6 +1587,14 @@ button.primary {
   background: var(--accent);
   color: var(--on-accent);
   border-color: var(--accent);
+}
+
+/* 上の button:hover の方が詳細度が高いので、主操作ボタンにも自分のホバーが要る。
+   無いと、ホバー中だけ地が薄い灰色になり、白い文字(ダークでは暗い文字)が見えなくなる。
+   押す直前にラベルが消えていた */
+button.primary:hover:not(:disabled) {
+  background: var(--accent-active);
+  border-color: var(--accent-active);
 }
 
 button.mini {
