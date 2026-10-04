@@ -126,3 +126,15 @@ describe("ルビを振ってよい範囲か", () => {
     expect(canWrap("｜漢字だけ", 1, 3)).toBe(true);
   });
 });
+
+describe("長い本文と崩れた記法(テスト計画 F4)", () => {
+  // 字数の表示は打鍵のたびに strip を通る。以前は `｜` のたびに本文の末尾まで探しに行き、
+  // 閉じていない `｜` が1万個(11万字)で1.3秒かかった(いまは数ミリ秒)。上限は大きく取る
+  it("閉じていない区切りが多くても、すぐに終わり、本文を欠かさない", () => {
+    const text = "あいうえおかきくけこ｜".repeat(10000);
+    const t = performance.now();
+    const got = strip(text);
+    expect(performance.now() - t).toBeLessThan(500);
+    expect(got).toBe(text);
+  });
+});

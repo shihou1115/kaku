@@ -36,29 +36,46 @@ export function marks(text: string): RubyMark[] {
   const out: RubyMark[] = [];
   let i = 0;
   while (i < text.length) {
-    if (text[i] !== DELIM) {
+    const m = text[i] === DELIM ? markAt(text, i) : null;
+    if (m) {
+      out.push(m);
+      i = m.end;
+    } else {
       i++;
-      continue;
     }
-    const open = text.indexOf(OPEN, i + 1);
-    const close = open < 0 ? -1 : text.indexOf(CLOSE, open + 1);
-    const base = open < 0 ? "" : text.slice(i + 1, open);
-    const reading = close < 0 ? "" : text.slice(open + 1, close);
-    const broken =
-      open < 0 ||
-      close < 0 ||
-      !base ||
-      !reading ||
-      /[\r\n｜]/.test(base) ||
-      /[\r\n《]/.test(reading);
-    if (broken) {
-      i++;
-      continue;
-    }
-    out.push({ start: i, end: close + CLOSE.length, base, reading });
-    i = close + CLOSE.length;
   }
   return out;
+}
+
+/**
+ * `｜` の位置から1つ読む。読めなければ null(Rust の `ruby::parse_at` と同じ手順)。
+ *
+ * 親文字は改行か次の `｜` で、読みは改行か `《` で探すのを打ち切る。以前は `｜` のたびに
+ * `《` と `》` を本文の末尾まで探していたため、閉じていない `｜` が多い本文では
+ * 「`｜` の数×本文の長さ」の時間がかかった(1万個・11万字で1.3秒。字数の表示は
+ * 打鍵のたびにここを通る。テスト計画 F4)。判定の規則は変えていない
+ */
+function markAt(text: string, at: number): RubyMark | null {
+  let open = at + 1;
+  while (open < text.length && text[open] !== OPEN) {
+    const c = text[open];
+    if (c === "\n" || c === "\r" || c === DELIM) return null;
+    open++;
+  }
+  if (open >= text.length || open === at + 1) return null; // 《 が無い・親文字が空
+  let close = open + 1;
+  while (close < text.length && text[close] !== CLOSE) {
+    const c = text[close];
+    if (c === "\n" || c === "\r" || c === OPEN) return null;
+    close++;
+  }
+  if (close >= text.length || close === open + 1) return null; // 》 が無い・読みが空
+  return {
+    start: at,
+    end: close + CLOSE.length,
+    base: text.slice(at + 1, open),
+    reading: text.slice(open + 1, close),
+  };
 }
 
 /** 本文をルビと素のテキストに分ける(プレビュー用) */
