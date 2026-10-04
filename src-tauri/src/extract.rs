@@ -682,13 +682,14 @@ mod tests {
             kind: "character".into(),
             description: "教授。研究室の主 #2\n二行目もある: 補足".into(),
             count: 1,
-            aliases: vec!["黒木, 龍一".into(), "教授".into()],
+            // 別名にも改行が入りうる(足す前にそろえる経路を通らない。テスト計画 C4)
+            aliases: vec!["黒木, 龍一".into(), "教授".into(), "研究\n室の主".into()],
             existing_path: None,
         };
         let md = format!("{}本文\n", entry_markdown(&c));
         let fm = frontmatter::parse_source(&md);
         assert_eq!(fm.title.as_deref(), Some("[仮] 黒木"));
-        assert_eq!(fm.aliases, vec!["黒木, 龍一", "教授"]);
+        assert_eq!(fm.aliases, vec!["黒木, 龍一", "教授", "研究 室の主"]);
         assert_eq!(fm.description.as_deref(), Some("教授。研究室の主 #2 二行目もある: 補足"));
         assert_eq!(fm.type_.as_deref(), Some("character"), "後ろの行が崩れた");
         assert_eq!(frontmatter::split(&md).1, "\n本文\n", "フロントマターの閉じが崩れた");

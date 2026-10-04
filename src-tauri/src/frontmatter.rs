@@ -149,6 +149,8 @@ pub fn add_aliases(source: &str, additions: &[String]) -> String {
 
     let mut merged = current.aliases.clone();
     for a in additions {
+        // 読み直したときの形にそろえてから比べる(改行は空白・前後の空白は落とす)
+        let a = one_line(a);
         let a = a.trim();
         if a.is_empty() {
             continue;
@@ -258,12 +260,26 @@ pub fn add_aliases(source: &str, additions: &[String]) -> String {
 /// 要るときだけ単一引用符で包む(中の `'` は `''`)。単一引用符はバックスラッシュを
 /// 特別扱いしないので、どのツールでも同じに読める。改行などの制御文字は空白にする
 pub fn yaml_scalar(value: &str) -> String {
-    let flat: String = value
+    let flat = one_line(value);
+    if needs_quotes(&flat) {
+        single_quoted(&flat)
+    } else {
+        flat
+    }
+}
+
+/// 1行の値にする(改行などの制御文字は空白に。改行のまま書くとフロントマターの形が壊れる)
+fn one_line(value: &str) -> String {
+    value
         .chars()
         .map(|c| if c.is_control() { ' ' } else { c })
-        .collect();
-    let needs_quotes = flat
-        .chars()
+        .collect()
+}
+
+/// そのままでは YAML の値として読み直せないか。
+/// 先頭が記号・`: ` や ` #` を含む・末尾が `:`・前後に空白・引用符を含む
+fn needs_quotes(flat: &str) -> bool {
+    flat.chars()
         .next()
         .is_some_and(|c| "-?:,[]{}#&*!|>'\"%@`".contains(c))
         || flat.contains(": ")
@@ -271,12 +287,12 @@ pub fn yaml_scalar(value: &str) -> String {
         || flat.ends_with(':')
         || flat.starts_with(char::is_whitespace)
         || flat.ends_with(char::is_whitespace)
-        || flat.contains(['"', '\'']);
-    if needs_quotes {
-        format!("'{}'", flat.replace('\'', "''"))
-    } else {
-        flat
-    }
+        || flat.contains(['"', '\''])
+}
+
+/// 単一引用符で包む(中の `'` は `''`。バックスラッシュは特別扱いしない)
+fn single_quoted(flat: &str) -> String {
+    format!("'{}'", flat.replace('\'', "''"))
 }
 
 /// YAML で意味を持つ文字を含む名前(ファイル名に使えるもの)。テスト用。
@@ -301,12 +317,18 @@ pub(crate) const YAML_TRICKY: &[&str] = &[
     "  前後の空白  ",
 ];
 
-/// YAMLのインライン配列に入れて壊れる文字があれば引用符で包む
+/// YAMLのインライン配列(`[a, b]`)の要素として書く。壊れる文字があれば引用符で包む。
+///
+/// 配列の中では `,` `[` `]` `{` `}` も区切りになる。以前は二重引用符で包み `"` を `\"` に
+/// していたが、読み手は `\"` の `"` で引用を閉じてしまうので、`"` の後ろにカンマがある
+/// 別名(`",「?` など)が2つに割れた。改行を含む別名はフロントマターの形を壊した
+/// (テスト計画 C4)。題名と同じく単一引用符で包む
 pub(crate) fn quote_if_needed(value: &str) -> String {
-    if value.contains([',', '[', ']', '"', '\'', ':', '#']) {
-        format!("\"{}\"", value.replace('"', "\\\""))
+    let flat = one_line(value);
+    if needs_quotes(&flat) || flat.contains([',', '[', ']', '{', '}', '#', ':']) {
+        single_quoted(&flat)
     } else {
-        value.to_string()
+        flat
     }
 }
 
@@ -675,7 +697,9 @@ mod tests {
     fn quotes_values_that_would_break_inline_array() {
         let src = "---\ntitle: X\n---\n";
         let got = add_aliases(src, &["a, b".into()]);
-        assert!(got.contains("aliases: [\"a, b\"]"), "{got}");
+        // 単一引用符で包む(二重引用符と \" では、" の後ろのカンマで割れた。テスト計画 C4)
+        assert!(got.contains("aliases: ['a, b']"), "{got}");
+        assert_eq!(parse_source(&got).aliases, vec!["a, b"]);
     }
 
     #[test]
@@ -755,6 +779,90 @@ mod tests {
             "--- \ntitle: 黒木\n本文\n",
         ] {
             assert_eq!(add_aliases(src, &["教授".into()]), src, "{src:?}");
+        }
+    }
+
+    /// テスト計画 C4: 別名を足して読み直すと、同じ別名の並びに戻る(往復)
+    #[test]
+    fn tricky_aliases_survive_the_round_trip() {
+        let tricky = [
+            "黒木, 龍一",
+            "He said \"hi\"",
+            "ゴロウ's",
+            "'教授'",
+            "C#",
+            "a #b",
+            "時刻: 夜",
+            "[仮]",
+            "{波}",
+            "&印",
+            "*星",
+            "!注意",
+            "- 前",
+            "黒木、龍一",
+            "「教授」",
+            "＃全角",
+            "a\\b",
+            "\"a\", 'b'",
+            "改\n行",
+        ];
+        let src = "---\ntitle: 黒木\naliases: [龍一]\n---\n本文\n";
+        for alias in tricky {
+            let got = add_aliases(src, &[alias.to_string()]);
+            let expected_alias = alias.replace('\n', " ");
+            assert_eq!(
+                parse_source(&got).aliases,
+                vec!["龍一".to_string(), expected_alias],
+                "{alias:?} → {got:?}"
+            );
+            assert_eq!(split(&got).1, "本文\n", "フロントマターが壊れた: {got:?}");
+        }
+    }
+
+    /// 読み直したときの形でそろえて比べる。改行を含む同じ別名を、もう1つ足さない
+    #[test]
+    fn alias_with_a_newline_is_not_added_twice() {
+        let src = "---\ntitle: 黒木\naliases: [改 行]\n---\n本文\n";
+        assert_eq!(add_aliases(src, &["改\n行".into()]), src);
+    }
+
+    /// 配列の区切り(`,` `[` `]` `{` `}`)が途中にある別名も包む。アプリの読み手は包まなくても
+    /// 読めるが、ほかのツール(標準の YAML の読み手)では配列が壊れる
+    #[test]
+    fn flow_indicators_inside_an_alias_are_quoted() {
+        for v in ["a,b", "a[b", "a]b", "a{b", "a}b"] {
+            assert_eq!(quote_if_needed(v), format!("'{v}'"));
+        }
+        assert_eq!(quote_if_needed("黒木"), "黒木", "要らないときは包まない");
+    }
+
+    /// 乱数で作った別名(固定シード)でも往復する
+    #[test]
+    fn random_aliases_survive_the_round_trip() {
+        const PIECES: &[&str] = &[
+            ",", "\"", "'", "#", ":", " ", "[", "]", "{", "}", "&", "*", "!", "\\", "-", "?", "|",
+            "、", "「", "」", "黒", "木", "a", "\n", "\t",
+        ];
+        let mut seed = 20261004u64;
+        let mut next = || {
+            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            (seed >> 33) as usize
+        };
+        for _ in 0..2000 {
+            let alias: String = (0..1 + next() % 6).map(|_| PIECES[next() % PIECES.len()]).collect();
+            // 足す側は前後の空白を落とし、改行などの制御文字は空白にして読む形になる
+            let expected = alias.replace(['\n', '\t'], " ").trim().to_string();
+            if expected.is_empty() || expected == "黒木" || expected == "龍一" {
+                continue;
+            }
+            let src = "---\ntitle: 黒木\naliases: [龍一]\n---\n本文\n";
+            let got = add_aliases(src, std::slice::from_ref(&alias));
+            assert_eq!(
+                parse_source(&got).aliases,
+                vec!["龍一".to_string(), expected.clone()],
+                "{alias:?} → {got:?}"
+            );
+            assert_eq!(split(&got).1, "本文\n", "フロントマターが壊れた: {got:?}");
         }
     }
 
