@@ -65,8 +65,13 @@ export function frontmatter(fields: Record<string, string | undefined>): string 
  * 開かれる**(P-5)ため、必要なときだけ引用符で囲む。
  */
 function yamlValue(raw: string): string {
-  // 改行は1行に潰す(複数行のスカラーは書かない)
-  const v = raw.replace(/\r?\n/g, " ").trim();
+  // 1行に潰す(複数行のスカラーは書かない)。CR だけの改行・ほかの制御文字・
+  // 行区切り(U+2028/U+2029)も空白にする。YAML 1.1 の読み手は CR と行区切りを改行として読み、
+  // ほかの制御文字は受け付けない(Rust の frontmatter::one_line と同じ規則。テスト計画 C5)
+  const v = raw
+    .replace(/\r\n/g, " ")
+    .replace(/[\p{Cc}\p{Zl}\p{Zp}]/gu, " ")
+    .trim();
   const needsQuote = /[:#]/.test(v) || /^[-?[\]{}&*!|>'"%@`]/.test(v);
   if (!needsQuote) return v;
   // **単一引用符を使う**。二重引用符だとバックスラッシュのエスケープが要るが、
