@@ -471,7 +471,9 @@ pub fn rename(root: &Path, from: &str, to: &str) -> Result<(), ProjectError> {
             format!("見つかりません: {from}"),
         )));
     }
-    if dst.exists() {
+    // 大文字小文字だけの改名(`a.md` → `A.md`)は、Windows では改名先が「ある」と見える。
+    // 同じものを指しているなら衝突ではない。別のものなら上書きしない
+    if dst.exists() && !same_entry(&src, &dst) {
         return Err(ProjectError::Io(io::Error::new(
             io::ErrorKind::AlreadyExists,
             format!("同名のファイルが既にあります: {to}"),
@@ -483,6 +485,17 @@ pub fn rename(root: &Path, from: &str, to: &str) -> Result<(), ProjectError> {
     fs::rename(&src, &dst)?;
     rewrite_links(root, from, to)?;
     Ok(())
+}
+
+/// 2つのパスがディスク上の同じものを指しているか。
+///
+/// 大文字小文字を区別しないファイルシステムで、`a.md` と `A.md` を同じと見分けるためだけに使う
+/// (パスの検証には使わない=§9)。解決できなければ「別のもの」として扱い、上書きしない側に倒す
+fn same_entry(a: &Path, b: &Path) -> bool {
+    match (fs::canonicalize(a), fs::canonicalize(b)) {
+        (Ok(x), Ok(y)) => x == y,
+        _ => false,
+    }
 }
 
 /// 複製。「〜のコピー」を付け、既にあれば連番にする。
@@ -951,6 +964,34 @@ mod tests {
         assert_eq!(
             fs::read_to_string(root.join("manuscript/01.md")).unwrap(),
             "登場: [悠二](../codex/characters/五十嵐悠二.md)\n"
+        );
+        fs::remove_dir_all(root).ok();
+    }
+
+    /// 大文字小文字だけの改名ができること。Windows では改名先が「既にある」と見えるため、
+    /// 以前は「同名のファイルが既にあります」で断られていた
+    #[test]
+    fn renaming_only_the_letter_case_works() {
+        let root = tmp();
+        init(&root).unwrap();
+        create_file(&root, "manuscript/scene.md", "本文").unwrap();
+        create_file(&root, "manuscript/index.md", "[場面](scene.md)\n").unwrap();
+
+        rename(&root, "manuscript/scene.md", "manuscript/Scene.md").unwrap();
+
+        let names: Vec<String> = fs::read_dir(root.join("manuscript"))
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        assert!(names.contains(&"Scene.md".to_string()), "{names:?}");
+        assert!(!names.contains(&"scene.md".to_string()), "{names:?}");
+        assert_eq!(
+            fs::read_to_string(root.join("manuscript/Scene.md")).unwrap(),
+            "本文"
+        );
+        assert_eq!(
+            fs::read_to_string(root.join("manuscript/index.md")).unwrap(),
+            "[場面](Scene.md)\n"
         );
         fs::remove_dir_all(root).ok();
     }
