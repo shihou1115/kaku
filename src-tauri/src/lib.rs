@@ -125,9 +125,10 @@ fn to_msg(e: ProjectError) -> String {
 
 /// 実行中のAI処理を中止する。
 ///
-/// 走っているリクエスト自体は途中で切らない(HTTPの中断まで持ち込むと
-/// 薄いクライアントでなくなる)。**次の塊へ進まない**ところで止める。
-/// 校正は最大4分割×240秒あるので、これだけで待ち時間の上限が大きく下がる。
+/// 世代番号を進めるだけで、各処理は待っている応答を**その場で捨てて**止まる
+/// (`unless_cancelled`。未来を捨てるので接続も閉じる)。以前は「次の塊へ進まない」
+/// ところでしか止めず、応答の始まりを待っている間(長い本文の読み込み中など)に
+/// 押しても、応答が返るまで最大240秒止まらなかった。
 #[tauri::command]
 fn cancel_ai(state: State<AppState>) {
     state
@@ -165,6 +166,30 @@ type LogFn<'a> = dyn Fn(&str, &[ChatMessage], &str, u64, Option<&str>) + Send + 
 fn live_cancel(app: &AppState) -> impl Fn() -> bool + Send + Sync + '_ {
     let start = app.ai_epoch.load(std::sync::atomic::Ordering::SeqCst);
     move || app.ai_epoch.load(std::sync::atomic::Ordering::SeqCst) != start
+}
+
+/// 中止を見に行く間隔。押してから止まるまでの遅れの上限になる
+const CANCEL_POLL_MS: u64 = 150;
+
+/// 中止されるまで待つ(中止は世代番号なので、短い間隔で見に行く)
+async fn until_cancelled(cancelled: &CancelFn<'_>) {
+    while !cancelled() {
+        tokio::time::sleep(std::time::Duration::from_millis(CANCEL_POLL_MS)).await;
+    }
+}
+
+/// 応答を待つ。**中止されたら待つのをやめて `None` を返す**。
+///
+/// 待っていた未来は捨てる(HTTP の接続も閉じる)。止めるのは待つことだけで、
+/// リトライや退避のような仕組みは足さない(06 §4: send/stream/cancel の薄いクライアント)
+async fn unless_cancelled<T>(
+    cancelled: &CancelFn<'_>,
+    fut: impl std::future::Future<Output = T>,
+) -> Option<T> {
+    tokio::select! {
+        r = fut => Some(r),
+        _ = until_cancelled(cancelled) => None,
+    }
 }
 
 /// 本番の記録先(`.app/logs/`)。プロジェクトが開かれていなければ記録しない。
@@ -633,25 +658,44 @@ async fn run_proofread(
             },
         ];
 
-        // 経路A: 構造化出力。失敗したら経路B(スキーマ無し+寛容パース)へ落とす
+        // 経路A: 構造化出力。失敗したら経路B(スキーマ無し+寛容パース)へ落とす。
+        // どの待ちでも、中止されたらその場でやめる(待っていた応答は捨てる)
         let mut used_fallback = false;
         let call_started = std::time::Instant::now();
-        let first = match ai::chat(
-            &s.base_url,
-            &s.api_key,
-            &s.model,
-            &messages,
-            0.1,
-            Some(proofread::issue_schema()),
+        let first = match unless_cancelled(
+            h.cancelled,
+            ai::chat(
+                &s.base_url,
+                &s.api_key,
+                &s.model,
+                &messages,
+                0.1,
+                Some(proofread::issue_schema()),
+            ),
         )
         .await
         {
-            Ok(out) => out,
-            Err(_) => {
+            None => {
+                (h.log)("proofread", &messages, "", ms_since(call_started), Some("中止された"));
+                cancelled = true;
+                break;
+            }
+            Some(Ok(out)) => out,
+            Some(Err(_)) => {
                 used_fallback = true;
-                match ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.1, None).await {
-                    Ok(out) => out,
-                    Err(e) => {
+                match unless_cancelled(
+                    h.cancelled,
+                    ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.1, None),
+                )
+                .await
+                {
+                    None => {
+                        (h.log)("proofread", &messages, "", ms_since(call_started), Some("中止された"));
+                        cancelled = true;
+                        break;
+                    }
+                    Some(Ok(out)) => out,
+                    Some(Err(e)) => {
                         let note = format!("失敗: {e}");
                         (h.log)("proofread", &messages, "", ms_since(call_started), Some(&note));
                         // 一部が落ちても、取れた分は返す(全部やり直させない)
@@ -681,8 +725,18 @@ async fn run_proofread(
         // 不足であって出力形式ではないため、投げ直しても同じ結果になり時間を捨てるだけ
         if !structured && !used_fallback && !chunk_truncated {
             let retry_started = std::time::Instant::now();
-            if let Ok(out) = ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.1, None).await
-            {
+            let retried = unless_cancelled(
+                h.cancelled,
+                ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.1, None),
+            )
+            .await;
+            // 測り直しの途中で中止されたら、この塊は判定しない(読めたかどうか分からない)
+            let Some(retried) = retried else {
+                (h.log)("proofread", &messages, "", ms_since(retry_started), Some("中止された"));
+                cancelled = true;
+                break;
+            };
+            if let Ok(out) = retried {
                 completion_tokens += out_tokens(&out);
                 (h.log)(
                     "proofread",
@@ -821,7 +875,16 @@ async fn suggest_scene_split(
     let started = std::time::Instant::now();
     // 分割は**全体を通して読まないと切れ目が分からない**ので、分割送信はしない。
     // 長すぎてコンテキストに入らない場合は打ち切りとして正直に伝える
-    let out = ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.2, None).await?;
+    let Some(out) = unless_cancelled(
+        &cancelled,
+        ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.2, None),
+    )
+    .await
+    else {
+        log("split", &messages, "", ms_since(started), Some("中止された"));
+        return Err("中止しました".to_string());
+    };
+    let out = out?;
     log(
         "split",
         &messages,
@@ -1016,23 +1079,42 @@ async fn run_review(
         // 温度は校正(0.1)より少し高くする。校正は正解が1つだが、
         // レビューは読み方に幅があり、固めすぎると当たり障りのない指摘に寄る
         //
-        // 経路A: 構造化出力。失敗したら経路B(スキーマ無し+寛容パース)へ落とす
-        let first = match ai::chat(
-            &s.base_url,
-            &s.api_key,
-            &s.model,
-            &messages,
-            0.3,
-            Some(review::review_schema()),
+        // 経路A: 構造化出力。失敗したら経路B(スキーマ無し+寛容パース)へ落とす。
+        // どの待ちでも、中止されたらその場でやめる(待っていた応答は捨てる)
+        let first = match unless_cancelled(
+            h.cancelled,
+            ai::chat(
+                &s.base_url,
+                &s.api_key,
+                &s.model,
+                &messages,
+                0.3,
+                Some(review::review_schema()),
+            ),
         )
         .await
         {
-            Ok(out) => out,
-            Err(_) => {
+            None => {
+                (h.log)("review", &messages, "", ms_since(call_started), Some("中止された"));
+                cancelled = true;
+                break;
+            }
+            Some(Ok(out)) => out,
+            Some(Err(_)) => {
                 used_fallback = true;
-                match ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.3, None).await {
-                    Ok(out) => out,
-                    Err(e) => {
+                match unless_cancelled(
+                    h.cancelled,
+                    ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.3, None),
+                )
+                .await
+                {
+                    None => {
+                        (h.log)("review", &messages, "", ms_since(call_started), Some("中止された"));
+                        cancelled = true;
+                        break;
+                    }
+                    Some(Ok(out)) => out,
+                    Some(Err(e)) => {
                         let note = format!("失敗: {e}");
                         (h.log)("review", &messages, "", ms_since(call_started), Some(&note));
                         // 一部が落ちても、取れた分は返す(全部やり直させない)
@@ -1060,8 +1142,18 @@ async fn run_review(
         // コンテキスト不足なので、投げ直しても同じ結果になり時間を捨てるだけ)
         if !parsed.structured && !used_fallback && !chunk_truncated {
             let retry_started = std::time::Instant::now();
-            if let Ok(out) = ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.3, None).await
-            {
+            let retried = unless_cancelled(
+                h.cancelled,
+                ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.3, None),
+            )
+            .await;
+            // 測り直しの途中で中止されたら、この塊は判定しない(読めたかどうか分からない)
+            let Some(retried) = retried else {
+                (h.log)("review", &messages, "", ms_since(retry_started), Some("中止された"));
+                cancelled = true;
+                break;
+            };
+            if let Ok(out) = retried {
                 completion_tokens += out_tokens(&out);
                 (h.log)(
                     "review",
@@ -1257,7 +1349,17 @@ async fn run_extract(
                 content: extract::build_prompt(chunk, &known),
             },
         ];
-        match ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.1, None).await {
+        let Some(answer) = unless_cancelled(
+            h.cancelled,
+            ai::chat(&s.base_url, &s.api_key, &s.model, &messages, 0.1, None),
+        )
+        .await
+        else {
+            (h.log)("extract", &messages, "", ms_since(call_started), Some("中止された"));
+            cancelled = true;
+            break;
+        };
+        match answer {
             Ok(out) => {
                 (h.log)(
                     "extract",
@@ -1461,18 +1563,21 @@ async fn ask_ai(
     };
     let started = std::time::Instant::now();
 
-    let resp = match ai::stream_request(&s.base_url, &s.api_key, &s.model, &messages, s.temperature)
-        .send()
-        .await
-    {
-        Ok(r) => r,
-        // 応答の始まりを待つ間に中止され、その後で接続が切れた。通信の失敗とは言わない
-        Err(_) if cancelled() => {
+    let sent = unless_cancelled(
+        &cancelled,
+        ai::stream_request(&s.base_url, &s.api_key, &s.model, &messages, s.temperature).send(),
+    )
+    .await;
+    let resp = match sent {
+        Some(Ok(r)) => r,
+        Some(Err(e)) if !cancelled() => return Err(ai::describe_error(&e, &s.base_url)),
+        // 応答の始まりを待つ間に中止された(その後で接続が切れた場合も)。
+        // 通信の失敗とは言わない
+        _ => {
             log("chat", &messages, "", ms_since(started), Some("中止された"));
             let _ = on_event.send(ChatEvent::Cancelled);
             return Ok(());
         }
-        Err(e) => return Err(ai::describe_error(&e, &s.base_url)),
     };
 
     if !resp.status().is_success() {
@@ -1528,7 +1633,12 @@ async fn consume_stream(
     let mut stream = resp.bytes_stream();
     let mut buf: Vec<u8> = Vec::new();
     let mut answer = String::new();
-    while let Some(chunk) = stream.next().await {
+    loop {
+        // 次の塊が来ない間(モデルが考えている間など)も、中止されたら待つのをやめる
+        let Some(next) = unless_cancelled(h.cancelled, stream.next()).await else {
+            return Ok((StreamEnd::Cancelled, answer));
+        };
+        let Some(chunk) = next else { break };
         let chunk = match chunk {
             Ok(c) => c,
             Err(_) if (h.cancelled)() => return Ok((StreamEnd::Cancelled, answer)),
@@ -1637,7 +1747,14 @@ mod ai_run_tests {
         Status(u16),
         /// ストリーム。各要素を**間を空けて別々に**書き込む(読み取り単位を割るため)
         Stream(Vec<Vec<u8>>),
+        /// 何も返さずに黙り込む(長い本文を読み込んでいるモデル)。中止で待つのをやめられるかを見る
+        Hang,
+        /// 途中まで流してから黙り込む(次の塊の前に考え込んでいるモデル)
+        StreamThenHang(Vec<Vec<u8>>),
     }
+
+    /// 黙り込む長さ。テストはこれより十分短い時間で終わらなければならない
+    const HANG: std::time::Duration = std::time::Duration::from_secs(10);
 
     /// 台本どおりに答える OpenAI 互換の擬似サーバー。
     ///
@@ -1673,14 +1790,11 @@ mod ai_run_tests {
                     Some(Reply::Status(code)) => {
                         respond(&mut conn, code, r#"{"error":"unsupported"}"#)
                     }
-                    Some(Reply::Stream(parts)) => {
-                        let head = "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\nconnection: close\r\n\r\n";
-                        let _ = conn.write_all(head.as_bytes());
-                        for p in parts {
-                            let _ = conn.write_all(&p);
-                            let _ = conn.flush();
-                            std::thread::sleep(std::time::Duration::from_millis(40));
-                        }
+                    Some(Reply::Stream(parts)) => write_stream(&mut conn, parts),
+                    Some(Reply::Hang) => std::thread::sleep(HANG),
+                    Some(Reply::StreamThenHang(parts)) => {
+                        write_stream(&mut conn, parts);
+                        std::thread::sleep(HANG);
                     }
                     None => respond(
                         &mut conn,
@@ -1723,6 +1837,16 @@ mod ai_run_tests {
             buf.extend_from_slice(&tmp[..n]);
         }
         String::from_utf8_lossy(&buf[header_end..]).into_owned()
+    }
+
+    fn write_stream(conn: &mut TcpStream, parts: Vec<Vec<u8>>) {
+        let head = "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\nconnection: close\r\n\r\n";
+        let _ = conn.write_all(head.as_bytes());
+        for p in parts {
+            let _ = conn.write_all(&p);
+            let _ = conn.flush();
+            std::thread::sleep(std::time::Duration::from_millis(40));
+        }
     }
 
     fn respond(conn: &mut TcpStream, code: u16, body: &str) {
@@ -1903,6 +2027,69 @@ mod ai_run_tests {
         let r = run_proofread(&s, &text, &[], &h).await.unwrap();
         assert_eq!(m.count(), 1, "中止の後も投げている");
         assert!(r.warning.unwrap_or_default().contains("中止しました"));
+    }
+
+    /// 中止されたら、終わらない待ちでもすぐにやめる。終わる待ちなら値を返す
+    #[tokio::test]
+    async fn waiting_stops_as_soon_as_cancelled() {
+        let t0 = std::time::Instant::now();
+        let c = move || t0.elapsed() > std::time::Duration::from_millis(200);
+        assert!(unless_cancelled(&c, std::future::pending::<()>()).await.is_none());
+        assert!(
+            t0.elapsed() < std::time::Duration::from_secs(2),
+            "止まるまでが遅すぎる: {:?}",
+            t0.elapsed()
+        );
+        let n = never();
+        assert_eq!(unless_cancelled(&n, async { 7 }).await, Some(7));
+    }
+
+    /// 応答の始まりを待っている間(長い本文の読み込み中など)に中止したら、応答を待たずに止まる。
+    /// 以前は「次の塊へ進まない」ところでしか止めず、応答が返るまで(最大240秒)止まらなかった
+    #[tokio::test]
+    async fn proofread_stops_waiting_for_a_silent_model_when_cancelled() {
+        let m = mock(vec![Reply::Hang]);
+        let t0 = std::time::Instant::now();
+        let c = move || t0.elapsed() > std::time::Duration::from_millis(300);
+        let l = no_log();
+        let h = AiHooks { cancelled: &c, log: &l };
+        let r = run_proofread(&settings(&m), TEXT, &[], &h).await.unwrap();
+        assert!(
+            t0.elapsed() < HANG / 3,
+            "黙っているモデルを待ち続けた: {:?}",
+            t0.elapsed()
+        );
+        assert!(r.warning.unwrap_or_default().contains("中止しました"));
+        assert_eq!(m.count(), 1, "中止のあとに投げ直した");
+    }
+
+    /// 塊の合間に黙り込んだ(次の塊の前に考えている)間に中止しても、次の塊を待たずに止まる
+    #[tokio::test]
+    async fn stream_stops_waiting_during_silence_when_cancelled() {
+        use std::sync::atomic::AtomicBool;
+        let m = mock(vec![Reply::StreamThenHang(vec![sse_delta("一").into_bytes()])]);
+        let stopped = Arc::new(AtomicBool::new(false));
+        let seen = stopped.clone();
+        let c = move || seen.load(Ordering::SeqCst);
+        let l = no_log();
+        let h = AiHooks {
+            cancelled: &c,
+            log: &l,
+        };
+        let t0 = std::time::Instant::now();
+        let resp = ai::stream_request(&m.base_url, &None, "test-model", &[], 0.7)
+            .send()
+            .await
+            .unwrap();
+        let mut push = |_: String| stopped.store(true, Ordering::SeqCst);
+        let (end, answer) = consume_stream(resp, &h, &mut push).await.unwrap();
+        assert_eq!(end, StreamEnd::Cancelled);
+        assert_eq!(answer, "一");
+        assert!(
+            t0.elapsed() < HANG / 3,
+            "次の塊を待ち続けた: {:?}",
+            t0.elapsed()
+        );
     }
 
     /// 測り直しも含めて、**呼び出しのたびに記録が残ること**(T-06)。
@@ -2095,18 +2282,33 @@ mod ai_run_tests {
     /// `Done` で返すと、画面は「検閲で拒否された」と誤表示し、会話の履歴に途中の応答が積まれる
     #[tokio::test]
     async fn stream_reports_cancel_as_cancelled_not_done() {
+        use std::sync::atomic::AtomicBool;
         let m = mock(vec![Reply::Stream(vec![
             sse_delta("一").into_bytes(),
             sse_delta("二").into_bytes(),
             sse_delta("三").into_bytes(),
             b"data: [DONE]\n\n".to_vec(),
         ])]);
-        let checks = Arc::new(AtomicUsize::new(0));
-        let n = checks.clone();
-        // 最初の読み取りを処理した後で中止された、という状況
-        let c = move || n.fetch_add(1, Ordering::SeqCst) >= 1;
-        let (r, got) = stream_with(&m, &c).await;
-        let (end, answer) = r.unwrap();
+        // 1文字目が画面に出た直後に「中止」が押された、という状況。
+        // (中止を見る回数で決めると、待っている間にも見るようになった今は早すぎる)
+        let stopped = Arc::new(AtomicBool::new(false));
+        let seen = stopped.clone();
+        let c = move || seen.load(Ordering::SeqCst);
+        let l = no_log();
+        let h = AiHooks {
+            cancelled: &c,
+            log: &l,
+        };
+        let resp = ai::stream_request(&m.base_url, &None, "test-model", &[], 0.7)
+            .send()
+            .await
+            .unwrap();
+        let mut got = Vec::new();
+        let mut push = |d: String| {
+            got.push(d);
+            stopped.store(true, Ordering::SeqCst);
+        };
+        let (end, answer) = consume_stream(resp, &h, &mut push).await.unwrap();
         assert_eq!(end, StreamEnd::Cancelled);
         assert_eq!(answer, "一");
         assert_eq!(got, vec!["一".to_string()], "中止の後も流している");

@@ -1116,7 +1116,7 @@ export default function App() {
               title="実行中のAI処理を中止する(ここまでの結果は残ります)"
               onClick={() => {
                 void api.cancelAi().catch(() => {});
-                setStatus("中止しています(いま送っている分の応答を待っています)");
+                setStatus("中止しました(ここまでの結果は残ります)");
               }}
             >
               中止
