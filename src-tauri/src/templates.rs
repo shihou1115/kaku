@@ -497,7 +497,14 @@ pub fn fill_title(body: &str, title: &str) -> String {
     let mut fence_seen = 0;
     for line in body.split_inclusive('\n') {
         let bare = line.trim_end_matches(['\n', '\r']);
-        if bare == "---" {
+        // 区切りの判定はフロントマターの読み手と同じ(BOM・行末の空白を許す。テスト計画 C3)。
+        // 文例は本人が書き換えるファイルなので、メモ帳で保存した形でも題名が入るように
+        let is_fence = if fence_seen == 0 {
+            crate::frontmatter::is_open_fence(line)
+        } else {
+            crate::frontmatter::is_close_fence(line)
+        };
+        if is_fence {
             fence_seen += 1;
             in_fm = fence_seen == 1;
             out.push_str(line);
@@ -558,6 +565,19 @@ mod tests {
     fn empty_title_is_noop() {
         let src = "---\ntitle:\n---\n";
         assert_eq!(fill_title(src, "   "), src);
+    }
+
+    /// テスト計画 C3: 文例を本人がメモ帳などで保存して、BOM や区切りの行末の空白が付いても題名が入る
+    #[test]
+    fn fills_title_in_a_template_saved_with_bom_or_trailing_spaces() {
+        for src in ["\u{feff}---\ntitle:\n---\n本文\n", "--- \r\ntitle:\r\n---\r\n本文\r\n"] {
+            let got = fill_title(src, "佐藤架純");
+            assert_eq!(
+                crate::frontmatter::parse_source(&got).title.as_deref(),
+                Some("佐藤架純"),
+                "{got:?}"
+            );
+        }
     }
 
     /// テスト計画 C2: どんな名前でも、読み直すと同じ名前に戻る

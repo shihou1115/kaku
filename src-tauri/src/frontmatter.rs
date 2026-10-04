@@ -19,27 +19,42 @@ pub struct FrontMatter {
     pub description: Option<String>,
 }
 
+/// フロントマターを開く区切り行か(`---`)。
+///
+/// **行末の空白と、ファイル先頭の BOM は区切りの一部として許す**(テスト計画 C3)。
+/// 許さないと、`--- ` のファイルはフロントマター無しに見え、別名を足すときに新しい
+/// フロントマターを頭に作って元の題名などを本文側へ押し出した。BOM の付いたファイル
+/// (メモ帳などで保存したもの)には、別名を足しても黙って何も起きなかった。
+/// `---text` は区切りではない(水平線や本文と区別する)
+pub(crate) fn is_open_fence(line: &str) -> bool {
+    line.trim_start_matches('\u{feff}').trim_end() == "---"
+}
+
+/// フロントマターを閉じる区切り行か(`---` か `...`。行末の空白は許す)
+pub(crate) fn is_close_fence(line: &str) -> bool {
+    let t = line.trim_end();
+    t == "---" || t == "..."
+}
+
 /// ファイル全体を (フロントマター, 本文) に分ける。
 ///
 /// フロントマターが無ければ `None` と全文を返す。
 pub fn split(source: &str) -> (Option<&str>, &str) {
-    // 先頭のBOM・空行は許容する
+    // 先頭のBOMは許容する
     let trimmed = source.strip_prefix('\u{feff}').unwrap_or(source);
-    let rest = match trimmed.strip_prefix("---") {
-        Some(r) => r,
-        None => return (None, trimmed),
+    // 1行目が区切りでなければフロントマター無し(区切りの後ろには改行が要る)
+    let Some(first_end) = trimmed.find('\n').map(|i| i + 1) else {
+        return (None, trimmed);
     };
-    // "---" の直後は改行でなければならない(水平線 "---text" と区別する)
-    let rest = match rest.strip_prefix("\r\n").or_else(|| rest.strip_prefix('\n')) {
-        Some(r) => r,
-        None => return (None, trimmed),
-    };
+    if !is_open_fence(&trimmed[..first_end]) {
+        return (None, trimmed);
+    }
+    let rest = &trimmed[first_end..];
 
-    // 終端の "---" を行頭で探す
+    // 閉じる区切りを行頭で探す
     let mut offset = 0usize;
     for line in rest.split_inclusive('\n') {
-        let bare = line.trim_end_matches(['\n', '\r']);
-        if bare == "---" || bare == "..." {
+        if is_close_fence(line) {
             let fm = &rest[..offset];
             let body = &rest[offset + line.len()..];
             return (Some(fm), body);
@@ -163,11 +178,7 @@ pub fn add_aliases(source: &str, additions: &[String]) -> String {
     // ただし `---` で始まるのに閉じられていない場合は**壊れたフロントマター**なので触らない
     // (先頭に足すと `---` が二重になり、さらに壊れる)
     if split(source).0.is_none() {
-        let head = source.strip_prefix('\u{feff}').unwrap_or(source);
-        let looks_broken = head
-            .strip_prefix("---")
-            .map(|r| r.starts_with('\n') || r.starts_with("\r\n"))
-            .unwrap_or(false);
+        let looks_broken = source.lines().next().is_some_and(is_open_fence);
         if looks_broken {
             return source.to_string();
         }
@@ -182,7 +193,13 @@ pub fn add_aliases(source: &str, additions: &[String]) -> String {
     for line in source.split_inclusive('\n') {
         let bare = line.trim_end_matches(['\n', '\r']);
 
-        if bare == "---" || bare == "..." {
+        // 1行目は開く区切り(BOM・行末の空白を許す。split と同じ判定)
+        let is_fence = if fence == 0 {
+            is_open_fence(line)
+        } else {
+            is_close_fence(line)
+        };
+        if is_fence {
             fence += 1;
             // フロントマターを閉じる直前で、まだ書けていなければここで入れる
             if fence == 2 && !wrote {
@@ -707,6 +724,38 @@ mod tests {
         let got = set_title("本文\n", "一行目\n二行目");
         assert_eq!(parse_source(&got).title.as_deref(), Some("一行目 二行目"));
         assert_eq!(split(&got).1, "\n本文\n");
+    }
+
+    /// テスト計画 C3: BOM の付いたファイル(メモ帳などで保存したもの)にも別名を足せる。
+    /// 以前は1行目の「BOM+---」を区切りと見なさず、何もせずに元のまま返していた(黙って効かない)
+    #[test]
+    fn aliases_are_added_to_a_file_with_bom() {
+        let src = "\u{feff}---\ntitle: 黒木\naliases: [龍一]\n---\n本文\n";
+        let got = add_aliases(src, &["教授".into()]);
+        assert_eq!(got, "\u{feff}---\ntitle: 黒木\naliases: [龍一, 教授]\n---\n本文\n");
+    }
+
+    /// 区切りの末尾に空白がある(`--- `)。区切りとして読み、別名を足すときに
+    /// 新しいフロントマターを頭に作らない(作ると元の題名などが本文側へ押し出される)
+    #[test]
+    fn fences_with_trailing_spaces_are_still_fences() {
+        let src = "--- \ntitle: 黒木\n---\t\n本文\n";
+        assert_eq!(parse_source(src).title.as_deref(), Some("黒木"));
+        assert_eq!(split(src).1, "本文\n");
+        let got = add_aliases(src, &["教授".into()]);
+        assert_eq!(got, "--- \ntitle: 黒木\naliases: [教授]\n---\t\n本文\n");
+    }
+
+    /// 壊れたフロントマター(閉じ忘れ)には、別名を足さない(足すと壊れた側が広がる)
+    #[test]
+    fn broken_frontmatter_is_never_widened() {
+        for src in [
+            "---\ntitle: 黒木\n本文\n",
+            "\u{feff}---\ntitle: 黒木\n本文\n",
+            "--- \ntitle: 黒木\n本文\n",
+        ] {
+            assert_eq!(add_aliases(src, &["教授".into()]), src, "{src:?}");
+        }
     }
 
     /// 引用の要らない値はそのまま書く(既存のファイルの見た目を変えない)
