@@ -2443,6 +2443,55 @@ mod ai_run_tests {
         assert!(w.contains("見ていません"), "{w}");
     }
 
+    /// テスト計画 E3: 塊の上限を超えた本文では、校正もレビューも見ていない末尾の字数を返す
+    /// (画面はこれを見て「指摘なし」と言わない)。字数は、見た塊の分を引いた残りと一致する
+    #[tokio::test]
+    async fn proofread_and_review_report_the_unread_tail() {
+        let text = (0..6).map(|_| long_text()).collect::<Vec<_>>().join("\n");
+        let chunks = proofread::split_for_check_with(&text, 500);
+        assert!(chunks.len() > proofread::MAX_CHUNKS, "テストの前提: 上限を超えること");
+        let read: usize = chunks[..proofread::MAX_CHUNKS].iter().map(|c| c.chars().count()).sum();
+        let expected = text.chars().count() - read;
+
+        let (c, l) = (never(), no_log());
+        let h = AiHooks { cancelled: &c, log: &l };
+        let m = mock((0..proofread::MAX_CHUNKS).map(|_| chat(Some(r#"{"issues":[]}"#), "stop")).collect());
+        let mut s = settings(&m);
+        s.check_chunk_chars = 500;
+        let r = run_proofread(&s, &text, &[], &h).await.unwrap();
+        assert_eq!(r.unchecked_chars, expected, "校正");
+
+        let m = mock((0..proofread::MAX_CHUNKS).map(|_| chat(Some(&review_json("")), "stop")).collect());
+        let mut s = settings(&m);
+        s.check_chunk_chars = 500;
+        let picked = review::selected_aspects(&[]);
+        let r = run_review(&s, &text, &picked, &[], vec![], &h).await.unwrap();
+        assert_eq!(r.unchecked_chars, expected, "レビュー");
+    }
+
+    /// テスト計画 E3: 同じ人物が2つの塊で挙がっても、候補は1つにまとまる(二重に出さない)
+    #[tokio::test]
+    async fn extract_merges_the_same_entity_from_two_chunks() {
+        let pad = |tag: &str| {
+            (0..12)
+                .map(|i| format!("{tag}{i}行目。これは分割の試験に使う本文で、それなりの長さがある。"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        };
+        let text = format!("{}\n佐藤架純が来た。\n{}\n佐藤架純が笑った。\n", pad("前"), pad("後"));
+        assert_eq!(proofread::split_for_check_with(&text, 500).len(), 2, "テストの前提");
+        let entity = |desc: &str| {
+            serde_json::json!({"entities": [{"name": "佐藤架純", "kind": "character", "description": desc, "aliases": []}]})
+                .to_string()
+        };
+        let m = mock(vec![chat(Some(&entity("主人公")), "stop"), chat(Some(&entity("高校生")), "stop")]);
+        let mut s = settings(&m);
+        s.check_chunk_chars = 500;
+        let r = extract_with(&s, &text).await;
+        let names: Vec<&str> = r.candidates.iter().map(|c| c.name.as_str()).collect();
+        assert_eq!(names, vec!["佐藤架純"], "同じ人物が二重に出た: {names:?}");
+    }
+
     // ===== 相談(ストリーミング) =====
 
     async fn stream_with(
