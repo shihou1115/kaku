@@ -209,6 +209,8 @@ export function HelpDialog({ onClose }: Props) {
               削除した項目は消えず <code>.app/trash/</code> へ移ります。
               エクスプローラーから元に戻せます。
               <br />
+              AIとのやりとりの記録(<code>.app/logs/</code>)は、30日より古いものを自動で消します。
+              <br />
               テンプレートと依頼の文例は設定フォルダ内のMarkdownです。
               自由に書き換えられます。
             </p>
